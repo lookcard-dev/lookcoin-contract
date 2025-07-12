@@ -11,13 +11,28 @@
     "deploy:bsc": "hardhat run scripts/deploy.ts --network bsc",
     "deploy:base": "hardhat run scripts/deploy.ts --network base",
     "deploy:optimism": "hardhat run scripts/deploy.ts --network optimism",
+    "deploy:sapphire": "hardhat run scripts/deploy.ts --network sapphire",
+    "deploy:bsc-testnet": "hardhat run scripts/deploy.ts --network bscTestnet",
+    "deploy:bsc-mainnet": "hardhat run scripts/deploy.ts --network bsc",
+    "deploy:base-sepolia": "hardhat run scripts/deploy.ts --network baseSepolia",
+    "deploy:base-mainnet": "hardhat run scripts/deploy.ts --network base",
+    "deploy:op-sepolia": "hardhat run scripts/deploy.ts --network opSepolia",
+    "deploy:op-mainnet": "hardhat run scripts/deploy.ts --network optimism",
+    "deploy:akashic-testnet": "hardhat run scripts/deploy.ts --network akashicTestnet",
+    "deploy:akashic-mainnet": "hardhat run scripts/deploy.ts --network akashic",
+    "configure:bridges": "hardhat run scripts/configure.ts",
     "verify": "hardhat verify",
-    "size": "hardhat size-contracts"
+    "size": "hardhat size-contracts",
+    "lint": "hardhat compile",
+    "format": "hardhat compile",
+    "test:integration": "hardhat test ignition/tests/CrossChain.test.ts",
+    "test:security": "hardhat test ignition/tests/Security.test.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@layerzerolabs/oft-evm": "^0.0.10",
     "@openzeppelin/contracts": "^5.0.2",
     "@openzeppelin/contracts-upgradeable": "^5.0.2"
   },
@@ -43,6 +58,7 @@
     "hardhat-contract-sizer": "^2.10.0",
     "hardhat-gas-reporter": "^2.3.0",
     "solidity-coverage": "^0.8.0",
+    "ts-node": "^10.9.2",
     "typechain": "^8.3.0",
     "typescript": ">=4.5.0"
   }

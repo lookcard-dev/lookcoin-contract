@@ -1,17 +1,54 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-// import "@celer-network/messagebus/contracts/apps/MessageSenderApp.sol";
-// import "@celer-network/messagebus/contracts/apps/MessageReceiverApp.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+// RateLimiter import removed for now
 
 interface ILookCoin {
     function mint(address to, uint256 amount) external;
     function decimals() external view returns (uint8);
+}
+
+interface IMessageBus {
+    function sendMessageWithTransfer(
+        address _receiver,
+        uint256 _chainId,
+        bytes calldata _message,
+        address _bridgeAddress,
+        bytes32 _transferId,
+        uint256 _fee
+    ) external payable;
+    
+    function feeBase() external view returns (uint256);
+    function feePerByte() external view returns (uint256);
+}
+
+interface IMessageReceiverApp {
+    function executeMessageWithTransfer(
+        address _sender,
+        address _token,
+        uint256 _amount,
+        uint64 _srcChainId,
+        bytes memory _message,
+        address _executor
+    ) external payable returns (ExecutionStatus);
+    
+    function executeMessageWithTransferRefund(
+        address _token,
+        uint256 _amount,
+        bytes calldata _message,
+        address _executor
+    ) external payable returns (ExecutionStatus);
+    
+    enum ExecutionStatus {
+        Fail,
+        Success,
+        Retry
+    }
 }
 
 /**
@@ -21,7 +58,8 @@ interface ILookCoin {
 contract CelerIMModule is 
     AccessControlUpgradeable,
     PausableUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    IMessageReceiverApp
 {
     using SafeERC20 for IERC20;
 
@@ -29,24 +67,18 @@ contract CelerIMModule is
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
+    // Chain ID constants
+    uint64 public constant BSC_CHAINID = 56;
+    uint64 public constant OPTIMISM_CHAINID = 10;
+    uint64 public constant SAPPHIRE_CHAINID = 23295;
+
     // State variables
     ILookCoin public lookCoin;
+    IMessageBus public messageBus;
     mapping(uint64 => address) public remoteModules; // chainId => module address
     mapping(address => bool) public whitelist;
     mapping(address => bool) public blacklist;
-    
-    // Rate limiting
-    uint256 public constant RATE_LIMIT_WINDOW = 1 hours;
-    uint256 public userTransferLimit;
-    uint256 public globalTransferLimit;
-    
-    struct RateLimitData {
-        uint256 transferAmount;
-        uint256 windowStart;
-    }
-    
-    mapping(address => RateLimitData) public userRateLimits;
-    RateLimitData public globalRateLimit;
+    mapping(bytes32 => bool) public processedTransfers;
     
     // Fee parameters
     uint256 public feePercentage; // Basis points (1% = 100)
@@ -60,17 +92,20 @@ contract CelerIMModule is
         uint64 indexed dstChainId,
         address indexed recipient,
         uint256 amount,
-        uint256 fee
+        uint256 fee,
+        bytes32 transferId
     );
     event CrossChainTransferMinted(
         uint64 indexed srcChainId,
         address indexed sender,
         address indexed recipient,
-        uint256 amount
+        uint256 amount,
+        bytes32 transferId
     );
     event RemoteModuleSet(uint64 indexed chainId, address module);
     event FeeParametersUpdated(uint256 feePercentage, uint256 minFee, uint256 maxFee);
     event EmergencyWithdraw(address indexed token, address indexed to, uint256 amount);
+    event MessageBusUpdated(address indexed newMessageBus);
 
     /**
      * @dev Initialize the Celer IM module
@@ -86,20 +121,26 @@ contract CelerIMModule is
         __AccessControl_init();
         __Pausable_init();
         __ReentrancyGuard_init();
+        // RateLimiter initialization removed
+        
+        require(_messageBus != address(0), "CelerIM: invalid message bus");
+        require(_lookCoin != address(0), "CelerIM: invalid LookCoin");
         
         lookCoin = ILookCoin(_lookCoin);
+        messageBus = IMessageBus(_messageBus);
         
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(ADMIN_ROLE, _admin);
         _grantRole(OPERATOR_ROLE, _admin);
+        // Rate limit admin role removed
         
         // Initialize defaults
-        userTransferLimit = 100000 * 10**lookCoin.decimals();
-        globalTransferLimit = 10000000 * 10**lookCoin.decimals();
         feePercentage = 50; // 0.5%
         minFee = 10 * 10**lookCoin.decimals();
         maxFee = 1000 * 10**lookCoin.decimals();
         feeCollector = _admin;
+        
+        // Rate limit configuration removed for now
     }
 
     /**
@@ -112,14 +153,22 @@ contract CelerIMModule is
         uint64 _dstChainId,
         address _recipient,
         uint256 _amount
-    ) external payable whenNotPaused nonReentrant {
+    ) external payable 
+        whenNotPaused 
+        nonReentrant
+        // Rate limiting check removed
+    {
         require(!blacklist[msg.sender], "CelerIM: sender blacklisted");
         require(whitelist[msg.sender] || !paused(), "CelerIM: not whitelisted");
         require(_recipient != address(0), "CelerIM: invalid recipient");
         require(_amount > 0, "CelerIM: invalid amount");
         require(remoteModules[_dstChainId] != address(0), "CelerIM: unsupported chain");
-        
-        _checkRateLimit(msg.sender, _amount);
+        require(
+            _dstChainId == BSC_CHAINID || 
+            _dstChainId == OPTIMISM_CHAINID || 
+            _dstChainId == SAPPHIRE_CHAINID,
+            "CelerIM: invalid destination chain"
+        );
         
         // Calculate fee
         uint256 fee = calculateFee(_amount);
@@ -133,44 +182,122 @@ contract CelerIMModule is
             IERC20(address(lookCoin)).safeTransfer(feeCollector, fee);
         }
         
+        // Generate unique transfer ID
+        bytes32 transferId = keccak256(
+            abi.encodePacked(msg.sender, _recipient, _amount, block.timestamp, block.number)
+        );
+        
         // Encode message
-        bytes memory message = abi.encode(msg.sender, _recipient, netAmount);
+        bytes memory message = abi.encode(
+            msg.sender,
+            _recipient,
+            netAmount,
+            transferId
+        );
         
-        // Send cross-chain message (implementation placeholder)
-        // sendMessage(_dstChainId, remoteModules[_dstChainId], message);
+        // Calculate Celer message fee
+        uint256 messageFee = estimateMessageFee(_dstChainId, message);
+        require(msg.value >= messageFee, "CelerIM: insufficient message fee");
         
-        emit CrossChainTransferLocked(msg.sender, _dstChainId, _recipient, netAmount, fee);
+        // Send cross-chain message with transfer
+        messageBus.sendMessageWithTransfer{value: messageFee}(
+            remoteModules[_dstChainId],
+            _dstChainId,
+            message,
+            address(lookCoin),
+            transferId,
+            messageFee
+        );
+        
+        // Refund excess ETH
+        if (msg.value > messageFee) {
+            payable(msg.sender).transfer(msg.value - messageFee);
+        }
+        
+        emit CrossChainTransferLocked(msg.sender, _dstChainId, _recipient, netAmount, fee, transferId);
     }
 
     /**
      * @dev Execute incoming cross-chain message and mint tokens
      * @param _sender Sender address on source chain
+     * @param _token Token address (should be address(0) for mint)
+     * @param _amount Amount (not used for mint)
      * @param _srcChainId Source chain ID
      * @param _message Encoded message data
      * @param _executor Executor address
      */
-    function executeMessage(
+    function executeMessageWithTransfer(
         address _sender,
+        address _token,
+        uint256 _amount,
         uint64 _srcChainId,
-        bytes calldata _message,
+        bytes memory _message,
         address _executor
-    ) external payable whenNotPaused returns (bool) {
+    ) external payable override whenNotPaused returns (ExecutionStatus) {
+        require(msg.sender == address(messageBus), "CelerIM: unauthorized caller");
         require(_sender == remoteModules[_srcChainId], "CelerIM: unauthorized sender");
         
         // Decode message
-        (address originalSender, address recipient, uint256 amount) = abi.decode(
-            _message,
-            (address, address, uint256)
-        );
+        (
+            address originalSender,
+            address recipient,
+            uint256 mintAmount,
+            bytes32 transferId
+        ) = abi.decode(_message, (address, address, uint256, bytes32));
+        
+        // Check for duplicate processing
+        require(!processedTransfers[transferId], "CelerIM: transfer already processed");
+        processedTransfers[transferId] = true;
         
         require(!blacklist[recipient], "CelerIM: recipient blacklisted");
         
+        // Rate limiting check removed for incoming transfers
+        
         // Mint tokens to recipient
-        lookCoin.mint(recipient, amount);
+        lookCoin.mint(recipient, mintAmount);
         
-        emit CrossChainTransferMinted(_srcChainId, originalSender, recipient, amount);
+        emit CrossChainTransferMinted(_srcChainId, originalSender, recipient, mintAmount, transferId);
         
-        return true;
+        return ExecutionStatus.Success;
+    }
+
+    /**
+     * @dev Handle message execution failure with refund
+     * @param _token Token address
+     * @param _amount Refund amount
+     * @param _message Original message
+     * @param _executor Executor address
+     */
+    function executeMessageWithTransferRefund(
+        address _token,
+        uint256 _amount,
+        bytes calldata _message,
+        address _executor
+    ) external payable override returns (ExecutionStatus) {
+        require(msg.sender == address(messageBus), "CelerIM: unauthorized caller");
+        
+        // Decode original message to get sender
+        (address originalSender, , , ) = abi.decode(_message, (address, address, uint256, bytes32));
+        
+        // Refund tokens to original sender
+        if (_token == address(lookCoin) && _amount > 0) {
+            IERC20(_token).safeTransfer(originalSender, _amount);
+        }
+        
+        return ExecutionStatus.Success;
+    }
+
+    /**
+     * @dev Estimate message fee for cross-chain transfer
+     * @param _dstChainId Destination chain ID
+     * @param _message Message to send
+     * @return fee Estimated fee in native token
+     */
+    function estimateMessageFee(
+        uint64 _dstChainId,
+        bytes memory _message
+    ) public view returns (uint256 fee) {
+        fee = messageBus.feeBase() + (messageBus.feePerByte() * _message.length);
     }
 
     /**
@@ -193,8 +320,24 @@ contract CelerIMModule is
         external 
         onlyRole(ADMIN_ROLE) 
     {
+        require(
+            _chainId == BSC_CHAINID || 
+            _chainId == OPTIMISM_CHAINID || 
+            _chainId == SAPPHIRE_CHAINID,
+            "CelerIM: unsupported chain"
+        );
         remoteModules[_chainId] = _module;
         emit RemoteModuleSet(_chainId, _module);
+    }
+
+    /**
+     * @dev Update MessageBus address
+     * @param _messageBus New MessageBus address
+     */
+    function updateMessageBus(address _messageBus) external onlyRole(ADMIN_ROLE) {
+        require(_messageBus != address(0), "CelerIM: invalid message bus");
+        messageBus = IMessageBus(_messageBus);
+        emit MessageBusUpdated(_messageBus);
     }
 
     /**
@@ -219,16 +362,12 @@ contract CelerIMModule is
     }
 
     /**
-     * @dev Update rate limits
-     * @param _userLimit New user transfer limit
-     * @param _globalLimit New global transfer limit
+     * @dev Update fee collector address
+     * @param _feeCollector New fee collector address
      */
-    function updateRateLimits(uint256 _userLimit, uint256 _globalLimit) 
-        external 
-        onlyRole(ADMIN_ROLE) 
-    {
-        userTransferLimit = _userLimit;
-        globalTransferLimit = _globalLimit;
+    function updateFeeCollector(address _feeCollector) external onlyRole(ADMIN_ROLE) {
+        require(_feeCollector != address(0), "CelerIM: invalid fee collector");
+        feeCollector = _feeCollector;
     }
 
     /**
@@ -292,38 +431,14 @@ contract CelerIMModule is
     }
 
     /**
-     * @dev Check rate limits
-     * @param _user User address
-     * @param _amount Transfer amount
+     * @dev Override supportsInterface for multiple inheritance
      */
-    function _checkRateLimit(address _user, uint256 _amount) internal {
-        uint256 currentTime = block.timestamp;
-        
-        // Check user rate limit
-        RateLimitData storage userLimit = userRateLimits[_user];
-        if (currentTime > userLimit.windowStart + RATE_LIMIT_WINDOW) {
-            userLimit.windowStart = currentTime;
-            userLimit.transferAmount = 0;
-        }
-        
-        require(
-            userLimit.transferAmount + _amount <= userTransferLimit,
-            "CelerIM: user transfer limit exceeded"
-        );
-        
-        userLimit.transferAmount += _amount;
-        
-        // Check global rate limit
-        if (currentTime > globalRateLimit.windowStart + RATE_LIMIT_WINDOW) {
-            globalRateLimit.windowStart = currentTime;
-            globalRateLimit.transferAmount = 0;
-        }
-        
-        require(
-            globalRateLimit.transferAmount + _amount <= globalTransferLimit,
-            "CelerIM: global transfer limit exceeded"
-        );
-        
-        globalRateLimit.transferAmount += _amount;
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(AccessControlUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }

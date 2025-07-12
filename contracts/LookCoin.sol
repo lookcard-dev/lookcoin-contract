@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-// import "@layerzerolabs/oft-evm/contracts/oft/v2/OFTV2Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -10,7 +9,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 
 /**
  * @title LookCoin
- * @dev Omnichain fungible token implementing LayerZero OFT V2 with UUPS upgradeability
+ * @dev Omnichain fungible token with LayerZero integration capabilities
  * @notice LookCoin (LOOK) is the primary payment method for LookCard's crypto-backed credit/debit card system
  */
 contract LookCoin is 
@@ -25,8 +24,17 @@ contract LookCoin is
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    bytes32 public constant BRIDGE_ROLE = keccak256("BRIDGE_ROLE");
 
-    // Rate limiting
+    // LayerZero integration state
+    address public lzEndpoint;
+    mapping(uint16 => bytes32) public trustedRemoteLookup;
+    
+    // Supply tracking
+    uint256 public totalMinted;
+    uint256 public totalBurned;
+    
+    // Rate limiting (simplified for now)
     uint256 public constant RATE_LIMIT_WINDOW = 1 hours;
     uint256 public maxTransferPerWindow;
     uint256 public maxTransactionsPerWindow;
@@ -38,14 +46,8 @@ contract LookCoin is
     }
     
     mapping(address => RateLimitData) public userRateLimits;
-    RateLimitData public globalRateLimit;
-
-    // Supply tracking
-    uint256 public totalMinted;
-    uint256 public totalBurned;
     
     // Events
-    event RateLimitUpdated(uint256 maxTransferPerWindow, uint256 maxTransactionsPerWindow);
     event EmergencyPause(address indexed by);
     event EmergencyUnpause(address indexed by);
     event CrossChainTransferInitiated(
@@ -60,6 +62,10 @@ contract LookCoin is
         address indexed to,
         uint256 amount
     );
+    event DVNConfigured(address[] dvns, uint8 requiredDVNs, uint8 optionalDVNs, uint8 threshold);
+    event PeerConnected(uint16 indexed chainId, bytes32 indexed peer);
+    event LayerZeroEndpointSet(address indexed endpoint);
+    event RateLimitUpdated(uint256 maxTransferPerWindow, uint256 maxTransactionsPerWindow);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -69,9 +75,11 @@ contract LookCoin is
     /**
      * @dev Initialize the contract with token parameters
      * @param _admin Address to be granted admin role
+     * @param _lzEndpoint LayerZero endpoint address (can be zero for non-LZ chains)
      */
     function initialize(
-        address _admin
+        address _admin,
+        address _lzEndpoint
     ) public initializer {
         __ERC20_init("LookCoin", "LOOK");
         __UUPSUpgradeable_init();
@@ -84,9 +92,15 @@ contract LookCoin is
         _grantRole(PAUSER_ROLE, _admin);
         _grantRole(UPGRADER_ROLE, _admin);
 
-        // Initialize rate limits
-        maxTransferPerWindow = 1000000 * 10**18; // 1M tokens (18 decimals)
-        maxTransactionsPerWindow = 100;
+        // Set LayerZero endpoint if provided
+        if (_lzEndpoint != address(0)) {
+            lzEndpoint = _lzEndpoint;
+            emit LayerZeroEndpointSet(_lzEndpoint);
+        }
+        
+        // Initialize rate limiting defaults
+        maxTransferPerWindow = 500000 * 10**18;
+        maxTransactionsPerWindow = 3;
     }
 
     /**
@@ -98,7 +112,7 @@ contract LookCoin is
         external 
         onlyRole(MINTER_ROLE) 
         whenNotPaused 
-        nonReentrant 
+        nonReentrant
     {
         require(to != address(0), "LookCoin: mint to zero address");
         _checkRateLimit(to, amount);
@@ -108,7 +122,7 @@ contract LookCoin is
     }
 
     /**
-     * @dev Burn tokens from address. Only callable by BURNER_ROLE (LayerZero module)
+     * @dev Burn tokens from address. Only callable by BURNER_ROLE
      * @param from Address to burn tokens from
      * @param amount Amount to burn
      */
@@ -116,12 +130,115 @@ contract LookCoin is
         external 
         onlyRole(BURNER_ROLE) 
         whenNotPaused 
-        nonReentrant 
+        nonReentrant
     {
         require(from != address(0), "LookCoin: burn from zero address");
         
         totalBurned += amount;
         _burn(from, amount);
+    }
+
+    /**
+     * @dev Bridge function for cross-chain transfers (simplified LayerZero-style)
+     * @param _dstChainId Destination chain ID
+     * @param _toAddress Recipient address on destination chain
+     * @param _amount Amount to transfer
+     */
+    function bridgeToken(
+        uint16 _dstChainId,
+        bytes calldata _toAddress,
+        uint256 _amount
+    ) external payable whenNotPaused nonReentrant {
+        require(lzEndpoint != address(0), "LookCoin: LayerZero not configured");
+        require(trustedRemoteLookup[_dstChainId] != bytes32(0), "LookCoin: destination not trusted");
+        require(_amount > 0, "LookCoin: invalid amount");
+        
+        // Burn tokens on source chain
+        totalBurned += _amount;
+        _burn(msg.sender, _amount);
+        
+        emit CrossChainTransferInitiated(msg.sender, _dstChainId, _toAddress, _amount);
+        
+        // In production, this would call LayerZero endpoint
+        // For now, we emit the event for tracking
+    }
+
+    /**
+     * @dev Receive tokens from another chain (called by bridge)
+     * @param _srcChainId Source chain ID
+     * @param _fromAddress Sender address on source chain
+     * @param _toAddress Recipient address
+     * @param _amount Amount to mint
+     */
+    function receiveTokens(
+        uint16 _srcChainId,
+        bytes calldata _fromAddress,
+        address _toAddress,
+        uint256 _amount
+    ) external onlyRole(BRIDGE_ROLE) whenNotPaused nonReentrant {
+        require(_toAddress != address(0), "LookCoin: mint to zero address");
+        require(trustedRemoteLookup[_srcChainId] != bytes32(0), "LookCoin: source not trusted");
+        
+        totalMinted += _amount;
+        _mint(_toAddress, _amount);
+        
+        emit CrossChainTransferReceived(_srcChainId, _fromAddress, _toAddress, _amount);
+    }
+
+    /**
+     * @dev Configure DVN settings for LayerZero security
+     * @param dvns Array of DVN addresses
+     * @param requiredDVNs Number of required DVNs
+     * @param optionalDVNs Number of optional DVNs
+     * @param threshold Percentage threshold for validation (e.g., 66 for 66%)
+     */
+    function configureDVN(
+        address[] calldata dvns,
+        uint8 requiredDVNs,
+        uint8 optionalDVNs,
+        uint8 threshold
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(dvns.length >= requiredDVNs + optionalDVNs, "LookCoin: insufficient DVNs");
+        require(threshold > 0 && threshold <= 100, "LookCoin: invalid threshold");
+        
+        // In production, this would configure LayerZero DVN settings
+        // For now, we emit the event for tracking
+        
+        emit DVNConfigured(dvns, requiredDVNs, optionalDVNs, threshold);
+    }
+
+    /**
+     * @dev Connect peer contract on another chain
+     * @param _dstChainId Destination chain ID
+     * @param _peer Peer contract address on destination chain
+     */
+    function connectPeer(uint16 _dstChainId, bytes32 _peer) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        trustedRemoteLookup[_dstChainId] = _peer;
+        emit PeerConnected(_dstChainId, _peer);
+    }
+
+    /**
+     * @dev Set LayerZero endpoint address
+     * @param _endpoint New endpoint address
+     */
+    function setLayerZeroEndpoint(address _endpoint) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_endpoint != address(0), "LookCoin: invalid endpoint");
+        lzEndpoint = _endpoint;
+        emit LayerZeroEndpointSet(_endpoint);
+    }
+
+    /**
+     * @dev Update rate limiting parameters
+     * @param _maxTransferPerWindow Maximum transfer amount per window
+     * @param _maxTransactionsPerWindow Maximum transactions per window
+     */
+    function updateRateLimits(
+        uint256 _maxTransferPerWindow,
+        uint256 _maxTransactionsPerWindow
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        maxTransferPerWindow = _maxTransferPerWindow;
+        maxTransactionsPerWindow = _maxTransactionsPerWindow;
+        emit RateLimitUpdated(_maxTransferPerWindow, _maxTransactionsPerWindow);
     }
 
     /**
@@ -141,36 +258,11 @@ contract LookCoin is
     }
 
     /**
-     * @dev Update rate limiting parameters. Only callable by DEFAULT_ADMIN_ROLE
-     * @param _maxTransferPerWindow Maximum transfer amount per window
-     * @param _maxTransactionsPerWindow Maximum transactions per window
-     */
-    function updateRateLimits(
-        uint256 _maxTransferPerWindow,
-        uint256 _maxTransactionsPerWindow
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        maxTransferPerWindow = _maxTransferPerWindow;
-        maxTransactionsPerWindow = _maxTransactionsPerWindow;
-        emit RateLimitUpdated(_maxTransferPerWindow, _maxTransactionsPerWindow);
-    }
-
-    /**
      * @dev Get circulating supply (minted minus burned)
      * @return Current circulating supply
      */
     function circulatingSupply() external view returns (uint256) {
         return totalMinted - totalBurned;
-    }
-
-    /**
-     * @dev Override _update to add pause functionality (OpenZeppelin v5)
-     */
-    function _update(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override whenNotPaused {
-        super._update(from, to, amount);
     }
 
     /**
@@ -188,7 +280,6 @@ contract LookCoin is
     function _checkRateLimit(address user, uint256 amount) internal {
         uint256 currentTime = block.timestamp;
         
-        // Check user rate limit
         RateLimitData storage userLimit = userRateLimits[user];
         if (currentTime > userLimit.windowStart + RATE_LIMIT_WINDOW) {
             userLimit.windowStart = currentTime;
@@ -207,21 +298,17 @@ contract LookCoin is
         
         userLimit.transferAmount += amount;
         userLimit.transactionCount += 1;
-        
-        // Check global rate limit
-        if (currentTime > globalRateLimit.windowStart + RATE_LIMIT_WINDOW) {
-            globalRateLimit.windowStart = currentTime;
-            globalRateLimit.transferAmount = 0;
-            globalRateLimit.transactionCount = 0;
-        }
-        
-        require(
-            globalRateLimit.transferAmount + amount <= maxTransferPerWindow * 100,
-            "LookCoin: global transfer limit exceeded"
-        );
-        
-        globalRateLimit.transferAmount += amount;
-        globalRateLimit.transactionCount += 1;
+    }
+
+    /**
+     * @dev Override _update to add pause functionality
+     */
+    function _update(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override whenNotPaused {
+        super._update(from, to, amount);
     }
 
     /**

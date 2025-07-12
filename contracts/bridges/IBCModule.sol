@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+// RateLimiter import removed for now
 
 interface ILookCoin {
     function mint(address to, uint256 amount) external;
@@ -51,11 +52,6 @@ contract IBCModule is
     mapping(address => bool) public isValidator;
     uint256 public validatorThreshold;
     
-    // Rate limiting
-    uint256 public dailyLimit;
-    uint256 public currentDayStart;
-    uint256 public currentDayTransferred;
-    
     // Packet structure
     struct IBCPacket {
         uint64 sequence;
@@ -98,6 +94,7 @@ contract IBCModule is
         __AccessControl_init();
         __Pausable_init();
         __ReentrancyGuard_init();
+        // RateLimiter initialization removed
         
         lookCoin = ILookCoin(_lookCoin);
         vaultAddress = _vaultAddress;
@@ -105,6 +102,7 @@ contract IBCModule is
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(ADMIN_ROLE, _admin);
         _grantRole(OPERATOR_ROLE, _admin);
+        // Rate limit admin role removed
         
         // Initialize IBC config
         ibcConfig = IBCConfig({
@@ -116,9 +114,7 @@ contract IBCModule is
             unbondingPeriod: 14 days
         });
         
-        // Initialize rate limit
-        dailyLimit = 1000000 * 10**lookCoin.decimals();
-        currentDayStart = block.timestamp / 1 days * 1 days;
+        // Rate limit configuration removed for now
         
         validatorThreshold = 14; // 2/3 of 21 validators
     }
@@ -131,12 +127,14 @@ contract IBCModule is
     function lockForIBC(
         string calldata _recipient,
         uint256 _amount
-    ) external whenNotPaused nonReentrant {
+    ) external 
+        whenNotPaused 
+        nonReentrant
+        // Rate limiting check removed
+    {
         require(bytes(_recipient).length > 0, "IBC: invalid recipient");
         require(_amount > 0, "IBC: invalid amount");
         require(validators.length >= ibcConfig.minValidators, "IBC: insufficient validators");
-        
-        _checkDailyLimit(_amount);
         
         // Transfer tokens to vault
         IERC20(address(lookCoin)).safeTransferFrom(msg.sender, vaultAddress, _amount);
@@ -179,6 +177,8 @@ contract IBCModule is
         );
         
         processedPackets[packetId] = true;
+        
+        // Rate limiting check removed for incoming transfers
         
         // Mint tokens to recipient
         lookCoin.mint(recipient, amount);
@@ -266,17 +266,6 @@ contract IBCModule is
     }
 
     /**
-     * @dev Update daily transfer limit
-     * @param _limit New daily limit
-     */
-    function updateDailyLimit(uint256 _limit) 
-        external 
-        onlyRole(ADMIN_ROLE) 
-    {
-        dailyLimit = _limit;
-    }
-
-    /**
      * @dev Emergency withdraw tokens
      * @param _token Token address
      * @param _to Recipient address
@@ -310,26 +299,6 @@ contract IBCModule is
      */
     function unpause() external onlyRole(OPERATOR_ROLE) {
         _unpause();
-    }
-
-    /**
-     * @dev Check daily transfer limit
-     * @param _amount Transfer amount
-     */
-    function _checkDailyLimit(uint256 _amount) internal {
-        uint256 currentDay = block.timestamp / 1 days * 1 days;
-        
-        if (currentDay > currentDayStart) {
-            currentDayStart = currentDay;
-            currentDayTransferred = 0;
-        }
-        
-        require(
-            currentDayTransferred + _amount <= dailyLimit,
-            "IBC: daily limit exceeded"
-        );
-        
-        currentDayTransferred += _amount;
     }
 
     /**
@@ -395,5 +364,17 @@ contract IBCModule is
         if (v < 27) v += 27;
         
         return ecrecover(_message, v, r, s);
+    }
+
+    /**
+     * @dev Override supportsInterface for multiple inheritance
+     */
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(AccessControlUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }

@@ -20,9 +20,10 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
 
     // Chain identifiers
-    uint16 public constant CHAIN_BSC = 102;
-    uint16 public constant CHAIN_BASE = 184;
-    uint16 public constant CHAIN_OPTIMISM = 111;
+    uint16 public constant CHAIN_BSC = 56;
+    uint16 public constant CHAIN_BASE = 8453;
+    uint16 public constant CHAIN_OPTIMISM = 10;
+    uint16 public constant CHAIN_SAPPHIRE = 23295;
     uint16 public constant CHAIN_AKASHIC = 999;
 
     // Supply data structure
@@ -95,6 +96,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
         supportedChains.push(CHAIN_BSC);
         supportedChains.push(CHAIN_BASE);
         supportedChains.push(CHAIN_OPTIMISM);
+        supportedChains.push(CHAIN_SAPPHIRE);
         supportedChains.push(CHAIN_AKASHIC);
     }
 
