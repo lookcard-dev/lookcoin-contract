@@ -365,7 +365,7 @@ export interface ChainConfig {
 
 // Centralized chain configuration
 export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
-  bsc: {
+  bscmainnet: {
     chainId: 56,
     name: "BSC Mainnet",
     totalSupply: "10000000000000000000000000000", // 10 billion tokens
@@ -406,7 +406,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     },
     remoteModules: REMOTE_MODULES.bsc || {},
   },
-  bscTestnet: {
+  bsctestnet: {
     chainId: 97,
     name: "BSC Testnet",
     totalSupply: "10000000000000000000000000000",
@@ -447,7 +447,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     },
     remoteModules: {},
   },
-  base: {
+  basemainnet: {
     chainId: 8453,
     name: "Base Mainnet",
     totalSupply: "0", // Minted via bridge
@@ -493,7 +493,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     },
     remoteModules: REMOTE_MODULES.base || {},
   },
-  baseSepolia: {
+  basesepolia: {
     chainId: 84532,
     name: "Base Sepolia",
     totalSupply: "0",
@@ -539,7 +539,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     },
     remoteModules: {},
   },
-  optimism: {
+  optimismmainnet: {
     chainId: 10,
     name: "Optimism Mainnet",
     totalSupply: "0",
@@ -580,7 +580,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     },
     remoteModules: REMOTE_MODULES.optimism || {},
   },
-  opSepolia: {
+  optimismsepolia: {
     chainId: 11155420,
     name: "Optimism Sepolia",
     totalSupply: "0",
@@ -621,7 +621,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     },
     remoteModules: {},
   },
-  sapphire: {
+  sapphiremainnet: {
     chainId: 23295,
     name: "Sapphire Mainnet",
     totalSupply: "0",
@@ -662,7 +662,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     },
     remoteModules: REMOTE_MODULES.sapphire || {},
   },
-  sapphireTestnet: {
+  sapphiretestnet: {
     chainId: 23295,
     name: "Sapphire Testnet",
     totalSupply: "0",
@@ -703,7 +703,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     },
     remoteModules: {},
   },
-  akashic: {
+  akashicmainnet: {
     chainId: 9070,
     name: "Akashic Mainnet",
     totalSupply: "0",
@@ -748,6 +748,52 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       globalDailyLimit: "2000000000000000000000000000",
     },
     remoteModules: REMOTE_MODULES.akashic || {},
+  },
+  hardhat: {
+    chainId: 31337,
+    name: "Hardhat",
+    totalSupply: "10000000000000000000000000000", // 10 billion tokens for testing
+    governanceVault: "0x0000000000000000000000000000000000000000",
+    layerZero: {
+      endpoint: "0x0000000000000000000000000000000000000000",
+      lzChainId: 0,
+      dvns: [],
+      requiredDVNs: [],
+      optionalDVNs: [],
+      optionalDVNThreshold: 0,
+      confirmations: 1,
+    },
+    celer: {
+      messageBus: "0x0000000000000000000000000000000000000000",
+      celerChainId: 0,
+      fees: {
+        feePercentage: 0,
+        minFee: "0",
+        maxFee: "0",
+        feeCollector: "0x0000000000000000000000000000000000000000",
+      },
+    },
+    ibc: {
+      channelId: "",
+      portId: "",
+      validators: [],
+      minValidators: 0,
+      threshold: 0,
+      unbondingPeriod: 0,
+      packetTimeout: 0,
+    },
+    oracle: {
+      bridges: {},
+      updateInterval: 900,
+      tolerance: 100,
+    },
+    rateLimiter: {
+      perAccountLimit: "500000000000000000000000",
+      perAccountTimeWindow: 3600,
+      maxTransactionsPerAccount: 10, // More permissive for testing
+      globalDailyLimit: "2000000000000000000000000000",
+    },
+    remoteModules: {},
   },
 };
 

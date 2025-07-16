@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 interface IPausable {
     function pause() external;
@@ -13,7 +14,7 @@ interface IPausable {
  * @title SupplyOracle
  * @dev Cross-chain supply reconciliation oracle for monitoring token supply consistency
  */
-contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
+contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     // Role definitions
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
@@ -41,8 +42,8 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
     uint16[] public supportedChains;
     
     // Reconciliation parameters
-    uint256 public reconciliationInterval = 15 minutes;
-    uint256 public toleranceThreshold = 1000 * 10**18; // 1000 tokens
+    uint256 public reconciliationInterval;
+    uint256 public toleranceThreshold;
     uint256 public lastReconciliationTime;
     uint256 public totalExpectedSupply;
     
@@ -51,7 +52,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
     mapping(address => bool) public pausedBridges;
     
     // Multi-signature validation
-    uint256 public requiredSignatures = 3;
+    uint256 public requiredSignatures;
     mapping(bytes32 => mapping(address => bool)) public updateSignatures;
     mapping(bytes32 => uint256) public updateSignatureCount;
     
@@ -84,6 +85,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
     ) public initializer {
         __AccessControl_init();
         __Pausable_init();
+        __UUPSUpgradeable_init();
         
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(ORACLE_ROLE, _admin);
@@ -91,6 +93,11 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
         _grantRole(EMERGENCY_ROLE, _admin);
         
         totalExpectedSupply = _totalSupply;
+        
+        // Set default values for reconciliation parameters
+        reconciliationInterval = 15 minutes;
+        toleranceThreshold = 1000 * 10**18; // 1000 tokens
+        requiredSignatures = 3;
         
         // Initialize supported chains
         supportedChains.push(CHAIN_BSC);
@@ -338,4 +345,26 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
     function unpause() external onlyRole(OPERATOR_ROLE) {
         _unpause();
     }
+
+    /**
+     * @dev Override supportsInterface for multiple inheritance
+     */
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(AccessControlUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @dev Authorize upgrade for UUPS proxy
+     * @param newImplementation New implementation address
+     */
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {}
 }

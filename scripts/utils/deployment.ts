@@ -67,7 +67,7 @@ export interface Deployment {
 // Network mapping functions
 export function getNetworkName(chainId: number): string {
   // Try to find the network name from centralized config
-  for (const [networkKey, config] of Object.entries(CHAIN_CONFIG)) {
+  for (const [, config] of Object.entries(CHAIN_CONFIG)) {
     if (config.chainId === chainId) {
       return config.name;
     }

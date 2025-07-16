@@ -1,13 +1,7 @@
 import hre from "hardhat";
 import { ethers, upgrades } from "hardhat";
 import { getChainConfig } from "../hardhat.config";
-import { 
-  getNetworkName, 
-  loadDeployment, 
-  saveDeployment, 
-  getBytecodeHash,
-  Deployment 
-} from "./utils/deployment";
+import { getNetworkName, loadDeployment, saveDeployment, getBytecodeHash, Deployment } from "./utils/deployment";
 import { fetchDeployOrUpgradeProxy } from "./utils/state";
 
 async function main() {
@@ -23,7 +17,7 @@ async function main() {
   // Get network name and centralized configuration
   const networkName = getNetworkName(chainId);
   const chainConfig = getChainConfig(networkName.toLowerCase().replace(/\s+/g, ""));
-  
+
   // Get governance vault from centralized config or CLI override
   const governanceVault = process.argv[2] || chainConfig.governanceVault;
   if (!governanceVault || governanceVault === "0x0000000000000000000000000000000000000000") {
@@ -50,7 +44,7 @@ async function main() {
     timestamp: new Date().toISOString(),
     contracts: {
       LookCoin: { proxy: "" },
-      SupplyOracle: { proxy: "" }
+      SupplyOracle: { proxy: "" },
     },
     config: {
       layerZeroEndpoint: lzEndpoint,
@@ -58,22 +52,20 @@ async function main() {
       governanceVault: governanceVault,
     },
     implementationHashes: {},
-    lastDeployed: new Date().toISOString()
+    lastDeployed: new Date().toISOString(),
   };
 
   // Deploy or upgrade LookCoin
   console.log("\n⌛️ 1. Processing LookCoin...");
   try {
-    const lookCoin = await fetchDeployOrUpgradeProxy(
-      hre,
-      "LookCoin",
-      [lzEndpoint, governanceVault, chainConfig.totalSupply],
-      { initializer: "initialize", kind: "uups" }
-    );
+    const lookCoin = await fetchDeployOrUpgradeProxy(hre, "LookCoin", [governanceVault, lzEndpoint], {
+      initializer: "initialize",
+      kind: "uups",
+    });
     const lookCoinAddress = await lookCoin.getAddress();
     const lookCoinArtifact = await hre.artifacts.readArtifact("LookCoin");
     const lookCoinBytecodeHash = getBytecodeHash(lookCoinArtifact.deployedBytecode);
-    
+
     deployment.contracts.LookCoin = {
       proxy: lookCoinAddress,
       implementation: await upgrades.erc1967.getImplementationAddress(lookCoinAddress),
@@ -95,12 +87,12 @@ async function main() {
         hre,
         "CelerIMModule",
         [celerMessageBus, lookCoinAddress, governanceVault],
-        { initializer: "initialize", kind: "uups" }
+        { initializer: "initialize", kind: "uups" },
       );
       celerModuleAddress = await celerModule.getAddress();
       const celerArtifact = await hre.artifacts.readArtifact("CelerIMModule");
       const celerBytecodeHash = getBytecodeHash(celerArtifact.deployedBytecode);
-      
+
       deployment.contracts.CelerIMModule = {
         proxy: celerModuleAddress,
         implementation: await upgrades.erc1967.getImplementationAddress(celerModuleAddress),
@@ -124,12 +116,12 @@ async function main() {
         hre,
         "IBCModule",
         [lookCoinAddress, vaultAddress, governanceVault],
-        { initializer: "initialize", kind: "uups" }
+        { initializer: "initialize", kind: "uups" },
       );
       ibcModuleAddress = await ibcModule.getAddress();
       const ibcArtifact = await hre.artifacts.readArtifact("IBCModule");
       const ibcBytecodeHash = getBytecodeHash(ibcArtifact.deployedBytecode);
-      
+
       deployment.contracts.IBCModule = {
         proxy: ibcModuleAddress,
         implementation: await upgrades.erc1967.getImplementationAddress(ibcModuleAddress),
@@ -146,16 +138,14 @@ async function main() {
   console.log("\n⌛️ 4. Processing SupplyOracle...");
   try {
     const totalSupply = chainConfig.totalSupply;
-    const supplyOracle = await fetchDeployOrUpgradeProxy(
-      hre,
-      "SupplyOracle",
-      [governanceVault, totalSupply],
-      { initializer: "initialize", kind: "uups" }
-    );
+    const supplyOracle = await fetchDeployOrUpgradeProxy(hre, "SupplyOracle", [governanceVault, totalSupply], {
+      initializer: "initialize",
+      kind: "uups",
+    });
     const supplyOracleAddress = await supplyOracle.getAddress();
     const oracleArtifact = await hre.artifacts.readArtifact("SupplyOracle");
     const oracleBytecodeHash = getBytecodeHash(oracleArtifact.deployedBytecode);
-    
+
     deployment.contracts.SupplyOracle = {
       proxy: supplyOracleAddress,
       implementation: await upgrades.erc1967.getImplementationAddress(supplyOracleAddress),

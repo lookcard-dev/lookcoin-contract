@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // RateLimiter import removed for now
@@ -59,6 +60,7 @@ contract CelerIMModule is
     AccessControlUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
+    UUPSUpgradeable,
     IMessageReceiverApp
 {
     using SafeERC20 for IERC20;
@@ -121,6 +123,7 @@ contract CelerIMModule is
         __AccessControl_init();
         __Pausable_init();
         __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
         // RateLimiter initialization removed
         
         require(_messageBus != address(0), "CelerIM: invalid message bus");
@@ -441,4 +444,14 @@ contract CelerIMModule is
     {
         return super.supportsInterface(interfaceId);
     }
+
+    /**
+     * @dev Authorize upgrade for UUPS proxy
+     * @param newImplementation New implementation address
+     */
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyRole(ADMIN_ROLE)
+    {}
 }
