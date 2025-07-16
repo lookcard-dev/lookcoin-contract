@@ -15,11 +15,9 @@ contracts/
 ├── bridges/                  # Cross-chain bridge implementations
 │   ├── CelerIMModule.sol     # Celer Inter-chain Messaging (lock-and-mint)
 │   └── IBCModule.sol         # IBC Protocol for Cosmos ecosystem
-├── security/                 # Security infrastructure
-│   ├── RateLimiter.sol       # Rate limiting with sliding window algorithm
-│   └── SupplyOracle.sol      # Cross-chain supply monitoring and reconciliation
-└── governance/               
-    └── MPCMultisig.sol       # MPC multisig governance (3-of-5 threshold)
+└── security/                 # Security infrastructure
+    ├── RateLimiter.sol       # Rate limiting with sliding window algorithm
+    └── SupplyOracle.sol      # Cross-chain supply monitoring and reconciliation
 ```
 
 ### Key Technical Features
@@ -68,7 +66,6 @@ npm run deploy:base-sepolia
 npm run deploy:base-mainnet
 npm run deploy:op-sepolia
 npm run deploy:op-mainnet
-npm run deploy:akashic-testnet
 npm run deploy:akashic-mainnet
 
 # Verify contracts on block explorers
@@ -108,7 +105,7 @@ npm run test:security
 - **BSC** (Chain ID: 56) - Home chain with full token supply
 - **Base** (Chain ID: 8453) - LayerZero OFT deployment
 - **Optimism** (Chain ID: 10) - Celer IM deployment  
-- **Akashic** (Chain ID: 12641) - IBC deployment for Cosmos
+- **Akashic** (Chain ID: 9070) - IBC deployment for Cosmos
 
 ### Bridge Operations
 1. **LayerZero OFT V2**: Burn-and-mint mechanism for Base
@@ -118,9 +115,10 @@ npm run test:security
 ## Security Patterns
 
 ### Governance Model
-- **MPC Multisig**: 3-of-5 threshold with key holders from LookCard, Binance Labs, and security partners
-- **Timelock**: 48-hour delay for standard operations, 24-hour for emergency
+- **MPC Vault Wallet**: External MPC vault provides secure off-chain governance
+- **Direct Execution**: Administrative operations execute immediately without on-chain delays
 - **Role Separation**: Distinct roles for bridge operators, security admins, and supply monitors
+- **Security**: Multi-party computation ensures no single point of failure
 
 ### Rate Limiting
 - Per-account limits: 500K tokens per transaction, 3 transactions per hour
@@ -139,6 +137,7 @@ npm run test:security
 ### Setting Up Environment
 1. Clone repository and install dependencies
 2. Copy `.env.example` to `.env` and configure:
+   - GOVERNANCE_VAULT address for MPC vault wallet
    - Private keys for deployment accounts
    - RPC endpoints for each network
    - Block explorer API keys
@@ -178,13 +177,12 @@ For upgradeable contracts, verify both proxy and implementation.
 
 ### Upgrade Process
 1. Deploy new implementation contract
-2. Propose upgrade through MPC multisig
-3. Wait for timelock period
-4. Execute upgrade transaction
-5. Verify new implementation
+2. Authorize upgrade through MPC vault wallet
+3. Execute upgrade transaction
+4. Verify new implementation
 
 ### Emergency Procedures
 - Pause all operations: Call `pause()` with EMERGENCY_ROLE
 - Disable specific bridge: Call `disableBridge()` 
 - Force supply reconciliation: Call `forceReconcile()`
-- Recovery requires MPC multisig approval
+- Recovery requires MPC vault wallet authorization

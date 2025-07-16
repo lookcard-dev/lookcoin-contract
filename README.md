@@ -9,7 +9,7 @@ LookCoin (LOOK) is an omnichain fungible token implementing LayerZero OFT V2, se
 - **Triple-Bridge Architecture**: Redundancy and flexibility with three distinct bridge mechanisms
 - **Fintech-Grade Security**: Rate limiting, supply reconciliation, and emergency controls
 - **UUPS Upgradeable**: Future-proof design with proxy pattern implementation
-- **MPC Multisig Governance**: 3-of-5 threshold for critical operations
+- **MPC Vault Governance**: External MPC vault wallet for secure off-chain governance
 
 ### Supported Chains
 | Chain | Chain ID | Bridge Support |
@@ -18,7 +18,7 @@ LookCoin (LOOK) is an omnichain fungible token implementing LayerZero OFT V2, se
 | Base | 8453 | LayerZero |
 | Optimism | 10 | LayerZero, Celer IM |
 | Oasis Sapphire | 23295 | Celer IM |
-| Akashic | 12641 | IBC |
+| Akashic | 9070 | IBC |
 
 ## Architecture
 
@@ -29,11 +29,9 @@ contracts/
 ├── bridges/
 │   ├── CelerIMModule.sol     # Celer IM bridge (lock-and-mint)
 │   └── IBCModule.sol         # IBC bridge (lock-and-mint)
-├── security/
-│   ├── RateLimiter.sol       # Sliding window rate limiting
-│   └── SupplyOracle.sol      # Cross-chain supply monitoring
-└── governance/
-    └── MPCMultisig.sol       # 3-of-5 multisig governance
+└── security/
+    ├── RateLimiter.sol       # Sliding window rate limiting
+    └── SupplyOracle.sol      # Cross-chain supply monitoring
 ```
 
 ### Bridge Mechanisms
@@ -65,7 +63,7 @@ contracts/
 - **15-Minute Monitoring**: Automated cross-chain supply tracking
 - **Tolerance Threshold**: 1% deviation triggers alerts
 - **Automatic Response**: Bridge pausing on supply mismatches
-- **Multi-Signature Updates**: 3 signatures required for supply changes
+- **MPC Vault Updates**: Supply changes require MPC vault wallet authorization
 
 ### Emergency Controls
 - **Circuit Breaker**: Immediate pause capability
@@ -149,7 +147,7 @@ npm run deploy:sapphire
 ```typescript
 // LookCoinModule parameters
 {
-  admin: "0x...",           // Admin address
+  governanceVault: "0x...", // MPC vault wallet address
   lzEndpoint: "0x...",      // LayerZero endpoint
   totalSupply: "1000000000", // 1B tokens
   chainId: 56,              // Target chain
@@ -190,18 +188,17 @@ ibcModule.lockForIBC(
 
 ## Governance and Upgrades
 
-### MPC Multisig
-- **Signers**: LookCard, Binance Labs, Security Partners
-- **Threshold**: 3-of-5 for execution
-- **Timelock**: 48 hours standard, 2 hours emergency
-- **Key Rotation**: Quarterly schedule
+### MPC Vault Wallet
+- **Type**: External MPC vault for secure off-chain governance
+- **Controls**: All administrative functions and critical operations
+- **Security**: Multi-party computation ensures no single point of failure
+- **Operations**: Direct execution without on-chain timelock delays
 
 ### Upgrade Process
 1. Deploy new implementation
-2. Create proposal through multisig
-3. Wait for timelock period
-4. Execute upgrade
-5. Verify new implementation
+2. Authorize upgrade through MPC vault
+3. Execute upgrade transaction
+4. Verify new implementation
 
 ### Emergency Procedures
 1. **Pause Operations**: Immediate halt via PAUSER_ROLE
@@ -256,6 +253,7 @@ Akashic: https://rpc.akashic.city
 
 ### Technical Documentation
 - [TECHNICAL.md](docs/TECHNICAL.md) - Detailed technical specifications
+- [USER_FLOW.md](docs/USER_FLOW.md) - User guide for cross-chain bridging operations
 - [CLAUDE.md](CLAUDE.md) - AI assistant guidance
 
 ### External Resources

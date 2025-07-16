@@ -1,235 +1,188 @@
+import hre from "hardhat";
 import { ethers, upgrades } from "hardhat";
-import { LZ_ENDPOINTS, CELER_MESSAGEBUS } from "../hardhat.config";
+import { getChainConfig } from "../hardhat.config";
+import { 
+  getNetworkName, 
+  loadDeployment, 
+  saveDeployment, 
+  getBytecodeHash,
+  Deployment 
+} from "./utils/deployment";
+import { fetchDeployOrUpgradeProxy } from "./utils/state";
 
 async function main() {
   console.log("Starting LookCoin deployment...");
-  
+
   const [deployer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
-  const chainId = network.chainId;
-  
+  const chainId = Number(network.chainId);
+
   console.log(`Deploying on chain ${chainId} with account: ${deployer.address}`);
-  console.log(`Account balance: ${ethers.utils.formatEther(await deployer.getBalance())} ETH`);
+  console.log(`Account balance: ${ethers.formatEther(await ethers.provider.getBalance(deployer.address))} ETH`);
+
+  // Get network name and centralized configuration
+  const networkName = getNetworkName(chainId);
+  const chainConfig = getChainConfig(networkName.toLowerCase().replace(/\s+/g, ""));
   
-  // Get network name
-  let networkName: string;
-  let lzEndpoint: string;
-  let celerMessageBus: string;
-  
-  switch (chainId) {
-    case 56:
-      networkName = "BSC Mainnet";
-      lzEndpoint = LZ_ENDPOINTS.bsc;
-      celerMessageBus = CELER_MESSAGEBUS.bsc;
-      break;
-    case 97:
-      networkName = "BSC Testnet";
-      lzEndpoint = LZ_ENDPOINTS.bscTestnet;
-      celerMessageBus = CELER_MESSAGEBUS.bscTestnet;
-      break;
-    case 8453:
-      networkName = "Base Mainnet";
-      lzEndpoint = LZ_ENDPOINTS.base;
-      celerMessageBus = CELER_MESSAGEBUS.base;
-      break;
-    case 84531:
-      networkName = "Base Testnet";
-      lzEndpoint = LZ_ENDPOINTS.baseTestnet;
-      celerMessageBus = CELER_MESSAGEBUS.baseTestnet;
-      break;
-    case 10:
-      networkName = "Optimism Mainnet";
-      lzEndpoint = LZ_ENDPOINTS.optimism;
-      celerMessageBus = CELER_MESSAGEBUS.optimism;
-      break;
-    case 420:
-      networkName = "Optimism Testnet";
-      lzEndpoint = LZ_ENDPOINTS.optimismTestnet;
-      celerMessageBus = CELER_MESSAGEBUS.optimismTestnet;
-      break;
-    default:
-      throw new Error(`Unsupported chain ID: ${chainId}`);
+  // Get governance vault from centralized config or CLI override
+  const governanceVault = process.argv[2] || chainConfig.governanceVault;
+  if (!governanceVault || governanceVault === "0x0000000000000000000000000000000000000000") {
+    throw new Error("GOVERNANCE_VAULT address is required. Set in hardhat.config.ts or pass as argument.");
   }
-  
+
+  console.log(`Governance Vault Address: ${governanceVault}`);
+
+  const lzEndpoint = chainConfig.layerZero.endpoint;
+  const celerMessageBus = chainConfig.celer.messageBus;
+
   console.log(`\nDeploying on ${networkName}`);
   console.log(`LayerZero Endpoint: ${lzEndpoint}`);
   console.log(`Celer MessageBus: ${celerMessageBus}`);
-  
-  // Deploy LookCoin
-  console.log("\n1. Deploying LookCoin...");
-  const LookCoin = await ethers.getContractFactory("LookCoin");
-  const lookCoin = await upgrades.deployProxy(
-    LookCoin,
-    [lzEndpoint, deployer.address],
-    { 
-      initializer: "initialize",
-      kind: "uups"
-    }
-  );
-  await lookCoin.deployed();
-  console.log(`LookCoin deployed to: ${lookCoin.address}`);
-  console.log(`Implementation: ${await upgrades.erc1967.getImplementationAddress(lookCoin.address)}`);
-  
-  // Deploy CelerIMModule (if Celer is available on this chain)
-  let celerModule;
-  if (celerMessageBus !== "0x0000000000000000000000000000000000000000") {
-    console.log("\n2. Deploying CelerIMModule...");
-    const CelerIMModule = await ethers.getContractFactory("CelerIMModule");
-    celerModule = await upgrades.deployProxy(
-      CelerIMModule,
-      [celerMessageBus, lookCoin.address, deployer.address],
-      {
-        initializer: "initialize",
-        kind: "uups"
-      }
-    );
-    await celerModule.deployed();
-    console.log(`CelerIMModule deployed to: ${celerModule.address}`);
-  }
-  
-  // Deploy IBCModule (only on BSC)
-  let ibcModule;
-  if (chainId === 56 || chainId === 97) {
-    console.log("\n3. Deploying IBCModule...");
-    const IBCModule = await ethers.getContractFactory("IBCModule");
-    
-    // Create vault multisig (in production, use actual multisig)
-    const vaultAddress = deployer.address;
-    
-    ibcModule = await upgrades.deployProxy(
-      IBCModule,
-      [lookCoin.address, vaultAddress, deployer.address],
-      {
-        initializer: "initialize",
-        kind: "uups"
-      }
-    );
-    await ibcModule.deployed();
-    console.log(`IBCModule deployed to: ${ibcModule.address}`);
-  }
-  
-  // Deploy SupplyOracle
-  console.log("\n4. Deploying SupplyOracle...");
-  const SupplyOracle = await ethers.getContractFactory("SupplyOracle");
-  const totalSupply = ethers.utils.parseUnits("1000000000", 8); // 1 billion LOOK
-  const supplyOracle = await upgrades.deployProxy(
-    SupplyOracle,
-    [deployer.address, totalSupply],
-    {
-      initializer: "initialize",
-      kind: "uups"
-    }
-  );
-  await supplyOracle.deployed();
-  console.log(`SupplyOracle deployed to: ${supplyOracle.address}`);
-  
-  // Deploy MPCMultisig
-  console.log("\n5. Deploying MPCMultisig...");
-  const MPCMultisig = await ethers.getContractFactory("MPCMultisig");
-  
-  // In production, use actual MPC signer addresses
-  const signers = [
-    deployer.address,
-    "0x1111111111111111111111111111111111111111",
-    "0x2222222222222222222222222222222222222222",
-    "0x3333333333333333333333333333333333333333",
-    "0x4444444444444444444444444444444444444444"
-  ];
-  
-  const mpcMultisig = await upgrades.deployProxy(
-    MPCMultisig,
-    [signers, deployer.address],
-    {
-      initializer: "initialize",
-      kind: "uups"
-    }
-  );
-  await mpcMultisig.deployed();
-  console.log(`MPCMultisig deployed to: ${mpcMultisig.address}`);
-  
-  // Configure roles
-  console.log("\n6. Configuring roles...");
-  
-  // Grant MINTER_ROLE to bridge modules
-  if (celerModule) {
-    await lookCoin.grantRole(await lookCoin.MINTER_ROLE(), celerModule.address);
-    console.log(`Granted MINTER_ROLE to CelerIMModule`);
-  }
-  if (ibcModule) {
-    await lookCoin.grantRole(await lookCoin.MINTER_ROLE(), ibcModule.address);
-    console.log(`Granted MINTER_ROLE to IBCModule`);
-  }
-  
-  // Grant BURNER_ROLE to LookCoin itself (for LayerZero burns)
-  await lookCoin.grantRole(await lookCoin.BURNER_ROLE(), lookCoin.address);
-  console.log(`Granted BURNER_ROLE to LookCoin`);
-  
-  // Transfer admin roles to MPC multisig
-  console.log("\n7. Transferring admin control to MPC multisig...");
-  await lookCoin.grantRole(await lookCoin.DEFAULT_ADMIN_ROLE(), mpcMultisig.address);
-  await lookCoin.grantRole(await lookCoin.PAUSER_ROLE(), mpcMultisig.address);
-  await lookCoin.grantRole(await lookCoin.UPGRADER_ROLE(), mpcMultisig.address);
-  
-  // Register bridges with SupplyOracle
-  console.log("\n8. Registering bridges with SupplyOracle...");
-  await supplyOracle.registerBridge(chainId, lookCoin.address);
-  if (celerModule) {
-    await supplyOracle.registerBridge(chainId, celerModule.address);
-  }
-  if (ibcModule) {
-    await supplyOracle.registerBridge(chainId, ibcModule.address);
-  }
-  
-  // Save deployment addresses
-  const deployment = {
+
+  // Load existing deployment if it exists
+  const existingDeployment = loadDeployment(networkName);
+
+  // Prepare deployment object
+  const deployment: Deployment = existingDeployment || {
     network: networkName,
     chainId: chainId,
     deployer: deployer.address,
     timestamp: new Date().toISOString(),
     contracts: {
-      LookCoin: {
-        proxy: lookCoin.address,
-        implementation: await upgrades.erc1967.getImplementationAddress(lookCoin.address)
-      },
-      CelerIMModule: celerModule ? {
-        proxy: celerModule.address,
-        implementation: await upgrades.erc1967.getImplementationAddress(celerModule.address)
-      } : null,
-      IBCModule: ibcModule ? {
-        proxy: ibcModule.address,
-        implementation: await upgrades.erc1967.getImplementationAddress(ibcModule.address)
-      } : null,
-      SupplyOracle: {
-        proxy: supplyOracle.address,
-        implementation: await upgrades.erc1967.getImplementationAddress(supplyOracle.address)
-      },
-      MPCMultisig: {
-        proxy: mpcMultisig.address,
-        implementation: await upgrades.erc1967.getImplementationAddress(mpcMultisig.address)
-      }
+      LookCoin: { proxy: "" },
+      SupplyOracle: { proxy: "" }
     },
     config: {
       layerZeroEndpoint: lzEndpoint,
-      celerMessageBus: celerMessageBus
-    }
+      celerMessageBus: celerMessageBus,
+      governanceVault: governanceVault,
+    },
+    implementationHashes: {},
+    lastDeployed: new Date().toISOString()
   };
-  
-  console.log("\n9. Deployment Summary:");
+
+  // Deploy or upgrade LookCoin
+  console.log("\n⌛️ 1. Processing LookCoin...");
+  try {
+    const lookCoin = await fetchDeployOrUpgradeProxy(
+      hre,
+      "LookCoin",
+      [lzEndpoint, governanceVault, chainConfig.totalSupply],
+      { initializer: "initialize", kind: "uups" }
+    );
+    const lookCoinAddress = await lookCoin.getAddress();
+    const lookCoinArtifact = await hre.artifacts.readArtifact("LookCoin");
+    const lookCoinBytecodeHash = getBytecodeHash(lookCoinArtifact.deployedBytecode);
+    
+    deployment.contracts.LookCoin = {
+      proxy: lookCoinAddress,
+      implementation: await upgrades.erc1967.getImplementationAddress(lookCoinAddress),
+    };
+    deployment.implementationHashes!.LookCoin = lookCoinBytecodeHash;
+    console.log("✅ 1. LookCoin completed");
+  } catch (error) {
+    console.error("❌ Failed to deploy/upgrade LookCoin:", error);
+    throw error;
+  }
+
+  // Deploy or upgrade CelerIMModule (if Celer is available on this chain)
+  let celerModuleAddress: string | null = null;
+  if (celerMessageBus !== "0x0000000000000000000000000000000000000000") {
+    console.log("\n⌛️ 2. Processing CelerIMModule...");
+    try {
+      const lookCoinAddress = deployment.contracts.LookCoin.proxy;
+      const celerModule = await fetchDeployOrUpgradeProxy(
+        hre,
+        "CelerIMModule",
+        [celerMessageBus, lookCoinAddress, governanceVault],
+        { initializer: "initialize", kind: "uups" }
+      );
+      celerModuleAddress = await celerModule.getAddress();
+      const celerArtifact = await hre.artifacts.readArtifact("CelerIMModule");
+      const celerBytecodeHash = getBytecodeHash(celerArtifact.deployedBytecode);
+      
+      deployment.contracts.CelerIMModule = {
+        proxy: celerModuleAddress,
+        implementation: await upgrades.erc1967.getImplementationAddress(celerModuleAddress),
+      };
+      deployment.implementationHashes!.CelerIMModule = celerBytecodeHash;
+      console.log("✅ 2. CelerIMModule completed");
+    } catch (error) {
+      console.error("❌ Failed to deploy/upgrade CelerIMModule:", error);
+      throw error;
+    }
+  }
+
+  // Deploy or upgrade IBCModule (only on BSC)
+  let ibcModuleAddress: string | null = null;
+  if (chainId === 56 || chainId === 97) {
+    console.log("\n⌛️ 3. Processing IBCModule...");
+    try {
+      const lookCoinAddress = deployment.contracts.LookCoin.proxy;
+      const vaultAddress = governanceVault;
+      const ibcModule = await fetchDeployOrUpgradeProxy(
+        hre,
+        "IBCModule",
+        [lookCoinAddress, vaultAddress, governanceVault],
+        { initializer: "initialize", kind: "uups" }
+      );
+      ibcModuleAddress = await ibcModule.getAddress();
+      const ibcArtifact = await hre.artifacts.readArtifact("IBCModule");
+      const ibcBytecodeHash = getBytecodeHash(ibcArtifact.deployedBytecode);
+      
+      deployment.contracts.IBCModule = {
+        proxy: ibcModuleAddress,
+        implementation: await upgrades.erc1967.getImplementationAddress(ibcModuleAddress),
+      };
+      deployment.implementationHashes!.IBCModule = ibcBytecodeHash;
+      console.log("✅ 3. IBCModule completed");
+    } catch (error) {
+      console.error("❌ Failed to deploy/upgrade IBCModule:", error);
+      throw error;
+    }
+  }
+
+  // Deploy or upgrade SupplyOracle
+  console.log("\n⌛️ 4. Processing SupplyOracle...");
+  try {
+    const totalSupply = chainConfig.totalSupply;
+    const supplyOracle = await fetchDeployOrUpgradeProxy(
+      hre,
+      "SupplyOracle",
+      [governanceVault, totalSupply],
+      { initializer: "initialize", kind: "uups" }
+    );
+    const supplyOracleAddress = await supplyOracle.getAddress();
+    const oracleArtifact = await hre.artifacts.readArtifact("SupplyOracle");
+    const oracleBytecodeHash = getBytecodeHash(oracleArtifact.deployedBytecode);
+    
+    deployment.contracts.SupplyOracle = {
+      proxy: supplyOracleAddress,
+      implementation: await upgrades.erc1967.getImplementationAddress(supplyOracleAddress),
+    };
+    deployment.implementationHashes!.SupplyOracle = oracleBytecodeHash;
+    console.log("✅ 4. SupplyOracle completed");
+  } catch (error) {
+    console.error("❌ Failed to deploy/upgrade SupplyOracle:", error);
+    throw error;
+  }
+
+  // Update deployment timestamp
+  deployment.timestamp = new Date().toISOString();
+  deployment.lastDeployed = new Date().toISOString();
+
+  console.log("\n5. Deployment Summary:");
   console.log(JSON.stringify(deployment, null, 2));
-  
-  // Write deployment to file
-  const fs = require("fs");
-  const deploymentPath = `./deployments/${networkName.toLowerCase().replace(/\s+/g, "-")}.json`;
-  fs.mkdirSync("./deployments", { recursive: true });
-  fs.writeFileSync(deploymentPath, JSON.stringify(deployment, null, 2));
-  console.log(`\nDeployment saved to: ${deploymentPath}`);
-  
+
+  // Save deployment
+  await saveDeployment(networkName, deployment);
+
   console.log("\n✅ Deployment completed successfully!");
   console.log("\n⚠️  Next steps:");
-  console.log("1. Run configure.ts to set up cross-chain connections");
-  console.log("2. Verify contracts on block explorer");
-  console.log("3. Configure monitoring and alerting");
-  console.log("4. Transfer remaining admin roles from deployer to MPC multisig");
+  console.log(`1. Run setup script: npm run setup:${networkName.toLowerCase().replace(/\s+/g, "-")}`);
+  console.log("2. Run configure.ts to set up cross-chain connections");
+  console.log("3. Verify contracts on block explorer");
+  console.log("4. Configure monitoring and alerting");
 }
 
 main()

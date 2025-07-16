@@ -18,23 +18,36 @@
     "deploy:base-mainnet": "hardhat run scripts/deploy.ts --network base",
     "deploy:op-sepolia": "hardhat run scripts/deploy.ts --network opSepolia",
     "deploy:op-mainnet": "hardhat run scripts/deploy.ts --network optimism",
-    "deploy:akashic-testnet": "hardhat run scripts/deploy.ts --network akashicTestnet",
     "deploy:akashic-mainnet": "hardhat run scripts/deploy.ts --network akashic",
     "configure:bridges": "hardhat run scripts/configure.ts",
+    "setup:bsc": "hardhat run scripts/setup.ts --network bsc",
+    "setup:base": "hardhat run scripts/setup.ts --network base",
+    "setup:optimism": "hardhat run scripts/setup.ts --network optimism",
+    "setup:bsc-testnet": "hardhat run scripts/setup.ts --network bscTestnet",
+    "setup:base-sepolia": "hardhat run scripts/setup.ts --network baseSepolia",
+    "setup:op-sepolia": "hardhat run scripts/setup.ts --network opSepolia",
+    "setup:akashic-mainnet": "hardhat run scripts/setup.ts --network akashic",
     "verify": "hardhat verify",
     "size": "hardhat size-contracts",
-    "lint": "hardhat compile",
-    "format": "hardhat compile",
+    "lint": "eslint --ext .ts .",
+    "format": "prettier --write .",
+    "type-check": "tsc --noEmit",
     "test:integration": "hardhat test ignition/tests/CrossChain.test.ts",
-    "test:security": "hardhat test ignition/tests/Security.test.ts"
+    "test:security": "hardhat test ignition/tests/Security.test.ts",
+    "config:generate": "ts-node scripts/utils/config-generator.ts generate",
+    "config:validate": "ts-node scripts/utils/config-generator.ts validate",
+    "config:generate:network": "ts-node scripts/utils/config-generator.ts generate",
+    "lint:config": "grep -r --include='*.ts' --include='*.js' --exclude-dir=node_modules --exclude-dir=artifacts --exclude-dir=cache --exclude-dir=typechain-types -E '(0x[a-fA-F0-9]{40}|channel-[0-9]+|transfer|[0-9]{5,})' . | grep -v hardhat.config.ts | grep -v testConfig.ts || echo 'No hardcoded config found!'"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@ethereum-sourcify/bytecode-utils": "1.2.8",
     "@layerzerolabs/oft-evm": "^0.0.10",
     "@openzeppelin/contracts": "^5.0.2",
-    "@openzeppelin/contracts-upgradeable": "^5.0.2"
+    "@openzeppelin/contracts-upgradeable": "^5.0.2",
+    "level": "^10.0.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
@@ -49,6 +62,7 @@
     "@typechain/ethers-v6": "^0.5.0",
     "@typechain/hardhat": "^9.0.0",
     "@types/chai": "^4.3.5",
+    "@types/minimatch": "^5.0.0",
     "@types/mocha": "^10.0.1",
     "@types/node": ">=18.0.0",
     "chai": "^4.2.0",
@@ -60,6 +74,10 @@
     "solidity-coverage": "^0.8.0",
     "ts-node": "^10.9.2",
     "typechain": "^8.3.0",
-    "typescript": ">=4.5.0"
+    "typescript": ">=4.5.0",
+    "eslint": "^8.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "prettier": "^3.0.0"
   }
 }

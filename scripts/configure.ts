@@ -1,36 +1,36 @@
 import { ethers } from "hardhat";
 import * as fs from "fs";
-import * as path from "path";
+import { getChainConfig } from "../hardhat.config";
+import { 
+  getNetworkName, 
+  getLayerZeroChainId, 
+  getCelerChainId, 
+  loadOtherChainDeployments, 
+  loadDeployment
+} from "./utils/deployment";
 
-interface Deployment {
-  contracts: {
-    LookCoin: { proxy: string };
-    CelerIMModule?: { proxy: string };
-    IBCModule?: { proxy: string };
-    SupplyOracle: { proxy: string };
-    MPCMultisig: { proxy: string };
-  };
-}
 
 async function main() {
   console.log("Starting LookCoin cross-chain configuration...");
   
   const [deployer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
-  const chainId = network.chainId;
+  const chainId = Number(network.chainId);
+  
+  // Get network name and configuration
+  const networkName = getNetworkName(chainId);
+  const chainConfig = getChainConfig(networkName.toLowerCase().replace(/\s+/g, ""));
+  
+  // Get governance vault from centralized config or CLI override
+  // const governanceVault = process.argv[2] || chainConfig.governanceVault;
   
   console.log(`Configuring on chain ${chainId} with account: ${deployer.address}`);
+  const deployment = loadDeployment(networkName);
   
-  // Load deployment data
-  const networkName = getNetworkName(chainId);
-  const deploymentPath = path.join(__dirname, `../deployments/${networkName.toLowerCase().replace(/\s+/g, "-")}.json`);
-  
-  if (!fs.existsSync(deploymentPath)) {
-    throw new Error(`Deployment file not found: ${deploymentPath}`);
+  if (!deployment) {
+    throw new Error(`Deployment not found for ${networkName}. Please run deploy.ts first.`);
   }
-  
-  const deployment: Deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf-8"));
-  console.log(`Loaded deployment from: ${deploymentPath}`);
+  console.log(`Loaded deployment from ${networkName}`);
   
   // Load other chain deployments
   const otherChainDeployments = loadOtherChainDeployments(chainId);
@@ -45,7 +45,7 @@ async function main() {
     const remoteChainId = getLayerZeroChainId(parseInt(otherChainId));
     const remoteLookCoin = otherDeployment.contracts.LookCoin.proxy;
     
-    const trustedRemote = ethers.utils.solidityPack(
+    const trustedRemote = ethers.solidityPacked(
       ["address", "address"],
       [remoteLookCoin, deployment.contracts.LookCoin.proxy]
     );
@@ -57,19 +57,15 @@ async function main() {
   // Configure DVN settings
   console.log("\n2. Configuring DVN settings...");
   const dvnConfig = {
-    requiredDVNs: [
-      "0x1234567890123456789012345678901234567890", // Example DVN 1
-      "0x2345678901234567890123456789012345678901" // Example DVN 2
-    ],
-    optionalDVNs: [
-      "0x3456789012345678901234567890123456789012" // Example DVN 3
-    ],
-    optionalDVNThreshold: 1,
-    confirmations: 15
+    requiredDVNs: chainConfig.layerZero.requiredDVNs,
+    optionalDVNs: chainConfig.layerZero.optionalDVNs,
+    optionalDVNThreshold: chainConfig.layerZero.optionalDVNThreshold,
+    confirmations: chainConfig.layerZero.confirmations
   };
   
   // Note: Actual DVN configuration would require LayerZero V2 specific methods
-  console.log("DVN configuration (to be implemented with LayerZero V2 SDK)");
+  console.log("DVN configuration (to be implemented with LayerZero V2 SDK):");
+  console.log(JSON.stringify(dvnConfig, null, 2));
   
   // Configure Celer IM modules
   if (deployment.contracts.CelerIMModule) {
@@ -86,19 +82,19 @@ async function main() {
       }
     }
     
-    // Configure fee parameters
+    // Configure fee parameters from centralized config
     console.log("Setting Celer fee parameters...");
     await celerModule.updateFeeParameters(
-      50,  // 0.5% fee
-      ethers.utils.parseUnits("10", 8),  // 10 LOOK minimum fee
-      ethers.utils.parseUnits("1000", 8) // 1000 LOOK maximum fee
+      chainConfig.celer.fees.feePercentage,
+      chainConfig.celer.fees.minFee,
+      chainConfig.celer.fees.maxFee
     );
     
-    // Configure rate limits
+    // Configure rate limits from centralized config
     console.log("Setting Celer rate limits...");
     await celerModule.updateRateLimits(
-      ethers.utils.parseUnits("100000", 8),  // 100k LOOK per user per hour
-      ethers.utils.parseUnits("10000000", 8) // 10M LOOK global per hour
+      chainConfig.rateLimiter.perAccountLimit,
+      chainConfig.rateLimiter.globalDailyLimit
     );
   }
   
@@ -107,33 +103,28 @@ async function main() {
     console.log("\n4. Configuring IBC module...");
     const ibcModule = await ethers.getContractAt("IBCModule", deployment.contracts.IBCModule.proxy);
     
-    // Add validators (in production, use actual validator addresses)
-    const validators = [
-      "0x1111111111111111111111111111111111111111",
-      "0x2222222222222222222222222222222222222222",
-      "0x3333333333333333333333333333333333333333",
-      // ... add remaining validators up to 21
-    ];
+    // Add validators from centralized config
+    const validators = chainConfig.ibc.validators;
     
     console.log("Setting IBC validators...");
-    await ibcModule.updateValidatorSet(validators.slice(0, 21), 14); // 14/21 threshold
+    await ibcModule.updateValidatorSet(validators, chainConfig.ibc.threshold);
     
-    // Update IBC configuration
+    // Update IBC configuration from centralized config
     const ibcConfig = {
-      channelId: "channel-0",
-      portId: "transfer",
+      channelId: chainConfig.ibc.channelId,
+      portId: chainConfig.ibc.portId,
       timeoutHeight: 0,
-      timeoutTimestamp: 3600, // 1 hour
-      minValidators: 21,
-      unbondingPeriod: 14 * 24 * 60 * 60 // 14 days in seconds
+      timeoutTimestamp: chainConfig.ibc.packetTimeout,
+      minValidators: chainConfig.ibc.minValidators,
+      unbondingPeriod: chainConfig.ibc.unbondingPeriod
     };
     
     console.log("Updating IBC configuration...");
     await ibcModule.updateIBCConfig(ibcConfig);
     
-    // Set daily limit
+    // Set daily limit from centralized config
     console.log("Setting IBC daily limit...");
-    await ibcModule.updateDailyLimit(ethers.utils.parseUnits("1000000", 8)); // 1M LOOK daily
+    await ibcModule.updateDailyLimit(chainConfig.rateLimiter.globalDailyLimit);
   }
   
   // Configure Supply Oracle
@@ -155,18 +146,18 @@ async function main() {
     }
   }
   
-  // Set reconciliation parameters
+  // Set reconciliation parameters from centralized config
   console.log("Setting reconciliation parameters...");
   await supplyOracle.updateReconciliationParams(
-    15 * 60, // 15 minutes
-    ethers.utils.parseUnits("1000", 8) // 1000 LOOK tolerance
+    chainConfig.oracle.updateInterval,
+    ethers.parseUnits(String(chainConfig.oracle.tolerance * 10), 8) // Convert basis points to LOOK tokens
   );
   
-  // Configure rate limits on main contract
+  // Configure rate limits on main contract from centralized config
   console.log("\n6. Configuring main contract rate limits...");
   await lookCoin.updateRateLimits(
-    ethers.utils.parseUnits("1000000", 8),  // 1M LOOK per window
-    100 // 100 transactions per window
+    chainConfig.rateLimiter.perAccountLimit,
+    chainConfig.rateLimiter.maxTransactionsPerAccount
   );
   
   // Grant oracle roles
@@ -196,8 +187,8 @@ async function main() {
           module: dep.contracts.CelerIMModule!.proxy
         })) : [],
     supplyOracleConfig: {
-      reconciliationInterval: "15 minutes",
-      toleranceThreshold: "1000 LOOK"
+      reconciliationInterval: `${chainConfig.oracle.updateInterval} seconds`,
+      toleranceThreshold: `${chainConfig.oracle.tolerance} basis points`
     }
   };
   
@@ -210,68 +201,6 @@ async function main() {
   console.log(`\nConfiguration saved to: ${configPath}`);
 }
 
-function getNetworkName(chainId: number): string {
-  const networks: { [key: number]: string } = {
-    56: "BSC Mainnet",
-    97: "BSC Testnet",
-    8453: "Base Mainnet",
-    84531: "Base Testnet",
-    10: "Optimism Mainnet",
-    420: "Optimism Testnet"
-  };
-  return networks[chainId] || `Unknown (${chainId})`;
-}
-
-function getLayerZeroChainId(chainId: number): number {
-  const lzChainIds: { [key: number]: number } = {
-    56: 102,    // BSC
-    97: 10102,  // BSC Testnet
-    8453: 184,  // Base
-    84531: 10184, // Base Testnet
-    10: 111,    // Optimism
-    420: 10111  // Optimism Testnet
-  };
-  return lzChainIds[chainId] || chainId;
-}
-
-function getCelerChainId(chainId: number): number {
-  const celerChainIds: { [key: number]: number } = {
-    56: 56,     // BSC
-    97: 97,     // BSC Testnet
-    8453: 8453, // Base
-    84531: 84531, // Base Testnet
-    10: 10,     // Optimism
-    420: 420    // Optimism Testnet
-  };
-  return celerChainIds[chainId] || chainId;
-}
-
-function loadOtherChainDeployments(currentChainId: number): { [chainId: string]: Deployment } {
-  const deployments: { [chainId: string]: Deployment } = {};
-  const deploymentsDir = path.join(__dirname, "../deployments");
-  
-  if (!fs.existsSync(deploymentsDir)) {
-    console.warn("No deployments directory found");
-    return deployments;
-  }
-  
-  const files = fs.readdirSync(deploymentsDir);
-  
-  for (const file of files) {
-    if (file.endsWith(".json") && !file.includes("config")) {
-      try {
-        const content = JSON.parse(fs.readFileSync(path.join(deploymentsDir, file), "utf-8"));
-        if (content.chainId && content.chainId !== currentChainId) {
-          deployments[content.chainId] = content;
-        }
-      } catch (e) {
-        console.warn(`Failed to load deployment file: ${file}`);
-      }
-    }
-  }
-  
-  return deployments;
-}
 
 main()
   .then(() => process.exit(0))
