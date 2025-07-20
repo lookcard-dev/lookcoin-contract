@@ -45,12 +45,12 @@ interface IgnitionParameters {
 
 function generateLookCoinParams(network: string): IgnitionParameters["LookCoin"] {
   const config = getChainConfig(network);
-  
+
   // Only generate LookCoin params for home chain (BSC)
   if (network !== "bsc" && network !== "bscTestnet") {
     return undefined;
   }
-  
+
   return {
     totalSupply: config.totalSupply,
     governanceVault: config.governanceVault,
@@ -59,12 +59,12 @@ function generateLookCoinParams(network: string): IgnitionParameters["LookCoin"]
 
 function generateIBCParams(network: string): IgnitionParameters["IBCModule"] {
   const config = getChainConfig(network);
-  
+
   // Only generate IBC params for networks with IBC support
   if (config.ibc.validators.length === 0) {
     return undefined;
   }
-  
+
   return {
     validators: config.ibc.validators,
     minValidators: config.ibc.minValidators,
@@ -78,12 +78,12 @@ function generateIBCParams(network: string): IgnitionParameters["IBCModule"] {
 
 function generateCelerParams(network: string): IgnitionParameters["CelerModule"] {
   const config = getChainConfig(network);
-  
+
   // Only generate Celer params for networks with Celer support
   if (config.celer.messageBus === "0x0000000000000000000000000000000000000000") {
     return undefined;
   }
-  
+
   return {
     messageBus: config.celer.messageBus,
     feePercentage: config.celer.fees.feePercentage,
@@ -95,7 +95,7 @@ function generateCelerParams(network: string): IgnitionParameters["CelerModule"]
 
 function generateOracleParams(network: string): IgnitionParameters["OracleModule"] {
   const config = getChainConfig(network);
-  
+
   return {
     updateInterval: config.oracle.updateInterval,
     tolerance: config.oracle.tolerance,
@@ -107,7 +107,7 @@ function generateMockParams(network: string): IgnitionParameters["MocksModule"] 
   if (network !== "hardhat" && network !== "localhost") {
     return undefined;
   }
-  
+
   return {
     totalSupply: "10000000000000000000000000000",
     governanceVault: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Hardhat account 0
@@ -116,7 +116,7 @@ function generateMockParams(network: string): IgnitionParameters["MocksModule"] 
 
 function generateIgnitionParameters(network: string): IgnitionParameters {
   const config = getChainConfig(network);
-  
+
   const params: IgnitionParameters = {
     chainId: config.chainId,
     lzEndpoint: config.layerZero.endpoint,
@@ -128,33 +128,33 @@ function generateIgnitionParameters(network: string): IgnitionParameters {
     optionalDVNThreshold: config.layerZero.optionalDVNThreshold,
     confirmations: config.layerZero.confirmations,
   };
-  
+
   // Add module-specific parameters
   const lookCoinParams = generateLookCoinParams(network);
   if (lookCoinParams) {
     params.LookCoin = lookCoinParams;
   }
-  
+
   const ibcParams = generateIBCParams(network);
   if (ibcParams) {
     params.IBCModule = ibcParams;
   }
-  
+
   const celerParams = generateCelerParams(network);
   if (celerParams) {
     params.CelerModule = celerParams;
   }
-  
+
   const oracleParams = generateOracleParams(network);
   if (oracleParams) {
     params.OracleModule = oracleParams;
   }
-  
+
   const mockParams = generateMockParams(network);
   if (mockParams) {
     params.MocksModule = mockParams;
   }
-  
+
   return params;
 }
 
@@ -162,18 +162,18 @@ function generateParameterFile(network: string): void {
   const params = generateIgnitionParameters(network);
   const filename = `${network}.json`;
   const filepath = path.join(IGNITION_PARAMS_DIR, filename);
-  
+
   const content = {
     "//": "AUTO-GENERATED from hardhat.config.ts - DO NOT EDIT MANUALLY",
     "//2": "Run 'npm run config:generate' to regenerate this file",
     ...params,
   };
-  
+
   // Create directory if it doesn't exist
   if (!fs.existsSync(IGNITION_PARAMS_DIR)) {
     fs.mkdirSync(IGNITION_PARAMS_DIR, { recursive: true });
   }
-  
+
   // Write the file
   fs.writeFileSync(filepath, JSON.stringify(content, null, 2) + "\n");
   console.log(`✅ Generated ${filename}`);
@@ -181,11 +181,11 @@ function generateParameterFile(network: string): void {
 
 function validateConfiguration(): void {
   console.log("Validating configuration...");
-  
+
   for (const network of Object.keys(CHAIN_CONFIG)) {
     try {
       const config = getChainConfig(network);
-      
+
       // Validate required fields
       if (!config.chainId) {
         throw new Error(`Missing chainId for ${network}`);
@@ -193,28 +193,28 @@ function validateConfiguration(): void {
       if (!config.governanceVault) {
         throw new Error(`Missing governanceVault for ${network}`);
       }
-      
+
       // Validate LayerZero config if applicable
       if (config.layerZero.endpoint !== "0x0000000000000000000000000000000000000000") {
         if (!config.layerZero.lzChainId) {
           throw new Error(`Missing LayerZero chainId for ${network}`);
         }
       }
-      
+
       // Validate Celer config if applicable
       if (config.celer.messageBus !== "0x0000000000000000000000000000000000000000") {
         if (!config.celer.celerChainId) {
           throw new Error(`Missing Celer chainId for ${network}`);
         }
       }
-      
+
       // Validate IBC config if applicable
       if (config.ibc.validators.length > 0) {
         if (!config.ibc.channelId || !config.ibc.portId) {
           throw new Error(`Missing IBC channel/port configuration for ${network}`);
         }
       }
-      
+
       console.log(`✅ ${network} configuration is valid`);
     } catch (error) {
       console.error(`❌ ${network} configuration error:`, error);
@@ -227,12 +227,12 @@ async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
   const network = args[1];
-  
+
   if (command === "validate") {
     validateConfiguration();
     return;
   }
-  
+
   if (command === "generate") {
     if (network) {
       // Generate specific network
@@ -250,7 +250,7 @@ async function main() {
     }
     return;
   }
-  
+
   // Default: generate all
   console.log("Generating parameter files for all networks...");
   for (const net of Object.keys(CHAIN_CONFIG)) {
@@ -281,7 +281,7 @@ function generateLocalHardhatParams(): void {
     optionalDVNThreshold: 0,
     confirmations: 1,
   };
-  
+
   const filepath = path.join(IGNITION_PARAMS_DIR, "local-hardhat.json");
   fs.writeFileSync(filepath, JSON.stringify(params, null, 2) + "\n");
   console.log("✅ Generated local-hardhat.json");

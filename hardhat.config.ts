@@ -129,7 +129,7 @@ const config: HardhatUserConfig = {
     },
     sapphire: {
       url: SAPPHIRE_RPC_URL,
-      chainId: 23295,
+      chainId: 23294,
       accounts: [DEPLOYER_PRIVATE_KEY],
     },
     sapphireTestnet: {
@@ -147,7 +147,7 @@ const config: HardhatUserConfig = {
     alphaSort: false,
     runOnCompile: !!process.env.CONTRACT_SIZER,
     disambiguatePaths: false,
-    only: ["LookCoin", "LayerZeroModule", "CelerIMModule", "IBCModule", "RateLimiter", "SupplyOracle", "MPCMultisig"],
+    only: ["LookCoin", "LayerZeroModule", "CelerIMModule", "IBCModule", "SupplyOracle", "MPCMultisig"],
   },
   gasReporter: {
     enabled: !!process.env.REPORT_GAS,
@@ -177,7 +177,7 @@ const CELER_CHAIN_IDS = {
   bscTestnet: 97,
   optimism: 10,
   opSepolia: 11155420,
-  sapphire: 23295,
+  sapphire: 23294,
   sapphireTestnet: 23295,
 };
 
@@ -315,6 +315,7 @@ const LZ_CHAIN_IDS = {
 export interface ChainConfig {
   chainId: number;
   name: string;
+  tier: "mainnet" | "testnet" | "dev";
   totalSupply: string;
   governanceVault: string;
   layerZero: {
@@ -354,12 +355,6 @@ export interface ChainConfig {
     updateInterval: number;
     tolerance: number;
   };
-  rateLimiter: {
-    perAccountLimit: string;
-    perAccountTimeWindow: number;
-    maxTransactionsPerAccount: number;
-    globalDailyLimit: string;
-  };
   remoteModules: { [network: string]: string };
 }
 
@@ -368,6 +363,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
   bscmainnet: {
     chainId: 56,
     name: "BSC Mainnet",
+    tier: "mainnet",
     totalSupply: "10000000000000000000000000000", // 10 billion tokens
     governanceVault: GOVERNANCE_VAULTS.bsc,
     layerZero: {
@@ -398,17 +394,12 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900, // 15 minutes
       tolerance: 100, // 1%
     },
-    rateLimiter: {
-      perAccountLimit: "500000000000000000000000", // 500K tokens
-      perAccountTimeWindow: 3600, // 1 hour
-      maxTransactionsPerAccount: 3,
-      globalDailyLimit: "2000000000000000000000000000", // 20% of total supply
-    },
     remoteModules: REMOTE_MODULES.bsc || {},
   },
   bsctestnet: {
     chainId: 97,
     name: "BSC Testnet",
+    tier: "testnet",
     totalSupply: "10000000000000000000000000000",
     governanceVault: GOVERNANCE_VAULTS.bscTestnet,
     layerZero: {
@@ -439,17 +430,12 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    rateLimiter: {
-      perAccountLimit: "500000000000000000000000",
-      perAccountTimeWindow: 3600,
-      maxTransactionsPerAccount: 3,
-      globalDailyLimit: "2000000000000000000000000000",
-    },
     remoteModules: {},
   },
   basemainnet: {
     chainId: 8453,
     name: "Base Mainnet",
+    tier: "mainnet",
     totalSupply: "0", // Minted via bridge
     governanceVault: GOVERNANCE_VAULTS.base,
     layerZero: {
@@ -485,17 +471,12 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    rateLimiter: {
-      perAccountLimit: "500000000000000000000000",
-      perAccountTimeWindow: 3600,
-      maxTransactionsPerAccount: 3,
-      globalDailyLimit: "2000000000000000000000000000",
-    },
     remoteModules: REMOTE_MODULES.base || {},
   },
   basesepolia: {
     chainId: 84532,
     name: "Base Sepolia",
+    tier: "testnet",
     totalSupply: "0",
     governanceVault: GOVERNANCE_VAULTS.baseSepolia,
     layerZero: {
@@ -531,17 +512,12 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    rateLimiter: {
-      perAccountLimit: "500000000000000000000000",
-      perAccountTimeWindow: 3600,
-      maxTransactionsPerAccount: 3,
-      globalDailyLimit: "2000000000000000000000000000",
-    },
     remoteModules: {},
   },
   optimismmainnet: {
     chainId: 10,
     name: "Optimism Mainnet",
+    tier: "mainnet",
     totalSupply: "0",
     governanceVault: GOVERNANCE_VAULTS.optimism,
     layerZero: {
@@ -572,17 +548,12 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    rateLimiter: {
-      perAccountLimit: "500000000000000000000000",
-      perAccountTimeWindow: 3600,
-      maxTransactionsPerAccount: 3,
-      globalDailyLimit: "2000000000000000000000000000",
-    },
     remoteModules: REMOTE_MODULES.optimism || {},
   },
   optimismsepolia: {
     chainId: 11155420,
     name: "Optimism Sepolia",
+    tier: "testnet",
     totalSupply: "0",
     governanceVault: GOVERNANCE_VAULTS.opSepolia,
     layerZero: {
@@ -613,17 +584,12 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    rateLimiter: {
-      perAccountLimit: "500000000000000000000000",
-      perAccountTimeWindow: 3600,
-      maxTransactionsPerAccount: 3,
-      globalDailyLimit: "2000000000000000000000000000",
-    },
     remoteModules: {},
   },
   sapphiremainnet: {
     chainId: 23295,
     name: "Sapphire Mainnet",
+    tier: "mainnet",
     totalSupply: "0",
     governanceVault: GOVERNANCE_VAULTS.sapphire,
     layerZero: {
@@ -654,17 +620,12 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    rateLimiter: {
-      perAccountLimit: "500000000000000000000000",
-      perAccountTimeWindow: 3600,
-      maxTransactionsPerAccount: 3,
-      globalDailyLimit: "2000000000000000000000000000",
-    },
     remoteModules: REMOTE_MODULES.sapphire || {},
   },
   sapphiretestnet: {
     chainId: 23295,
     name: "Sapphire Testnet",
+    tier: "testnet",
     totalSupply: "0",
     governanceVault: GOVERNANCE_VAULTS.sapphireTestnet,
     layerZero: {
@@ -695,17 +656,12 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    rateLimiter: {
-      perAccountLimit: "500000000000000000000000",
-      perAccountTimeWindow: 3600,
-      maxTransactionsPerAccount: 3,
-      globalDailyLimit: "2000000000000000000000000000",
-    },
     remoteModules: {},
   },
   akashicmainnet: {
     chainId: 9070,
     name: "Akashic Mainnet",
+    tier: "mainnet",
     totalSupply: "0",
     governanceVault: GOVERNANCE_VAULTS.akashic,
     layerZero: {
@@ -741,19 +697,14 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    rateLimiter: {
-      perAccountLimit: "500000000000000000000000",
-      perAccountTimeWindow: 3600,
-      maxTransactionsPerAccount: 3,
-      globalDailyLimit: "2000000000000000000000000000",
-    },
     remoteModules: REMOTE_MODULES.akashic || {},
   },
   hardhat: {
     chainId: 31337,
-    name: "Hardhat",
-    totalSupply: "10000000000000000000000000000", // 10 billion tokens for testing
-    governanceVault: "0x0000000000000000000000000000000000000000",
+    name: "Hardhat Network",
+    tier: "dev",
+    totalSupply: "10000000000000000000000000000",
+    governanceVault: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // First hardhat account
     layerZero: {
       endpoint: "0x0000000000000000000000000000000000000000",
       lzChainId: 0,
@@ -774,11 +725,11 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       },
     },
     ibc: {
-      channelId: "",
-      portId: "",
       validators: [],
       minValidators: 0,
       threshold: 0,
+      channelId: "",
+      portId: "",
       unbondingPeriod: 0,
       packetTimeout: 0,
     },
@@ -786,12 +737,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       bridges: {},
       updateInterval: 900,
       tolerance: 100,
-    },
-    rateLimiter: {
-      perAccountLimit: "500000000000000000000000",
-      perAccountTimeWindow: 3600,
-      maxTransactionsPerAccount: 10, // More permissive for testing
-      globalDailyLimit: "2000000000000000000000000000",
     },
     remoteModules: {},
   },
@@ -850,6 +795,60 @@ export function generateIgnitionParams(network: string): any {
     optionalDVNThreshold: chainConfig.layerZero.optionalDVNThreshold,
     confirmations: chainConfig.layerZero.confirmations,
   };
+}
+
+// Helper function to get network name from chain ID
+export function getNetworkName(chainId: number): string {
+  // Iterate through CHAIN_CONFIG to find a network with matching chainId
+  for (const [networkName, config] of Object.entries(CHAIN_CONFIG)) {
+    if (config.chainId === chainId) {
+      return networkName;
+    }
+  }
+
+  // Fallback for unknown chain IDs
+  return `Unknown (${chainId})`;
+}
+
+// Helper function to get network tier
+export function getNetworkTier(chainId: number): "mainnet" | "testnet" | "dev" | "unknown" {
+  // First try to find the network using getNetworkName and getChainConfig
+  try {
+    const networkName = getNetworkName(chainId);
+    const config = getChainConfig(networkName);
+    if (config && config.tier) {
+      return config.tier;
+    }
+  } catch {
+    // Continue with fallback logic
+  }
+
+  // Special handling for Sapphire (both mainnet and testnet use same chainId)
+  if (chainId === 23295) {
+    // Without additional context, we can't distinguish Sapphire mainnet from testnet
+    // This is a known limitation that should be handled at a higher level
+    return "unknown";
+  }
+
+  // Fallback: try to determine from chain ID patterns
+  // Mainnet chain IDs
+  const mainnetChainIds = [56, 8453, 10, 9070]; // BSC, Base, Optimism, Akashic
+  if (mainnetChainIds.includes(chainId)) {
+    return "mainnet";
+  }
+
+  // Testnet chain IDs
+  const testnetChainIds = [97, 84532, 11155420]; // BSC Testnet, Base Sepolia, Optimism Sepolia
+  if (testnetChainIds.includes(chainId)) {
+    return "testnet";
+  }
+
+  // Hardhat network
+  if (chainId === 31337) {
+    return "dev";
+  }
+
+  return "unknown";
 }
 
 // Export LayerZero and Celer configurations for use in scripts (DEPRECATED - use getChainConfig instead)

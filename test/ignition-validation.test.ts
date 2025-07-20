@@ -6,7 +6,7 @@ import {
   validateParseEther,
   validateRemoteModules,
   validateBridgeRegistrations,
-  createParameterError
+  createParameterError,
 } from "../ignition/utils/parameterValidation";
 
 describe("Ignition Parameter Validation", () => {
@@ -66,7 +66,8 @@ describe("Ignition Parameter Validation", () => {
 
   describe("Remote Modules Validation", () => {
     it("should parse and validate remote modules JSON", () => {
-      const input = '{"10":"0x1234567890123456789012345678901234567890","8453":"0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"}';
+      const input =
+        '{"10":"0x1234567890123456789012345678901234567890","8453":"0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"}';
       const result = validateRemoteModules(input, "test", 56);
       expect(result["10"]).to.equal("0x1234567890123456789012345678901234567890");
       expect(result["8453"]).to.equal("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd");
@@ -85,7 +86,8 @@ describe("Ignition Parameter Validation", () => {
 
   describe("Bridge Registrations Validation", () => {
     it("should parse and validate bridge registrations", () => {
-      const input = '{"8453":"0x1234567890123456789012345678901234567890","10":"0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"}';
+      const input =
+        '{"8453":"0x1234567890123456789012345678901234567890","10":"0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"}';
       const result = validateBridgeRegistrations(input, "test");
       expect(result["8453"]).to.equal("0x1234567890123456789012345678901234567890");
       expect(result["10"]).to.equal("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd");

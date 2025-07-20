@@ -3,6 +3,7 @@
 This guide provides comprehensive instructions for deploying the LookCoin omnichain token system across multiple blockchain networks.
 
 ## Table of Contents
+
 - [Introduction](#introduction)
 - [Prerequisites](#prerequisites)
 - [Environment Setup](#environment-setup)
@@ -39,6 +40,7 @@ Before deploying, ensure you have:
 ## Environment Setup
 
 1. Clone the repository and install dependencies:
+
 ```bash
 git clone https://github.com/lookcard/lookcoin-contract.git
 cd lookcoin-contract
@@ -46,6 +48,7 @@ npm install
 ```
 
 2. Copy the environment template:
+
 ```bash
 cp .env.example .env
 ```
@@ -95,21 +98,29 @@ Here's a quick example to deploy to BSC testnet:
 1. **Ensure environment is configured** (see above)
 
 2. **Compile contracts**:
+
 ```bash
 npm run compile
 ```
 
 3. **Deploy to BSC testnet**:
+
 ```bash
 npm run deploy:bsc-testnet
 ```
 
 4. **Configure cross-chain connections**:
+
 ```bash
-npm run configure:bridges
+# Choose the appropriate network-specific configure script:
+npm run configure:bsc-testnet
+npm run configure:base-sepolia
+npm run configure:optimism-sepolia
+npm run configure:sapphire-mainnet
 ```
 
 5. **Verify contracts** (optional):
+
 ```bash
 npm run verify
 ```
@@ -118,19 +129,20 @@ npm run verify
 
 LookCoin supports deployment on the following networks:
 
-| Network | Chain ID | Network Name | LayerZero | Celer IM | IBC | RPC Endpoint |
-|---------|----------|--------------|-----------|----------|-----|--------------|
-| **BSC Mainnet** | 56 | bsc-mainnet |  |  |  | https://bsc-dataseed.binance.org/ |
-| **BSC Testnet** | 97 | bsc-testnet |  |  |  | https://data-seed-prebsc-1-s1.binance.org:8545/ |
-| **Base Mainnet** | 8453 | base-mainnet |  |  |  | https://mainnet.base.org |
-| **Base Sepolia** | 84532 | base-sepolia |  |  |  | https://sepolia.base.org |
-| **Optimism Mainnet** | 10 | op-mainnet |  |  |  | https://mainnet.optimism.io |
-| **Optimism Sepolia** | 11155420 | op-sepolia |  |  |  | https://sepolia.optimism.io |
-| **Oasis Sapphire** | 23295 | sapphire |  |  |  | https://sapphire.oasis.io |
-| **Oasis Sapphire Testnet** | 23295 | sapphire-testnet |  |  |  | https://testnet.sapphire.oasis.io |
-| **Akashic Mainnet** | 9070 | akashic-mainnet |  |  |  | https://rpc-mainnet.akashicrecords.io |
+| Network                    | Chain ID | Network Name     | LayerZero | Celer IM | IBC | RPC Endpoint                                    |
+| -------------------------- | -------- | ---------------- | --------- | -------- | --- | ----------------------------------------------- |
+| **BSC Mainnet**            | 56       | bsc-mainnet      |           |          |     | https://bsc-dataseed.binance.org/               |
+| **BSC Testnet**            | 97       | bsc-testnet      |           |          |     | https://data-seed-prebsc-1-s1.binance.org:8545/ |
+| **Base Mainnet**           | 8453     | base-mainnet     |           |          |     | https://mainnet.base.org                        |
+| **Base Sepolia**           | 84532    | base-sepolia     |           |          |     | https://sepolia.base.org                        |
+| **Optimism Mainnet**       | 10       | op-mainnet       |           |          |     | https://mainnet.optimism.io                     |
+| **Optimism Sepolia**       | 11155420 | op-sepolia       |           |          |     | https://sepolia.optimism.io                     |
+| **Oasis Sapphire**         | 23295    | sapphire         |           |          |     | https://sapphire.oasis.io                       |
+| **Oasis Sapphire Testnet** | 23295    | sapphire-testnet |           |          |     | https://testnet.sapphire.oasis.io               |
+| **Akashic Mainnet**        | 9070     | akashic-mainnet  |           |          |     | https://rpc-mainnet.akashicrecords.io           |
 
 ### LayerZero Endpoints
+
 - BSC Mainnet: `0x1a44076050125825900e736c501f859c50fE728c`
 - BSC Testnet: `0x6EDCE65403992e310A62460808c4b910D972f10f`
 - Base Mainnet: `0x1a44076050125825900e736c501f859c50fE728c`
@@ -141,6 +153,7 @@ LookCoin supports deployment on the following networks:
 - Akashic: Not supported by LayerZero (use IBC)
 
 ### Celer MessageBus
+
 - BSC Mainnet: `0x95714818fdd7a5454f73da9c777b3ee6ebaeea6b`
 - BSC Testnet: `0xAd204986D6cB67A5Bc76a3CB8974823F43Cb9AAA`
 - Base: Not supported by Celer (use LayerZero)
@@ -149,6 +162,41 @@ LookCoin supports deployment on the following networks:
 - Oasis Sapphire: `0x9Bb46D5100d2Db4608112026951c9C965b233f4D`
 - Oasis Sapphire Testnet: `0x9Bb46D5100d2Db4608112026951c9C965b233f4D`
 - Akashic: Not supported by Celer (use IBC)
+
+## Deployment File Naming Convention
+
+LookCoin deployment files follow a standardized naming convention to ensure consistency between network lookup logic and deployment file storage:
+
+### Naming Format
+
+- **Pattern**: `{chainConfigKey}.json`
+- **Examples**:
+  - `basesepolia.json` (Base Sepolia)
+  - `bsctestnet.json` (BSC Testnet)
+  - `optimismsepolia.json` (Optimism Sepolia)
+  - `sapphiremainnet.json` (Sapphire Mainnet)
+
+### Key Characteristics
+
+- **Lowercase**: All filenames are in lowercase
+- **No spaces or dashes**: Spaces are removed, not converted to dashes
+- **CHAIN_CONFIG alignment**: Names match the keys in `hardhat.config.ts` CHAIN_CONFIG
+- **Human-readable network name**: Each deployment JSON file contains a `network` field with the human-readable network name
+
+### Technical Implementation
+
+The naming convention is implemented in `scripts/utils/deployment.ts`:
+
+```typescript
+// Canonical naming format: lowercase, no spaces or dashes
+const fileName = networkName.toLowerCase().replace(/\s+/g, "") + ".json";
+```
+
+This ensures that when `getNetworkName(chainId)` returns a CHAIN_CONFIG key like `"basesepolia"`, the deployment utility functions can correctly locate the corresponding `basesepolia.json` file.
+
+### Backward Compatibility
+
+The deployment system includes backward compatibility for legacy hyphenated filenames (e.g., `base-sepolia.json`). If a canonical filename is not found, the system will automatically check for the legacy format and display a deprecation warning.
 
 ## Deployment Process
 
@@ -191,6 +239,7 @@ After deployment, roles are automatically assigned:
 ### 3. Bridge Registration
 
 All deployed bridges are registered with the SupplyOracle:
+
 - LayerZero (native to LookCoin contract)
 - Celer IM Module (if deployed)
 - IBC Module (if deployed)
@@ -198,6 +247,7 @@ All deployed bridges are registered with the SupplyOracle:
 ### 4. Deployment Artifacts
 
 Deployment information is saved to:
+
 - `deployments/{network}/deployment.json` - Contract addresses and configuration
 - `deployments/{network}/artifacts/` - Contract ABIs and bytecode
 
@@ -241,15 +291,63 @@ npm run deploy:akashic-mainnet
 
 ## Post-Deployment Configuration
 
-After deployment, run the configuration script to set up cross-chain connections:
+### Three-Stage Deployment Process
+
+LookCoin deployment follows a three-stage process to ensure proper contract setup and cross-chain connectivity:
+
+#### Stage 1: Deploy
+
+**Purpose**: Creates contracts and deployment artifacts on a single network
+**Script**: `scripts/deploy.ts`
+**What it does**:
+
+- Deploys all smart contracts (LookCoin, bridge modules, SupplyOracle)
+- Creates deployment artifacts in `deployments/{network}/deployment.json`
+- Initializes contracts with basic parameters
+- Does not configure cross-chain connections
+
+#### Stage 2: Setup
+
+**Purpose**: Configures local roles and settings post-deployment on a single network
+**Script**: `scripts/setup.ts`
+**What it does**:
+
+- Assigns MINTER_ROLE to bridge modules (CelerIMModule, IBCModule)
+- Grants BURNER_ROLE to LookCoin contract for LayerZero burns
+- Registers local bridges with SupplyOracle for the current network only
+- Configures rate limiting parameters
+- Operates on a single network using only local deployment artifacts
+
+#### Stage 3: Configure
+
+**Purpose**: Establishes cross-chain connections between multiple networks
+**Script**: `scripts/configure.ts`
+**What it does**:
+
+- Sets up LayerZero trusted remotes using contract addresses from other networks
+- Configures Celer IM remote modules for cross-chain messaging
+- Registers bridges from ALL networks in the local SupplyOracle
+- Implements cross-tier validation to prevent mainnet/testnet mixing
+- Requires deployment artifacts from multiple networks via `loadOtherChainDeployments()`
+
+### Available Configuration Scripts
 
 ```bash
-npm run configure:bridges
+# Configure cross-chain connections (only available for networks with deployment artifacts)
+npm run configure:bsc-testnet          # BSC Testnet
+npm run configure:base-sepolia         # Base Sepolia
+npm run configure:optimism-sepolia     # Optimism Sepolia
+npm run configure:sapphire-mainnet     # Oasis Sapphire Mainnet
 ```
+
+**Technical Dependency**: Configure scripts are only available for networks that have deployment artifacts from other networks. The `configure.ts` script uses `loadOtherChainDeployments()` to scan the `/deployments` directory for JSON files from other networks. This function loads contract addresses required for setting up LayerZero trusted remotes and Celer IM remote modules.
+
+**Execution Order**: Always follow this sequence: **Deploy → Setup → Configure**
 
 The configuration script (`scripts/configure.ts`) performs:
 
 ### 1. LayerZero Configuration
+
 - Sets trusted remote addresses for each LayerZero-enabled chain
 - Configures DVN (Decentralized Verifier Network) settings:
   - BSC: LayerZero Labs (0xfD6865c841c2d64565562fCc7e05e619A30615f0), Google Cloud (0xd56e4eab23cb81f43168f9f45211eb027b9ac7cc), Nethermind (0x31f748a368a893bdb5abb67ec95f232507601a73)
@@ -261,12 +359,14 @@ The configuration script (`scripts/configure.ts`) performs:
 - Optional DVNs: 2 (Google Cloud, Nethermind) with threshold of 1
 
 ### 2. Celer IM Configuration
+
 - Registers remote module addresses on each Celer-enabled chain
 - Sets message fees (typically 0.001 ETH equivalent)
 - Configures chain ID mappings (BSC: 56, Optimism: 10, Sapphire: 23295)
 - Bridge fee structure: 0.1% (10 basis points), minimum 1 LOOK, maximum 100 LOOK
 
 ### 3. IBC Configuration (Akashic only)
+
 - Registers Akashic chain parameters (Chain ID: 9070)
 - Sets up validator public keys (21 validators minimum)
 - Configures consensus requirements (2/3 majority, threshold: 14)
@@ -275,12 +375,14 @@ The configuration script (`scripts/configure.ts`) performs:
 - Channel ID: channel-0, Port ID: transfer
 
 ### 4. Supply Oracle Setup
+
 - Registers all bridge endpoints across chains
 - Sets initial supply baselines
 - Configures monitoring intervals (15 minutes)
 - Sets deviation thresholds (1% for automatic pause)
 
 ### 5. Rate Limiting Configuration
+
 - Per-account limits: 500K tokens per transaction
 - Hourly limits: 3 transactions per hour per account
 - Global daily limit: 20% of total supply
@@ -293,11 +395,13 @@ To verify contracts on block explorers:
 1. **Ensure API keys are configured** in `.env`
 
 2. **Run verification command**:
+
 ```bash
 npm run verify
 ```
 
 3. **Manual verification** (if needed):
+
 ```bash
 # Verify specific contract
 npx hardhat verify --network <network-name> <contract-address> <constructor-args>
@@ -307,6 +411,7 @@ npx hardhat verify --network bsc-mainnet 0x123... "LookCoin" "LOOK" "10000000000
 ```
 
 ### Verification Tips
+
 - For upgradeable contracts, verify both proxy and implementation
 - Constructor arguments must match deployment parameters exactly
 - Some explorers may take time to index new contracts
@@ -334,19 +439,23 @@ During deployment, all admin roles are automatically assigned to the MPC vault w
 ## Monitoring and Maintenance
 
 ### Event Monitoring
+
 Set up monitoring for critical events:
+
 - `Transfer` events for token movements
 - `CrossChainTransfer` for bridge operations
 - `SupplyMismatch` for reconciliation alerts
 - `EmergencyPause` for security incidents
 
 ### Supply Reconciliation
+
 - Monitor SupplyOracle contract for deviations
 - Set up alerts for >0.5% supply discrepancies
 - Review reconciliation reports every 15 minutes
 - Investigate any automatic pauses
 
 ### Emergency Procedures
+
 1. **To pause all operations**:
    - Call `pause()` with EMERGENCY_ROLE account
    - All transfers and bridge operations will halt
@@ -364,26 +473,31 @@ Set up monitoring for critical events:
 ### Common Issues
 
 #### Network Connectivity
+
 - **Error**: "Network connection timeout"
 - **Solution**: Check RPC URL is correct and accessible
 - **Alternative**: Use backup RPC endpoints
 
 #### Gas Estimation Failures
+
 - **Error**: "Cannot estimate gas"
 - **Solution**: Ensure account has sufficient native tokens
 - **Check**: Contract size limits (24KB max)
 
 #### Role Assignment Issues
+
 - **Error**: "AccessControl: account is missing role"
 - **Solution**: Verify deployment account has admin rights
 - **Fix**: Re-run role assignment with correct account
 
 #### Cross-Chain Configuration
+
 - **Error**: "Invalid remote address"
 - **Solution**: Ensure all chains are deployed before configuration
 - **Check**: Deployment artifacts contain correct addresses
 
 #### Verification Failures
+
 - **Error**: "Contract source code not verified"
 - **Solution**: Check API key is valid and network is supported
 - **Fix**: Try manual verification with exact constructor arguments
@@ -402,6 +516,7 @@ npx hardhat run scripts/test-bridge.ts --network <network>
 ```
 
 ### Support Resources
+
 - GitHub Issues: https://github.com/lookcard/lookcoin-contract/issues
 - Technical Documentation: See CLAUDE.md for detailed architecture
 - Security Audits: Available in `/audits` directory

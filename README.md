@@ -5,6 +5,7 @@ LookCoin (LOOK) is an omnichain fungible token implementing LayerZero OFT V2, se
 ## Overview
 
 ### Key Features
+
 - **Omnichain Compatibility**: Seamless transfers across BSC, Base, Optimism, Oasis Sapphire, and Akashic Chain
 - **Triple-Bridge Architecture**: Redundancy and flexibility with three distinct bridge mechanisms
 - **Fintech-Grade Security**: Rate limiting, supply reconciliation, and emergency controls
@@ -12,17 +13,19 @@ LookCoin (LOOK) is an omnichain fungible token implementing LayerZero OFT V2, se
 - **MPC Vault Governance**: External MPC vault wallet for secure off-chain governance
 
 ### Supported Chains
-| Chain | Chain ID | Bridge Support |
-|-------|----------|----------------|
-| BSC | 56 | LayerZero, Celer IM, IBC |
-| Base | 8453 | LayerZero |
-| Optimism | 10 | LayerZero, Celer IM |
-| Oasis Sapphire | 23295 | Celer IM |
-| Akashic | 9070 | IBC |
+
+| Chain          | Chain ID | Bridge Support           |
+| -------------- | -------- | ------------------------ |
+| BSC            | 56       | LayerZero, Celer IM, IBC |
+| Base           | 8453     | LayerZero                |
+| Optimism       | 10       | LayerZero, Celer IM      |
+| Oasis Sapphire | 23295    | Celer IM                 |
+| Akashic        | 9070     | IBC                      |
 
 ## Architecture
 
 ### Contract Structure
+
 ```
 contracts/
 ├── LookCoin.sol              # Main token (OFTV2Upgradeable, RateLimiter)
@@ -37,16 +40,19 @@ contracts/
 ### Bridge Mechanisms
 
 #### LayerZero OFT V2 (Burn-and-Mint)
+
 - Native integration in LookCoin contract
 - DVN validation: 2 required, 1 optional, 66% threshold
 - Supported on BSC, Base, and Optimism
 
 #### Celer IM (Lock-and-Mint)
+
 - Separate bridge module with MessageBus integration
 - SGN consensus validation
 - Supported on BSC, Optimism, and Oasis Sapphire
 
 #### IBC Protocol (Lock-and-Mint)
+
 - Cosmos ecosystem integration via BSC bridge
 - 21 validator minimum with 2/3 majority consensus
 - 14-day unbonding period for security
@@ -54,31 +60,107 @@ contracts/
 ## Security Features
 
 ### Rate Limiting
+
 - **Sliding Window Algorithm**: Per-user and global limits
 - **Transaction Limits**: 500K tokens per transaction, 3 transactions per hour
 - **User Tiers**: Configurable multipliers for different user types
 - **Operation Types**: Distinct limits for MINT, BURN, BRIDGE_IN, BRIDGE_OUT
 
 ### Supply Reconciliation
+
 - **15-Minute Monitoring**: Automated cross-chain supply tracking
 - **Tolerance Threshold**: 1% deviation triggers alerts
 - **Automatic Response**: Bridge pausing on supply mismatches
 - **MPC Vault Updates**: Supply changes require MPC vault wallet authorization
 
 ### Emergency Controls
+
 - **Circuit Breaker**: Immediate pause capability
 - **Selective Pause**: Individual bridge shutdown
 - **Recovery Procedures**: Documented incident response
 - **Timelock Bypass**: 2-hour emergency operations
 
+## Deployment Process
+
+LookCoin uses a three-stage deployment process to ensure proper contract setup and cross-chain connectivity:
+
+### Deployment Stages
+
+| Stage         | Script         | Purpose                                   | Prerequisites                            | Networks                                                      |
+| ------------- | -------------- | ----------------------------------------- | ---------------------------------------- | ------------------------------------------------------------- |
+| **Deploy**    | `deploy.ts`    | Create contracts and deployment artifacts | Network RPC access                       | All networks                                                  |
+| **Setup**     | `setup.ts`     | Configure local roles and settings        | Deploy stage complete                    | All networks                                                  |
+| **Configure** | `configure.ts` | Establish cross-chain connections         | Deployment artifacts from other networks | base-sepolia, bsc-testnet, optimism-sepolia, sapphire-mainnet |
+
+### Stage 1: Deploy
+
+Creates smart contracts and generates deployment artifacts on a single network:
+
+```bash
+# Deploy to specific networks
+npm run deploy:bsc-testnet
+npm run deploy:base-sepolia
+npm run deploy:op-sepolia
+npm run deploy:sapphire-mainnet
+```
+
+This stage uses Hardhat Ignition modules to deploy the LookCoin contract, bridge modules, and security infrastructure, creating a `deployment.json` file with contract addresses.
+
+### Stage 2: Setup
+
+Configures local roles and registers bridges post-deployment:
+
+```bash
+# Setup after deployment
+npm run setup:bsc-testnet
+npm run setup:base-sepolia
+npm run setup:op-sepolia
+npm run setup:sapphire-mainnet
+```
+
+This stage assigns MINTER_ROLE and BURNER_ROLE to appropriate contracts and registers local bridges with the SupplyOracle.
+
+### Stage 3: Configure
+
+Establishes cross-chain connections between multiple networks:
+
+```bash
+# Configure cross-chain connections (only available for networks with deployment artifacts)
+npm run configure:bsc-testnet
+npm run configure:base-sepolia
+npm run configure:optimism-sepolia
+npm run configure:sapphire-mainnet
+```
+
+**Note**: Configure scripts are only available for networks that have deployment artifacts from other networks. This stage requires the `loadOtherChainDeployments()` function to scan the `/deployments` directory for JSON files from other networks to establish LayerZero trusted remotes, Celer IM remote modules, and cross-chain bridge registrations.
+
+### Deployment File Naming
+
+Deployment files follow the canonical CHAIN_CONFIG key format (lowercase, no spaces or dashes) to ensure consistency with the network lookup logic:
+
+- `basesepolia.json` (Base Sepolia)
+- `bsctestnet.json` (BSC Testnet)
+- `optimismsepolia.json` (Optimism Sepolia)
+- `sapphiremainnet.json` (Sapphire Mainnet)
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed information about the naming convention and technical implementation.
+
+### Execution Order
+
+Always follow this sequence: **Deploy → Setup → Configure**
+
+Currently, only 4 networks support all three stages because these are the only networks with the necessary deployment artifacts for cross-chain configuration.
+
 ## Development Setup
 
 ### Prerequisites
+
 - Node.js v18+
 - npm or yarn
 - Hardhat
 
 ### Installation
+
 ```bash
 # Clone repository
 git clone https://github.com/lookcard/lookcoin-contract.git
@@ -93,6 +175,7 @@ cp .env.example .env
 ```
 
 ### Compilation
+
 ```bash
 # Compile contracts
 npm run compile
@@ -102,6 +185,7 @@ npm run size
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 npm test
@@ -122,13 +206,15 @@ npm run test:security
 The project uses Hardhat Ignition for modular deployment:
 
 ### Deployment Modules
+
 - `LookCoinModule`: Main token deployment with UUPS proxy
 - `CelerModule`: Celer IM bridge deployment
-- `IBCModule`: IBC bridge deployment  
+- `IBCModule`: IBC bridge deployment
 - `OracleModule`: Supply oracle deployment
 - `MocksModule`: Test infrastructure
 
 ### Deploy to Networks
+
 ```bash
 # Testnet deployments
 npm run deploy:bsc-testnet
@@ -144,6 +230,7 @@ npm run deploy:sapphire
 ```
 
 ### Configuration Parameters
+
 ```typescript
 // LookCoinModule parameters
 {
@@ -161,12 +248,14 @@ npm run deploy:sapphire
 ## Cross-Chain Operations
 
 ### LayerZero Transfer (BSC to Base)
+
 ```solidity
 // User initiates transfer through LayerZero-enabled UI
 // Tokens are burned on BSC and minted on Base
 ```
 
 ### Celer IM Transfer (BSC to Optimism)
+
 ```solidity
 // Lock tokens on source chain
 celerIMModule.lockAndBridge(
@@ -178,6 +267,7 @@ celerIMModule.lockAndBridge(
 ```
 
 ### IBC Transfer (BSC to Akashic)
+
 ```solidity
 // Lock tokens for IBC transfer
 ibcModule.lockForIBC(
@@ -189,18 +279,21 @@ ibcModule.lockForIBC(
 ## Governance and Upgrades
 
 ### MPC Vault Wallet
+
 - **Type**: External MPC vault for secure off-chain governance
 - **Controls**: All administrative functions and critical operations
 - **Security**: Multi-party computation ensures no single point of failure
 - **Operations**: Direct execution without on-chain timelock delays
 
 ### Upgrade Process
+
 1. Deploy new implementation
 2. Authorize upgrade through MPC vault
 3. Execute upgrade transaction
 4. Verify new implementation
 
 ### Emergency Procedures
+
 1. **Pause Operations**: Immediate halt via PAUSER_ROLE
 2. **Assess Impact**: Review affected chains and bridges
 3. **Implement Fix**: Deploy patches as needed
@@ -209,18 +302,21 @@ ibcModule.lockForIBC(
 ## Monitoring and Security
 
 ### Supply Monitoring
+
 - Real-time tracking across all chains
 - 15-minute reconciliation cycles
 - Automatic alerts on discrepancies
 - Dashboard integration available
 
 ### Security Audits
+
 - Smart contract audits by leading firms
 - Quarterly security reviews
 - Bug bounty program active
 - Incident response procedures documented
 
 ### Monitoring Setup
+
 ```bash
 # Configure monitoring endpoints
 export MONITORING_API_KEY="..."
@@ -233,6 +329,7 @@ npm run monitor
 ## Network Configuration
 
 ### RPC Endpoints
+
 ```
 BSC: https://bsc-dataseed.binance.org/
 Base: https://mainnet.base.org
@@ -242,37 +339,43 @@ Akashic: https://rpc.akashic.city
 ```
 
 ### Bridge Addresses
-| Network | LayerZero Endpoint | Celer MessageBus |
-|---------|-------------------|------------------|
-| BSC | 0x3c2269811836af69497E5F486A85D7316753cf62 | 0x95714818fdd7a5454F73Da9c777B3ee6EbAEEa6B |
-| Base | 0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7 | Not Supported |
+
+| Network  | LayerZero Endpoint                         | Celer MessageBus                           |
+| -------- | ------------------------------------------ | ------------------------------------------ |
+| BSC      | 0x3c2269811836af69497E5F486A85D7316753cf62 | 0x95714818fdd7a5454F73Da9c777B3ee6EbAEEa6B |
+| Base     | 0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7 | Not Supported                              |
 | Optimism | 0x3c2269811836af69497E5F486A85D7316753cf62 | 0x0D71D18126E03646eb09FEc929e2ae87b7CAE69d |
-| Sapphire | Not Supported | 0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5 |
+| Sapphire | Not Supported                              | 0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5 |
 
 ## References and Documentation
 
 ### Technical Documentation
+
 - [TECHNICAL.md](docs/TECHNICAL.md) - Detailed technical specifications
 - [USER_FLOW.md](docs/USER_FLOW.md) - User guide for cross-chain bridging operations
 - [CLAUDE.md](CLAUDE.md) - AI assistant guidance
 
 ### External Resources
+
 - [LayerZero OFT V2 Documentation](https://layerzero.gitbook.io/docs/)
 - [Celer IM Documentation](https://celer.network/docs/)
 - [IBC Protocol Specification](https://github.com/cosmos/ibc)
 
 ### Security Best Practices
+
 - [OpenZeppelin Security](https://docs.openzeppelin.com/contracts/)
 - [Smart Contract Security Verification Standard](https://github.com/securing/SCSVS)
 
 ## Community and Support
 
 ### Resources
+
 - GitHub: [github.com/lookcard/lookcoin-contract](https://github.com/lookcard/lookcoin-contract)
 - Documentation: [docs.lookcard.io](https://docs.lookcard.io)
 - Support: support@lookcard.io
 
 ### Contributing
+
 Please read our contributing guidelines before submitting PRs. All contributions must pass security review and maintain test coverage above 90%.
 
 ## License

@@ -1,11 +1,109 @@
 import hre from "hardhat";
 import { ethers, upgrades } from "hardhat";
-import { getChainConfig } from "../hardhat.config";
-import { getNetworkName, loadDeployment, saveDeployment, getBytecodeHash, Deployment } from "./utils/deployment";
+import { getChainConfig, getNetworkName } from "../hardhat.config";
+import { loadDeployment, saveDeployment, getBytecodeHash, Deployment } from "./utils/deployment";
 import { fetchDeployOrUpgradeProxy } from "./utils/state";
+import fs from "fs";
+import path from "path";
+
+// Deployment state management
+interface DeploymentStep {
+  name: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  contractAddress?: string;
+  transactionHash?: string;
+  error?: string;
+  timestamp?: string;
+}
+
+interface DeploymentState {
+  network: string;
+  chainId: number;
+  deployer: string;
+  startTime: string;
+  steps: DeploymentStep[];
+  checkpoint: Deployment | null;
+}
+
+// Save deployment state for rollback
+function saveDeploymentState(state: DeploymentState) {
+  const stateDir = path.join(__dirname, "../deployments/.state");
+  if (!fs.existsSync(stateDir)) {
+    fs.mkdirSync(stateDir, { recursive: true });
+  }
+  
+  const statePath = path.join(stateDir, `${state.network}-${Date.now()}.json`);
+  fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+  
+  // Also save as latest
+  const latestPath = path.join(stateDir, `${state.network}-latest.json`);
+  fs.writeFileSync(latestPath, JSON.stringify(state, null, 2));
+  
+  return statePath;
+}
+
+// Load latest deployment state
+function loadDeploymentState(network: string): DeploymentState | null {
+  const latestPath = path.join(__dirname, `../deployments/.state/${network}-latest.json`);
+  if (fs.existsSync(latestPath)) {
+    return JSON.parse(fs.readFileSync(latestPath, 'utf8'));
+  }
+  return null;
+}
+
+// Wait for transaction with timeout
+async function waitForTransaction(hash: string, confirmations = 2, timeoutMs = 300000) {
+  const provider = ethers.provider;
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const receipt = await provider.waitForTransaction(hash, confirmations);
+      if (receipt && receipt.status === 1) {
+        return receipt;
+      } else if (receipt && receipt.status === 0) {
+        throw new Error("Transaction failed");
+      }
+    } catch (error) {
+      if (Date.now() - startTime >= timeoutMs) {
+        throw new Error(`Transaction timeout after ${timeoutMs}ms`);
+      }
+      // Continue waiting
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+  
+  throw new Error(`Transaction timeout after ${timeoutMs}ms`);
+}
+
+// Retry logic with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  initialDelay = 1000
+): Promise<T> {
+  let lastError: any;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      console.log(`Attempt ${i + 1} failed: ${error}`);
+      
+      if (i < maxRetries - 1) {
+        const delay = initialDelay * Math.pow(2, i);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError;
+}
 
 async function main() {
-  console.log("Starting LookCoin deployment...");
+  console.log("Starting LookCoin deployment with enhanced safety features...");
 
   const [deployer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
@@ -13,6 +111,15 @@ async function main() {
 
   console.log(`Deploying on chain ${chainId} with account: ${deployer.address}`);
   console.log(`Account balance: ${ethers.formatEther(await ethers.provider.getBalance(deployer.address))} ETH`);
+  
+  // Check network connectivity
+  try {
+    const blockNumber = await ethers.provider.getBlockNumber();
+    console.log(`Connected to network at block ${blockNumber}`);
+  } catch (error) {
+    console.error("❌ Network connectivity check failed:", error);
+    throw new Error("Cannot connect to network");
+  }
 
   // Get network name and centralized configuration
   const networkName = getNetworkName(chainId);
@@ -36,6 +143,25 @@ async function main() {
   // Load existing deployment if it exists
   const existingDeployment = loadDeployment(networkName);
 
+  // Initialize deployment state for rollback tracking
+  const deploymentState: DeploymentState = {
+    network: networkName,
+    chainId: chainId,
+    deployer: deployer.address,
+    startTime: new Date().toISOString(),
+    steps: [
+      { name: "LookCoin", status: 'pending' },
+      { name: "CelerIMModule", status: 'pending' },
+      { name: "IBCModule", status: 'pending' },
+      { name: "SupplyOracle", status: 'pending' }
+    ],
+    checkpoint: existingDeployment
+  };
+  
+  // Save initial state
+  const stateFile = saveDeploymentState(deploymentState);
+  console.log(`\n📁 Deployment state saved to: ${stateFile}`);
+
   // Prepare deployment object
   const deployment: Deployment = existingDeployment || {
     network: networkName,
@@ -57,23 +183,54 @@ async function main() {
 
   // Deploy or upgrade LookCoin
   console.log("\n⌛️ 1. Processing LookCoin...");
+  const lookCoinStep = deploymentState.steps.find(s => s.name === "LookCoin")!;
+  lookCoinStep.status = 'in_progress';
+  lookCoinStep.timestamp = new Date().toISOString();
+  saveDeploymentState(deploymentState);
+  
   try {
-    const lookCoin = await fetchDeployOrUpgradeProxy(hre, "LookCoin", [governanceVault, lzEndpoint], {
-      initializer: "initialize",
-      kind: "uups",
+    const lookCoin = await retryWithBackoff(async () => {
+      // Estimate gas before deployment
+      console.log("  📊 Estimating gas...");
+      const deployTx = await ethers.getContractFactory("LookCoin").then(f => f.getDeployTransaction());
+      const gasEstimate = await ethers.provider.estimateGas(deployTx);
+      console.log(`  ⛽ Estimated gas: ${gasEstimate.toString()}`);
+      
+      return fetchDeployOrUpgradeProxy(hre, "LookCoin", [governanceVault, lzEndpoint], {
+        initializer: "initialize",
+        kind: "uups",
+      });
     });
+    
     const lookCoinAddress = await lookCoin.getAddress();
     const lookCoinArtifact = await hre.artifacts.readArtifact("LookCoin");
     const lookCoinBytecodeHash = getBytecodeHash(lookCoinArtifact.deployedBytecode);
+
+    // Verify deployment
+    console.log("  🔍 Verifying deployment...");
+    const code = await ethers.provider.getCode(lookCoinAddress);
+    if (code === "0x") {
+      throw new Error("Contract deployment failed - no code at address");
+    }
 
     deployment.contracts.LookCoin = {
       proxy: lookCoinAddress,
       implementation: await upgrades.erc1967.getImplementationAddress(lookCoinAddress),
     };
     deployment.implementationHashes!.LookCoin = lookCoinBytecodeHash;
-    console.log("✅ 1. LookCoin completed");
-  } catch (error) {
+    
+    lookCoinStep.status = 'completed';
+    lookCoinStep.contractAddress = lookCoinAddress;
+    saveDeploymentState(deploymentState);
+    
+    console.log("✅ 1. LookCoin completed at:", lookCoinAddress);
+  } catch (error: any) {
+    lookCoinStep.status = 'failed';
+    lookCoinStep.error = error.message;
+    saveDeploymentState(deploymentState);
+    
     console.error("❌ Failed to deploy/upgrade LookCoin:", error);
+    console.error("\n🔄 Rollback information saved. To resume, run: npm run deploy:resume");
     throw error;
   }
 
@@ -81,15 +238,30 @@ async function main() {
   let celerModuleAddress: string | null = null;
   if (celerMessageBus !== "0x0000000000000000000000000000000000000000") {
     console.log("\n⌛️ 2. Processing CelerIMModule...");
+    const celerStep = deploymentState.steps.find(s => s.name === "CelerIMModule")!;
+    celerStep.status = 'in_progress';
+    celerStep.timestamp = new Date().toISOString();
+    saveDeploymentState(deploymentState);
+    
     try {
       const lookCoinAddress = deployment.contracts.LookCoin.proxy;
-      const celerModule = await fetchDeployOrUpgradeProxy(
-        hre,
-        "CelerIMModule",
-        [celerMessageBus, lookCoinAddress, governanceVault],
-        { initializer: "initialize", kind: "uups" },
-      );
+      const celerModule = await retryWithBackoff(async () => {
+        return fetchDeployOrUpgradeProxy(
+          hre,
+          "CelerIMModule",
+          [lookCoinAddress, celerMessageBus, governanceVault],
+          { initializer: "initialize", kind: "uups" },
+        );
+      });
+      
       celerModuleAddress = await celerModule.getAddress();
+      
+      // Verify deployment
+      const code = await ethers.provider.getCode(celerModuleAddress);
+      if (code === "0x") {
+        throw new Error("Contract deployment failed - no code at address");
+      }
+      
       const celerArtifact = await hre.artifacts.readArtifact("CelerIMModule");
       const celerBytecodeHash = getBytecodeHash(celerArtifact.deployedBytecode);
 
@@ -98,6 +270,10 @@ async function main() {
         implementation: await upgrades.erc1967.getImplementationAddress(celerModuleAddress),
       };
       deployment.implementationHashes!.CelerIMModule = celerBytecodeHash;
+      
+      celerStep.status = 'completed';
+      celerStep.contractAddress = celerModuleAddress;
+      saveDeploymentState(deploymentState);
       console.log("✅ 2. CelerIMModule completed");
     } catch (error) {
       console.error("❌ Failed to deploy/upgrade CelerIMModule:", error);
@@ -170,7 +346,23 @@ async function main() {
   console.log("\n✅ Deployment completed successfully!");
   console.log("\n⚠️  Next steps:");
   console.log(`1. Run setup script: npm run setup:${networkName.toLowerCase().replace(/\s+/g, "-")}`);
-  console.log("2. Run configure.ts to set up cross-chain connections");
+
+  // Provide network-specific configure script instructions
+  const networkKey = networkName.toLowerCase().replace(/\s+/g, "");
+  const configureScriptMap: { [key: string]: string } = {
+    bsctestnet: "npm run configure:bsc-testnet",
+    basesepolia: "npm run configure:base-sepolia",
+    opsepolia: "npm run configure:optimism-sepolia",
+    optimismsepolia: "npm run configure:optimism-sepolia",
+    sapphire: "npm run configure:sapphire-mainnet",
+  };
+
+  if (configureScriptMap[networkKey]) {
+    console.log(`2. Run configure script: ${configureScriptMap[networkKey]}`);
+  } else {
+    console.log("2. No network-specific configure script available for this network");
+  }
+
   console.log("3. Verify contracts on block explorer");
   console.log("4. Configure monitoring and alerting");
 }

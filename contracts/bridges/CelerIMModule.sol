@@ -55,6 +55,8 @@ interface IMessageReceiverApp {
 /**
  * @title CelerIMModule
  * @dev Celer IM bridge module for LookCoin cross-chain transfers using lock-and-mint mechanism
+ * @notice This contract handles cross-chain token transfers between BSC, Optimism, and Sapphire chains
+ * @dev Security features include role-based access control, pausability, reentrancy protection, and transfer replay prevention
  */
 contract CelerIMModule is 
     AccessControlUpgradeable,
@@ -75,20 +77,37 @@ contract CelerIMModule is
     uint64 public constant SAPPHIRE_CHAINID = 23295;
 
     // State variables
+    /// @dev LookCoin contract interface for minting tokens
     ILookCoin public lookCoin;
+    /// @dev Celer MessageBus interface for cross-chain messaging
     IMessageBus public messageBus;
-    mapping(uint64 => address) public remoteModules; // chainId => module address
+    /// @dev Mapping from chain ID to remote module addresses for cross-chain communication
+    mapping(uint64 => address) public remoteModules;
+    /// @dev Whitelist of addresses allowed to use bridge during maintenance
     mapping(address => bool) public whitelist;
+    /// @dev Blacklist of addresses banned from using the bridge
     mapping(address => bool) public blacklist;
+    /// @dev Mapping to track processed transfers to prevent replay attacks
     mapping(bytes32 => bool) public processedTransfers;
     
     // Fee parameters
-    uint256 public feePercentage; // Basis points (1% = 100)
+    /// @dev Bridge fee percentage in basis points (100 = 1%)
+    uint256 public feePercentage;
+    /// @dev Minimum fee amount regardless of transfer size
     uint256 public minFee;
+    /// @dev Maximum fee amount to cap large transfers
     uint256 public maxFee;
+    /// @dev Address that collects bridge fees
     address public feeCollector;
     
     // Events
+    /// @notice Emitted when tokens are locked for cross-chain transfer
+    /// @param sender Address that initiated the transfer
+    /// @param dstChainId Destination chain ID
+    /// @param recipient Recipient address on destination chain
+    /// @param amount Net amount being transferred (after fees)
+    /// @param fee Fee amount collected
+    /// @param transferId Unique transfer identifier
     event CrossChainTransferLocked(
         address indexed sender,
         uint64 indexed dstChainId,
@@ -97,6 +116,13 @@ contract CelerIMModule is
         uint256 fee,
         bytes32 transferId
     );
+    
+    /// @notice Emitted when tokens are minted from cross-chain transfer
+    /// @param srcChainId Source chain ID where tokens were locked
+    /// @param sender Original sender address on source chain
+    /// @param recipient Recipient address receiving minted tokens
+    /// @param amount Amount of tokens minted
+    /// @param transferId Unique transfer identifier
     event CrossChainTransferMinted(
         uint64 indexed srcChainId,
         address indexed sender,
@@ -104,16 +130,35 @@ contract CelerIMModule is
         uint256 amount,
         bytes32 transferId
     );
+    
+    /// @notice Emitted when a remote module address is configured
+    /// @param chainId Chain ID of the remote module
+    /// @param module Address of the remote module
     event RemoteModuleSet(uint64 indexed chainId, address module);
+    
+    /// @notice Emitted when fee parameters are updated
+    /// @param feePercentage New fee percentage in basis points
+    /// @param minFee New minimum fee amount
+    /// @param maxFee New maximum fee amount
     event FeeParametersUpdated(uint256 feePercentage, uint256 minFee, uint256 maxFee);
+    
+    /// @notice Emitted when emergency withdrawal is performed
+    /// @param token Token address (address(0) for native token)
+    /// @param to Recipient address
+    /// @param amount Amount withdrawn
     event EmergencyWithdraw(address indexed token, address indexed to, uint256 amount);
+    
+    /// @notice Emitted when MessageBus address is updated
+    /// @param newMessageBus New MessageBus contract address
     event MessageBusUpdated(address indexed newMessageBus);
 
     /**
      * @dev Initialize the Celer IM module
-     * @param _messageBus Celer MessageBus address
-     * @param _lookCoin LookCoin contract address
-     * @param _admin Admin address
+     * @param _lookCoin LookCoin contract address for token operations
+     * @param _messageBus Celer MessageBus address for cross-chain messaging
+     * @param _admin Admin address to be granted all administrative roles
+     * @notice Sets up the bridge with default fee parameters and role assignments
+     * @dev Fee defaults: 0.5% (50 basis points), min 10 LOOK, max 1000 LOOK
      */
     function initialize(
         address _messageBus,
@@ -148,9 +193,12 @@ contract CelerIMModule is
 
     /**
      * @dev Lock LOOK tokens and initiate cross-chain transfer
-     * @param _dstChainId Destination chain ID
+     * @param _dstChainId Destination chain ID (must be BSC, Optimism, or Sapphire)
      * @param _recipient Recipient address on destination chain
-     * @param _amount Amount to transfer
+     * @param _amount Amount to transfer (before fees)
+     * @notice Locks tokens on source chain and sends message to mint on destination
+     * @dev Requires msg.value to cover Celer message fees
+     * @dev Emits CrossChainTransferLocked event
      */
     function lockAndBridge(
         uint64 _dstChainId,
@@ -222,12 +270,15 @@ contract CelerIMModule is
 
     /**
      * @dev Execute incoming cross-chain message and mint tokens
-     * @param _sender Sender address on source chain
-     * @param _token Token address (should be address(0) for mint)
-     * @param _amount Amount (not used for mint)
-     * @param _srcChainId Source chain ID
-     * @param _message Encoded message data
-     * @param _executor Executor address
+     * @param _sender Sender address on source chain (must be registered remote module)
+     * @param _token Token address (unused for mint operations)
+     * @param _amount Amount (unused, actual amount is in message)
+     * @param _srcChainId Source chain ID where tokens were locked
+     * @param _message Encoded message containing transfer details
+     * @param _executor Executor address (unused)
+     * @notice Called by MessageBus to process incoming cross-chain transfers
+     * @dev Validates sender, prevents replay attacks, and mints tokens to recipient
+     * @return ExecutionStatus indicating success or failure
      */
     function executeMessageWithTransfer(
         address _sender,
@@ -266,10 +317,13 @@ contract CelerIMModule is
 
     /**
      * @dev Handle message execution failure with refund
-     * @param _token Token address
+     * @param _token Token address for refund
      * @param _amount Refund amount
-     * @param _message Original message
-     * @param _executor Executor address
+     * @param _message Original message to decode sender information
+     * @param _executor Executor address (unused)
+     * @notice Called by MessageBus when cross-chain transfer fails
+     * @dev Refunds locked tokens to original sender
+     * @return ExecutionStatus indicating refund success
      */
     function executeMessageWithTransferRefund(
         address _token,
@@ -294,7 +348,9 @@ contract CelerIMModule is
      * @dev Estimate message fee for cross-chain transfer
      * @param _dstChainId Destination chain ID
      * @param _message Message to send
-     * @return fee Estimated fee in native token
+     * @return fee Estimated fee in native token (ETH/BNB)
+     * @notice Calculates Celer messaging fee based on message size
+     * @dev Fee = base fee + (per-byte fee * message length)
      */
     function estimateMessageFee(
         uint64 _dstChainId,
@@ -306,7 +362,9 @@ contract CelerIMModule is
     /**
      * @dev Calculate transfer fee
      * @param _amount Transfer amount
-     * @return fee Fee amount
+     * @return fee Fee amount in LOOK tokens
+     * @notice Applies percentage fee with min/max bounds
+     * @dev Fee calculation: max(minFee, min(maxFee, amount * feePercentage / 10000))
      */
     function calculateFee(uint256 _amount) public view returns (uint256 fee) {
         fee = (_amount * feePercentage) / 10000;
@@ -316,8 +374,10 @@ contract CelerIMModule is
 
     /**
      * @dev Set remote module address for a chain
-     * @param _chainId Chain ID
-     * @param _module Module address
+     * @param _chainId Chain ID (BSC: 56, Optimism: 10, Sapphire: 23295)
+     * @param _module Module address on the remote chain
+     * @notice Registers trusted remote module for cross-chain communication
+     * @dev Only supported chains are allowed to prevent misconfiguration
      */
     function setRemoteModule(uint64 _chainId, address _module) 
         external 
@@ -336,6 +396,8 @@ contract CelerIMModule is
     /**
      * @dev Update MessageBus address
      * @param _messageBus New MessageBus address
+     * @notice Updates Celer MessageBus contract address
+     * @dev Critical operation that affects all cross-chain functionality
      */
     function updateMessageBus(address _messageBus) external onlyRole(ADMIN_ROLE) {
         require(_messageBus != address(0), "CelerIM: invalid message bus");
@@ -345,9 +407,11 @@ contract CelerIMModule is
 
     /**
      * @dev Update fee parameters
-     * @param _feePercentage New fee percentage
-     * @param _minFee New minimum fee
-     * @param _maxFee New maximum fee
+     * @param _feePercentage New fee percentage in basis points (max 1000 = 10%)
+     * @param _minFee New minimum fee in LOOK tokens
+     * @param _maxFee New maximum fee in LOOK tokens
+     * @notice Adjusts bridge fee structure
+     * @dev Ensures fee percentage doesn't exceed 10% and min <= max
      */
     function updateFeeParameters(
         uint256 _feePercentage,
@@ -367,6 +431,8 @@ contract CelerIMModule is
     /**
      * @dev Update fee collector address
      * @param _feeCollector New fee collector address
+     * @notice Changes the address that receives bridge fees
+     * @dev Cannot be set to zero address
      */
     function updateFeeCollector(address _feeCollector) external onlyRole(ADMIN_ROLE) {
         require(_feeCollector != address(0), "CelerIM: invalid fee collector");
@@ -376,7 +442,9 @@ contract CelerIMModule is
     /**
      * @dev Add/remove address from whitelist
      * @param _address Address to update
-     * @param _whitelisted Whitelist status
+     * @param _whitelisted Whitelist status (true to add, false to remove)
+     * @notice Whitelisted addresses can use bridge even when paused
+     * @dev Useful for maintenance and emergency operations
      */
     function updateWhitelist(address _address, bool _whitelisted) 
         external 
@@ -388,7 +456,9 @@ contract CelerIMModule is
     /**
      * @dev Add/remove address from blacklist
      * @param _address Address to update
-     * @param _blacklisted Blacklist status
+     * @param _blacklisted Blacklist status (true to ban, false to unban)
+     * @notice Blacklisted addresses cannot use the bridge
+     * @dev Takes precedence over whitelist
      */
     function updateBlacklist(address _address, bool _blacklisted) 
         external 
@@ -399,9 +469,11 @@ contract CelerIMModule is
 
     /**
      * @dev Emergency withdraw tokens
-     * @param _token Token address
+     * @param _token Token address (use address(0) for native token)
      * @param _to Recipient address
      * @param _amount Amount to withdraw
+     * @notice Allows admin to recover stuck tokens or ETH
+     * @dev Should only be used in emergency situations
      */
     function emergencyWithdraw(
         address _token,
@@ -421,6 +493,8 @@ contract CelerIMModule is
 
     /**
      * @dev Pause the contract
+     * @notice Pauses all bridge operations except for whitelisted addresses
+     * @dev Only OPERATOR_ROLE can pause
      */
     function pause() external onlyRole(OPERATOR_ROLE) {
         _pause();
@@ -428,6 +502,8 @@ contract CelerIMModule is
 
     /**
      * @dev Unpause the contract
+     * @notice Resumes normal bridge operations
+     * @dev Only OPERATOR_ROLE can unpause
      */
     function unpause() external onlyRole(OPERATOR_ROLE) {
         _unpause();
@@ -435,6 +511,7 @@ contract CelerIMModule is
 
     /**
      * @dev Override supportsInterface for multiple inheritance
+     * @notice Required for AccessControl compatibility
      */
     function supportsInterface(bytes4 interfaceId)
         public
@@ -448,6 +525,8 @@ contract CelerIMModule is
     /**
      * @dev Authorize upgrade for UUPS proxy
      * @param newImplementation New implementation address
+     * @notice Restricts upgrades to ADMIN_ROLE only
+     * @dev Critical security function for upgrade control
      */
     function _authorizeUpgrade(address newImplementation)
         internal

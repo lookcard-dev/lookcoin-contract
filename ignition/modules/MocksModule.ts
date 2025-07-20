@@ -5,7 +5,7 @@ import {
   validateChainId,
   createParameterError,
   parseJsonParameter,
-  validateFeeParameters
+  validateFeeParameters,
 } from "../utils/parameterValidation";
 
 const MocksModule = buildModule("MocksModule", (m) => {
@@ -16,16 +16,16 @@ const MocksModule = buildModule("MocksModule", (m) => {
   let celerFeePerByte: bigint;
   let ibcPacketTimeout: number;
   let ibcUnbondingPeriod: number;
-  
+
   try {
     // Get base chain ID from parameter or default
     const chainIdParam = m.getParameter("mockBaseChainId", 56); // Default to BSC
     baseChainId = validateChainId(chainIdParam as number, "mockBaseChainId");
-    
+
     // Parse supported chains from parameter
     const supportedChainsParam = m.getParameter("mockSupportedChains", "56,8453,10,23295,999");
     if (typeof supportedChainsParam === "string") {
-      supportedChains = supportedChainsParam.split(',').map(id => {
+      supportedChains = supportedChainsParam.split(",").map((id) => {
         const chainId = parseInt(id.trim());
         if (isNaN(chainId)) {
           throw createParameterError("mockSupportedChains", "comma-separated chain IDs", id);
@@ -33,11 +33,11 @@ const MocksModule = buildModule("MocksModule", (m) => {
         return validateChainId(chainId, `mockSupportedChains[${id}]`);
       });
     } else if (Array.isArray(supportedChainsParam)) {
-      supportedChains = (supportedChainsParam as number[]).map(id => 
-        validateChainId(id, `mockSupportedChains[${id}]`)
+      supportedChains = (supportedChainsParam as number[]).map((id) =>
+        validateChainId(id, `mockSupportedChains[${id}]`),
       );
     }
-    
+
     // Validate Celer fee parameters
     const feeBaseParam = m.getParameter("celerFeeBase", "0.001");
     if (typeof feeBaseParam === "string") {
@@ -45,31 +45,30 @@ const MocksModule = buildModule("MocksModule", (m) => {
     } else {
       celerFeeBase = feeBaseParam as bigint;
     }
-    
+
     const feePerByteParam = m.getParameter("celerFeePerByte", "0.000000001"); // 1 gwei per byte
     if (typeof feePerByteParam === "string") {
       celerFeePerByte = validateParseEther(feePerByteParam, "celerFeePerByte");
     } else {
       celerFeePerByte = feePerByteParam as bigint;
     }
-    
+
     // Validate fee parameters
     validateFeeParameters({
       feeBase: celerFeeBase.toString(),
-      feePerByte: celerFeePerByte.toString()
+      feePerByte: celerFeePerByte.toString(),
     });
-    
+
     // Validate IBC timeout parameters
     ibcPacketTimeout = m.getParameter("ibcPacketTimeout", 3600) as number; // 1 hour
     if (ibcPacketTimeout <= 0) {
       throw createParameterError("ibcPacketTimeout", "positive number", ibcPacketTimeout.toString());
     }
-    
+
     ibcUnbondingPeriod = m.getParameter("ibcUnbondingPeriod", 14 * 24 * 60 * 60) as number; // 14 days
     if (ibcUnbondingPeriod <= 0) {
       throw createParameterError("ibcUnbondingPeriod", "positive number", ibcUnbondingPeriod.toString());
     }
-    
   } catch (error: any) {
     throw new Error(`MocksModule parameter validation failed: ${error.message}`);
   }
@@ -83,11 +82,11 @@ const MocksModule = buildModule("MocksModule", (m) => {
   m.call(mockLayerZeroEndpoint, "setUltraLightNode", [mockUltraLightNode], {
     id: "setUltraLightNode",
   });
-  
+
   // Set up chain configurations for LayerZero - now parameter-driven
   supportedChains.forEach((chainId) => {
-    m.call(mockLayerZeroEndpoint, "setDestination", [chainId, mockLayerZeroEndpoint], { 
-      id: `setDestination_${chainId}` 
+    m.call(mockLayerZeroEndpoint, "setDestination", [chainId, mockLayerZeroEndpoint], {
+      id: `setDestination_${chainId}`,
     });
   });
 
@@ -103,7 +102,7 @@ const MocksModule = buildModule("MocksModule", (m) => {
   m.call(mockMessageBus, "setCBridge", [mockCBridge], {
     id: "setCBridge",
   });
-  
+
   // Set up fee parameters for Celer with validated values
   m.call(mockMessageBus, "setFeeParams", [celerFeeBase, celerFeePerByte], {
     id: "setFeeParams",
@@ -127,7 +126,7 @@ const MocksModule = buildModule("MocksModule", (m) => {
   const networkLatency = m.getParameter("networkLatency", 1000) as number; // latency in ms
   const packetLoss = m.getParameter("packetLoss", 0) as number; // packet loss percentage
   const networkJitter = m.getParameter("networkJitter", 100) as number; // jitter in ms
-  
+
   // Validate network simulator parameters
   if (networkLatency < 0) {
     throw createParameterError("networkLatency", "non-negative number", networkLatency.toString());
@@ -138,12 +137,8 @@ const MocksModule = buildModule("MocksModule", (m) => {
   if (networkJitter < 0) {
     throw createParameterError("networkJitter", "non-negative number", networkJitter.toString());
   }
-  
-  m.call(mockNetworkSimulator, "setConditions", [
-    networkLatency,
-    packetLoss,
-    networkJitter,
-  ], {
+
+  m.call(mockNetworkSimulator, "setConditions", [networkLatency, packetLoss, networkJitter], {
     id: "setNetworkConditions",
   });
 
@@ -152,17 +147,17 @@ const MocksModule = buildModule("MocksModule", (m) => {
     mockLayerZeroEndpoint,
     mockDVN,
     mockUltraLightNode,
-    
+
     // Celer mocks
     mockMessageBus,
     mockSGN,
     mockCBridge,
-    
+
     // IBC mocks
     mockIBCRelayer,
     mockAkashicValidators,
     mockIBCLightClient,
-    
+
     // Utility mocks
     mockTimeDelay,
     mockNetworkSimulator,

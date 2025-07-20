@@ -19,76 +19,77 @@ All modules use string-based parameters to avoid Hardhat Ignition's limitations 
 
 ### LookCoinModule Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| governanceVault | address | Yes | account[0] | MPC vault wallet address for governance |
-| lzEndpoint | address | No | ZeroAddress | LayerZero endpoint address (ZeroAddress disables LZ) |
-| totalSupply | string | No | "1000000000" | Total token supply in ether units |
-| chainId | number | No | 56 | Current chain ID |
-| dvns | string | No | "" | Comma-separated DVN addresses |
-| requiredDVNs | number | No | 2 | Number of required DVNs |
-| optionalDVNs | number | No | 1 | Number of optional DVNs |
-| dvnThreshold | number | No | 66 | DVN threshold percentage (1-100) |
+| Parameter       | Type    | Required | Default      | Description                                          |
+| --------------- | ------- | -------- | ------------ | ---------------------------------------------------- |
+| governanceVault | address | Yes      | account[0]   | MPC vault wallet address for governance              |
+| lzEndpoint      | address | No       | ZeroAddress  | LayerZero endpoint address (ZeroAddress disables LZ) |
+| totalSupply     | string  | No       | "1000000000" | Total token supply in ether units                    |
+| chainId         | number  | No       | 56           | Current chain ID                                     |
+| dvns            | string  | No       | ""           | Comma-separated DVN addresses                        |
+| requiredDVNs    | number  | No       | 2            | Number of required DVNs                              |
+| optionalDVNs    | number  | No       | 1            | Number of optional DVNs                              |
+| dvnThreshold    | number  | No       | 66           | DVN threshold percentage (1-100)                     |
 
 ### IBCModule Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| lookCoin | address | Yes | - | LookCoin contract address |
-| vault | address | Yes | - | Vault address for IBC operations |
-| governanceVault | address | No | account[0] | Governance vault address |
-| validators | string | Yes | - | Comma-separated validator addresses (min 21) |
-| channelId | string | No | "channel-0" | IBC channel ID |
-| portId | string | No | "transfer" | IBC port ID |
-| timeoutTimestamp | number | No | 3600 | Packet timeout in seconds |
-| unbondingPeriod | number | No | 1209600 | Validator unbonding period |
+| Parameter        | Type    | Required | Default     | Description                                  |
+| ---------------- | ------- | -------- | ----------- | -------------------------------------------- |
+| lookCoin         | address | Yes      | -           | LookCoin contract address                    |
+| vault            | address | Yes      | -           | Vault address for IBC operations             |
+| governanceVault  | address | No       | account[0]  | Governance vault address                     |
+| validators       | string  | Yes      | -           | Comma-separated validator addresses (min 21) |
+| channelId        | string  | No       | "channel-0" | IBC channel ID                               |
+| portId           | string  | No       | "transfer"  | IBC port ID                                  |
+| timeoutTimestamp | number  | No       | 3600        | Packet timeout in seconds                    |
+| unbondingPeriod  | number  | No       | 1209600     | Validator unbonding period                   |
 
 ### CelerModule Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| messageBus | address | No | ZeroAddress | Celer message bus address |
-| lookCoin | address | Yes | - | LookCoin contract address |
-| governanceVault | address | No | account[0] | Governance vault address |
-| chainId | number | No | 56 | Current chain ID |
-| remoteModules | string | No | "{}" | JSON string of remote module addresses |
-| celerSupportedChains | string | No | "56,10,23295" | Comma-separated supported chain IDs |
-| feePercentage | number | No | 50 | Fee percentage in basis points |
-| minFee | string | No | "10" | Minimum fee in ether units |
-| maxFee | string | No | "1000" | Maximum fee in ether units |
-| feeCollector | address | No | governanceVault | Fee collector address |
+| Parameter            | Type    | Required | Default         | Description                            |
+| -------------------- | ------- | -------- | --------------- | -------------------------------------- |
+| messageBus           | address | No       | ZeroAddress     | Celer message bus address              |
+| lookCoin             | address | Yes      | -               | LookCoin contract address              |
+| governanceVault      | address | No       | account[0]      | Governance vault address               |
+| chainId              | number  | No       | 56              | Current chain ID                       |
+| remoteModules        | string  | No       | "{}"            | JSON string of remote module addresses |
+| celerSupportedChains | string  | No       | "56,10,23295"   | Comma-separated supported chain IDs    |
+| feePercentage        | number  | No       | 50              | Fee percentage in basis points         |
+| minFee               | string  | No       | "10"            | Minimum fee in ether units             |
+| maxFee               | string  | No       | "1000"          | Maximum fee in ether units             |
+| feeCollector         | address | No       | governanceVault | Fee collector address                  |
 
 ### OracleModule Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| governanceVault | address | No | account[0] | Governance vault address |
-| totalSupply | string | No | "1000000000" | Total supply in ether units |
-| reconciliationInterval | number | No | 900 | Reconciliation interval in seconds |
-| toleranceThreshold | string | No | "1000" | Tolerance threshold in ether units |
-| requiredSignatures | number | No | 3 | Required oracle signatures |
-| bridgeRegistrations | string | No | "{}" | JSON string of bridge addresses by chain |
-| supportedChains | string | No | "56,8453,10,23295,999" | Comma-separated chain IDs |
+| Parameter              | Type    | Required | Default                | Description                              |
+| ---------------------- | ------- | -------- | ---------------------- | ---------------------------------------- |
+| governanceVault        | address | No       | account[0]             | Governance vault address                 |
+| totalSupply            | string  | No       | "1000000000"           | Total supply in ether units              |
+| reconciliationInterval | number  | No       | 900                    | Reconciliation interval in seconds       |
+| toleranceThreshold     | string  | No       | "1000"                 | Tolerance threshold in ether units       |
+| requiredSignatures     | number  | No       | 3                      | Required oracle signatures               |
+| bridgeRegistrations    | string  | No       | "{}"                   | JSON string of bridge addresses by chain |
+| supportedChains        | string  | No       | "56,8453,10,23295,999" | Comma-separated chain IDs                |
 
 ### MocksModule Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| mockBaseChainId | number | No | 56 | Base chain ID for mocks |
-| mockSupportedChains | string | No | "56,8453,10,23295,999" | Supported chains |
-| celerFeeBase | string | No | "0.001" | Base fee in ether units |
-| celerFeePerByte | string | No | "0.000000001" | Fee per byte in ether |
-| ibcPacketTimeout | number | No | 3600 | IBC packet timeout |
-| ibcUnbondingPeriod | number | No | 1209600 | IBC unbonding period |
-| networkLatency | number | No | 1000 | Network latency in ms |
-| packetLoss | number | No | 0 | Packet loss percentage |
-| networkJitter | number | No | 100 | Network jitter in ms |
+| Parameter           | Type   | Required | Default                | Description             |
+| ------------------- | ------ | -------- | ---------------------- | ----------------------- |
+| mockBaseChainId     | number | No       | 56                     | Base chain ID for mocks |
+| mockSupportedChains | string | No       | "56,8453,10,23295,999" | Supported chains        |
+| celerFeeBase        | string | No       | "0.001"                | Base fee in ether units |
+| celerFeePerByte     | string | No       | "0.000000001"          | Fee per byte in ether   |
+| ibcPacketTimeout    | number | No       | 3600                   | IBC packet timeout      |
+| ibcUnbondingPeriod  | number | No       | 1209600                | IBC unbonding period    |
+| networkLatency      | number | No       | 1000                   | Network latency in ms   |
+| packetLoss          | number | No       | 0                      | Packet loss percentage  |
+| networkJitter       | number | No       | 100                    | Network jitter in ms    |
 
 ## Deployment Instructions
 
 ### 1. Prepare Parameter File
 
 Create a parameter file for your target network in `ignition/parameters/`. Example files are provided for:
+
 - `bsc-mainnet.json` - BSC mainnet deployment
 - `bsc-testnet.json` - BSC testnet deployment
 - `base-mainnet.json` - Base mainnet deployment
@@ -125,19 +126,63 @@ npx hardhat ignition deploy ignition/modules/MocksModule.ts \
   --network hardhat
 ```
 
-### 3. Post-Deployment Configuration
+## Three-Stage Deployment Process
 
-After deployment, you need to:
+LookCoin uses a three-stage deployment process to ensure proper contract setup and cross-chain connectivity:
 
-1. **Grant MINTER_ROLE** to bridge modules on LookCoin contract
-2. **Configure cross-chain connections** between bridge modules
-3. **Set up oracle operators** for supply monitoring
-4. **Configure rate limits** if different from defaults
+### Stage 1: Deploy
 
-Example post-deployment script:
+**Purpose**: Creates contracts and deployment artifacts using Hardhat Ignition modules
+**What it does**:
+
+- Deploys all smart contracts (LookCoin, bridge modules, SupplyOracle) using Ignition modules
+- Creates deployment artifacts in `deployments/{network}.json`
+- Initializes contracts with basic parameters from centralized configuration
+- Assigns only administrative roles (no operational roles)
+
+### Stage 2: Setup
+
+**Purpose**: Assigns operational roles and configures local settings post-deployment
+**What it does**:
+
+- Assigns MINTER_ROLE to IBCModule and CelerIMModule on the LookCoin contract
+- Grants BURNER_ROLE to LookCoin contract itself for LayerZero burns
+- Registers local bridges with SupplyOracle for the current network only
+- Configures rate limiting parameters
+- Operates on a single network using only local deployment artifacts
+
+### Stage 3: Configure
+
+**Purpose**: Establishes cross-chain connections between multiple networks
+**What it does**:
+
+- Sets up LayerZero trusted remotes using contract addresses from other networks
+- Configures Celer IM remote modules for cross-chain messaging
+- Registers bridges from ALL networks in the local SupplyOracle
+- Requires deployment artifacts from other networks via `loadOtherChainDeployments()`
+
+### Post-Deployment Configuration
+
+After Ignition deployment, follow the three-stage process:
+
 ```bash
-npm run configure:bridges -- --network bsc-mainnet
+# Stage 1: Deploy (using Ignition modules above)
+npm run deploy:bsc-testnet
+
+# Stage 2: Setup (configure local roles and settings)
+npm run setup:bsc-testnet
+
+# Stage 3: Configure (establish cross-chain connections)
+# Only available for networks with deployment artifacts from other chains
+npm run configure:bsc-testnet          # BSC Testnet
+npm run configure:base-sepolia         # Base Sepolia
+npm run configure:optimism-sepolia     # Optimism Sepolia
+npm run configure:sapphire-mainnet     # Oasis Sapphire Mainnet
 ```
+
+**Execution Order**: Always follow this sequence: **Deploy (Ignition) → Setup → Configure**
+
+**Note**: Configure scripts are only available for networks that have deployment artifacts from other networks. The `configure.ts` script requires deployment JSON files from other networks to load contract addresses for cross-chain setup. Currently, only 4 networks support the configure stage: base-sepolia, bsc-testnet, optimism-sepolia, and sapphire-mainnet, representing all networks with the necessary deployment artifacts for cross-chain configuration.
 
 ## Troubleshooting Guide
 
@@ -154,6 +199,7 @@ npm run configure:bridges -- --network bsc-mainnet
 **Error**: "IBC requires at least 21 validators, got 0"
 
 **Solution**: Provide validators as a comma-separated string, not an array:
+
 ```json
 "validators": "0x123...,0x456...,0x789..."
 ```
@@ -163,6 +209,7 @@ npm run configure:bridges -- --network bsc-mainnet
 **Error**: "Cannot convert X to BigInt"
 
 **Solution**: Provide all token amounts as strings in ether units:
+
 ```json
 "totalSupply": "1000000000",  // 1 billion tokens
 "minFee": "10"                 // 10 tokens
@@ -179,6 +226,7 @@ npm run configure:bridges -- --network bsc-mainnet
 **Error**: "remoteModules must be different from current chain ID"
 
 **Solution**: Ensure remote module addresses are for different chains:
+
 ```json
 "remoteModules": "{\"10\":\"0x...\",\"8453\":\"0x...\"}"
 ```
@@ -186,21 +234,25 @@ npm run configure:bridges -- --network bsc-mainnet
 ### Network-Specific Failures
 
 #### BSC Mainnet
+
 - Ensure sufficient BNB for gas fees
 - Use correct LayerZero endpoint: `0x3c2269811836af69497E5F486A85D7316753cf62`
 - Verify Celer message bus: `0xAd204986D6cB67A5Bc76a3CB8974823F43Cb9AAA`
 
 #### Base Mainnet
+
 - LayerZero endpoint: `0x1a44076050125825900e736c501f859c50fE728c`
 - No Celer support on Base - use LayerZero for bridging
 
 #### Optimism Mainnet
+
 - Celer message bus: `0x4066D196A423b2b3B8B054f4F40efB47a74E200C`
 - No LayerZero OFT support - use Celer for bridging
 
 ## Parameter File Examples
 
 ### Minimal Testing Configuration
+
 ```json
 {
   "LookCoinModule": {
@@ -211,9 +263,11 @@ npm run configure:bridges -- --network bsc-mainnet
 ```
 
 ### Full Production Configuration
+
 See `ignition/parameters/bsc-mainnet.json` for a complete example with all parameters configured.
 
 ### Custom Network Configuration
+
 To add support for a new network:
 
 1. Create a new parameter file: `ignition/parameters/[network]-mainnet.json`
@@ -247,6 +301,7 @@ The parameter validation system enforces the following rules:
 ## Support
 
 For issues or questions:
+
 1. Check the troubleshooting guide above
 2. Review parameter validation error messages
 3. Ensure contracts are compiled: `npm run compile`

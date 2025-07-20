@@ -9,6 +9,7 @@ LookCoin Contract is the smart contract repository for LookCoin (LOOK), the omni
 ## Architecture
 
 ### Contract Structure
+
 ```
 contracts/
 ├── LookCoin.sol              # Main ERC20 token contract (UUPS upgradeable)
@@ -21,6 +22,7 @@ contracts/
 ```
 
 ### Key Technical Features
+
 - **Upgradeable Design**: UUPS proxy pattern with OpenZeppelin contracts
 - **Triple-Bridge Architecture**: LayerZero (burn-and-mint), Celer IM (lock-and-mint), IBC (Cosmos)
 - **Role-Based Access Control**: Granular permissions with AccessControl
@@ -31,6 +33,7 @@ contracts/
 ## Development Commands
 
 ### Core Development
+
 ```bash
 # Install dependencies
 npm install
@@ -58,6 +61,13 @@ npm run format
 ```
 
 ### Deployment Commands
+
+LookCoin uses a three-stage deployment process:
+
+#### Stage 1: Deploy
+
+Creates contracts and deployment artifacts on a single network:
+
 ```bash
 # Deploy to specific networks
 npm run deploy:bsc-testnet
@@ -67,15 +77,45 @@ npm run deploy:base-mainnet
 npm run deploy:op-sepolia
 npm run deploy:op-mainnet
 npm run deploy:akashic-mainnet
-
-# Verify contracts on block explorers
-npm run verify
-
-# Configure cross-chain connections (after deployment)
-npm run configure:bridges
 ```
 
+#### Stage 2: Setup
+
+Configures local roles and settings post-deployment:
+
+```bash
+# Setup after deployment (available for all networks)
+npm run setup:bsc-testnet
+npm run setup:base-sepolia
+npm run setup:op-sepolia
+npm run setup:sapphire-mainnet
+```
+
+#### Stage 3: Configure
+
+Establishes cross-chain connections between multiple networks:
+
+```bash
+# Configure cross-chain connections (only available for networks with deployment artifacts)
+npm run configure:bsc-testnet          # BSC Testnet
+npm run configure:base-sepolia         # Base Sepolia
+npm run configure:optimism-sepolia     # Optimism Sepolia
+npm run configure:sapphire-mainnet     # Oasis Sapphire Mainnet
+```
+
+**Note**: Configure scripts are only available for networks that have deployment artifacts from other networks. The `configure.ts` script requires deployment JSON files from other networks to establish LayerZero trusted remotes, Celer IM remote modules, and cross-chain bridge registrations.
+
+#### Contract Verification
+
+```bash
+# Verify contracts on block explorers
+npm run verify
+```
+
+**Execution Order**: Always follow this sequence: **Deploy → Setup → Configure**
+
 ### Testing Specific Contracts
+
 ```bash
 # Test specific contract
 npx hardhat test test/LookCoin.test.ts
@@ -86,7 +126,7 @@ npx hardhat test --network hardhat
 # Run integration tests
 npm run test:integration
 
-# Run security tests  
+# Run security tests
 npm run test:security
 ```
 
@@ -102,12 +142,14 @@ npm run test:security
 ## Multi-Chain Architecture
 
 ### Supported Networks
+
 - **BSC** (Chain ID: 56) - Home chain with full token supply
 - **Base** (Chain ID: 8453) - LayerZero OFT deployment
-- **Optimism** (Chain ID: 10) - Celer IM deployment  
+- **Optimism** (Chain ID: 10) - Celer IM deployment
 - **Akashic** (Chain ID: 9070) - IBC deployment for Cosmos
 
 ### Bridge Operations
+
 1. **LayerZero OFT V2**: Burn-and-mint mechanism for Base
 2. **Celer IM**: Lock-and-mint mechanism for Optimism
 3. **IBC Protocol**: Native Cosmos interoperability for Akashic
@@ -115,18 +157,21 @@ npm run test:security
 ## Security Patterns
 
 ### Governance Model
+
 - **MPC Vault Wallet**: External MPC vault provides secure off-chain governance
 - **Direct Execution**: Administrative operations execute immediately without on-chain delays
 - **Role Separation**: Distinct roles for bridge operators, security admins, and supply monitors
 - **Security**: Multi-party computation ensures no single point of failure
 
 ### Rate Limiting
+
 - Per-account limits: 500K tokens per transaction, 3 transactions per hour
 - Global daily limit: 20% of total supply
 - Sliding window algorithm for accurate rate tracking
 - Emergency bypass for critical operations
 
 ### Supply Monitoring
+
 - Real-time cross-chain balance tracking
 - 15-minute reconciliation cycles
 - Automatic pause on 1% supply deviation
@@ -135,6 +180,7 @@ npm run test:security
 ## Development Workflow
 
 ### Setting Up Environment
+
 1. Clone repository and install dependencies
 2. Copy `.env.example` to `.env` and configure:
    - GOVERNANCE_VAULT address for MPC vault wallet
@@ -144,6 +190,7 @@ npm run test:security
    - LayerZero and Celer configuration
 
 ### Making Changes
+
 1. Modify contracts in `contracts/` directory
 2. Update tests in `test/` directory
 3. Run `npm run compile` to ensure compilation
@@ -152,16 +199,19 @@ npm run test:security
 6. Verify contract sizes with `npm run size`
 
 ### Deployment Process
+
 1. Test thoroughly on testnets first
-2. Run deployment script for target network
-3. Verify contracts on block explorer
-4. Configure cross-chain connections
-5. Test bridge operations end-to-end
-6. Monitor supply reconciliation
+2. **Deploy Stage**: Run deployment script for target network (`npm run deploy:<network>`)
+3. **Setup Stage**: Configure local roles and settings (`npm run setup:<network>`)
+4. **Configure Stage**: Establish cross-chain connections (`npm run configure:<network>` - only for networks with deployment artifacts)
+5. Verify contracts on block explorer
+6. Test bridge operations end-to-end
+7. Monitor supply reconciliation
 
 ## Contract Verification
 
 After deployment, verify contracts:
+
 ```bash
 npx hardhat verify --network <network-name> <contract-address> <constructor-args>
 ```
@@ -171,18 +221,21 @@ For upgradeable contracts, verify both proxy and implementation.
 ## Important Considerations
 
 ### Gas Optimization
+
 - Optimizer enabled with 9999 runs for deployment efficiency
 - Rate limiter uses efficient storage patterns
 - Batch operations available for governance actions
 
 ### Upgrade Process
+
 1. Deploy new implementation contract
 2. Authorize upgrade through MPC vault wallet
 3. Execute upgrade transaction
 4. Verify new implementation
 
 ### Emergency Procedures
+
 - Pause all operations: Call `pause()` with EMERGENCY_ROLE
-- Disable specific bridge: Call `disableBridge()` 
+- Disable specific bridge: Call `disableBridge()`
 - Force supply reconciliation: Call `forceReconcile()`
 - Recovery requires MPC vault wallet authorization

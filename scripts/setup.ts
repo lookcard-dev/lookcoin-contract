@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
-import { getChainConfig } from "../hardhat.config";
-import { loadDeployment, getNetworkName } from "./utils/deployment";
+import { getChainConfig, getNetworkName } from "../hardhat.config";
+import { loadDeployment } from "./utils/deployment";
 
 async function main() {
   console.log("Starting LookCoin post-deployment setup...");
@@ -161,7 +161,23 @@ async function main() {
 
   console.log("\n✅ Setup completed successfully!");
   console.log("\n⚠️  Next steps:");
-  console.log("1. Run configure.ts to set up cross-chain connections");
+
+  // Provide network-specific configure script instructions
+  const networkKey = networkName.toLowerCase().replace(/\s+/g, "");
+  const configureScriptMap: { [key: string]: string } = {
+    bsctestnet: "npm run configure:bsc-testnet",
+    basesepolia: "npm run configure:base-sepolia",
+    opsepolia: "npm run configure:optimism-sepolia",
+    optimismsepolia: "npm run configure:optimism-sepolia",
+    sapphire: "npm run configure:sapphire-mainnet",
+  };
+
+  if (configureScriptMap[networkKey]) {
+    console.log(`1. Run configure script: ${configureScriptMap[networkKey]}`);
+  } else {
+    console.log("1. No network-specific configure script available for this network");
+  }
+
   console.log("2. Verify all roles are correctly assigned");
   console.log("3. Test bridge functionality");
   console.log("4. Monitor SupplyOracle for cross-chain balance tracking");

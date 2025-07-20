@@ -17,6 +17,8 @@ interface ILookCoin {
 /**
  * @title IBCModule
  * @dev IBC bridge module for LookCoin BSC-to-Akashic transfers using lock-and-mint mechanism
+ * @notice Handles cross-chain transfers between BSC and Akashic chain using IBC protocol
+ * @dev Security features include validator consensus, replay prevention, and timeout handling
  */
 contract IBCModule is 
     AccessControlUpgradeable,
@@ -32,6 +34,7 @@ contract IBCModule is
     bytes32 public constant RELAYER_ROLE = keccak256("RELAYER_ROLE");
 
     // IBC Configuration
+    /// @dev Configuration structure for IBC protocol parameters
     struct IBCConfig {
         string channelId;
         string portId;
@@ -41,52 +44,86 @@ contract IBCModule is
         uint256 unbondingPeriod;
     }
     
+    /// @dev Current IBC protocol configuration
     IBCConfig public ibcConfig;
     
     // State variables
+    /// @dev LookCoin contract interface for minting tokens
     ILookCoin public lookCoin;
+    /// @dev Vault address where locked tokens are stored
     address public vaultAddress;
+    /// @dev Mapping to track processed IBC packets to prevent replay attacks
     mapping(bytes32 => bool) public processedPackets;
+    /// @dev Mapping of user addresses to their locked token balances
     mapping(address => uint256) public lockedBalances;
     
     // Validator set
+    /// @dev Array of active validator addresses
     address[] public validators;
+    /// @dev Mapping to check if an address is an active validator
     mapping(address => bool) public isValidator;
+    /// @dev Required number of validator signatures for packet verification
     uint256 public validatorThreshold;
     
     // Packet structure
+    /// @dev IBC packet structure for cross-chain communication
     struct IBCPacket {
-        uint64 sequence;
-        string sourcePort;
-        string sourceChannel;
-        string destinationPort;
-        string destinationChannel;
-        bytes data;
-        uint64 timeoutHeight;
-        uint64 timeoutTimestamp;
+        uint64 sequence;              // Unique packet sequence number
+        string sourcePort;            // Source port identifier
+        string sourceChannel;         // Source channel identifier
+        string destinationPort;       // Destination port identifier
+        string destinationChannel;    // Destination channel identifier
+        bytes data;                   // Encoded transfer data
+        uint64 timeoutHeight;         // Block height timeout (0 for disabled)
+        uint64 timeoutTimestamp;      // Timestamp timeout in seconds
     }
     
     // Events
+    /// @notice Emitted when tokens are locked for IBC transfer
+    /// @param sender Address that initiated the transfer
+    /// @param recipient Recipient address on Akashic chain (bech32 format)
+    /// @param amount Amount of tokens locked
+    /// @param sequence Unique sequence number for the transfer
     event IBCTransferInitiated(
         address indexed sender,
         string recipient,
         uint256 amount,
         uint64 sequence
     );
+    
+    /// @notice Emitted when an IBC packet is received and processed
+    /// @param packetId Unique identifier of the processed packet
+    /// @param recipient Address receiving the minted tokens
+    /// @param amount Amount of tokens minted
     event IBCPacketReceived(
         bytes32 indexed packetId,
         address indexed recipient,
         uint256 amount
     );
+    
+    /// @notice Emitted when the validator set is updated
+    /// @param validators Array of new validator addresses
+    /// @param threshold New threshold for signature validation
     event ValidatorSetUpdated(address[] validators, uint256 threshold);
+    
+    /// @notice Emitted when the vault address is changed
+    /// @param oldVault Previous vault address
+    /// @param newVault New vault address
     event VaultAddressUpdated(address indexed oldVault, address indexed newVault);
+    
+    /// @notice Emitted when emergency withdrawal is performed
+    /// @param token Token address (address(0) for native token)
+    /// @param to Recipient address
+    /// @param amount Amount withdrawn
     event EmergencyWithdraw(address indexed token, address indexed to, uint256 amount);
 
     /**
      * @dev Initialize the IBC module
-     * @param _lookCoin LookCoin contract address
-     * @param _vaultAddress Vault address for locked tokens
-     * @param _admin Admin address
+     * @param _lookCoin LookCoin contract address for token operations
+     * @param _vaultAddress Vault address where locked tokens will be stored
+     * @param _admin Admin address to be granted all administrative roles
+     * @notice Sets up the bridge with default IBC configuration
+     * @dev Default config: channel-0, 1-hour timeout, 21 validators, 14-day unbonding
      */
     function initialize(
         address _lookCoin,
@@ -126,6 +163,8 @@ contract IBCModule is
      * @dev Lock LOOK tokens for IBC transfer to Akashic chain
      * @param _recipient Recipient address on Akashic chain (bech32 format)
      * @param _amount Amount to transfer
+     * @notice Locks tokens in vault and emits event for relayers to process
+     * @dev Requires minimum validators to be active for security
      */
     function lockForIBC(
         string calldata _recipient,
@@ -152,9 +191,11 @@ contract IBCModule is
 
     /**
      * @dev Handle incoming IBC packet from Akashic chain
-     * @param _packet IBC packet data
-     * @param _proof Consensus proof from validators
-     * @param _signatures Validator signatures
+     * @param _packet IBC packet data containing transfer information
+     * @param _proof Consensus proof from validators (currently unused)
+     * @param _signatures Array of validator signatures for packet verification
+     * @notice Processes cross-chain transfer and mints tokens to recipient
+     * @dev Requires threshold validator signatures and validates timeouts
      */
     function handleIBCPacket(
         IBCPacket calldata _packet,
@@ -191,10 +232,11 @@ contract IBCModule is
 
     /**
      * @dev Create IBC packet for relayer
-     * @param _sender Original sender
-     * @param _recipient Recipient on Akashic
-     * @param _amount Amount
-     * @return packet Encoded packet data
+     * @param _sender Original sender address on BSC
+     * @param _recipient Recipient address on Akashic (bech32 format)
+     * @param _amount Amount of tokens to transfer
+     * @return packet Encoded IBC packet data for relayer submission
+     * @notice Helper function for relayers to construct valid IBC packets
      */
     function createIBCPacket(
         address _sender,
@@ -217,8 +259,10 @@ contract IBCModule is
 
     /**
      * @dev Update validator set
-     * @param _validators New validator addresses
-     * @param _threshold New threshold
+     * @param _validators Array of new validator addresses
+     * @param _threshold New threshold for signature validation
+     * @notice Updates the validator set for packet verification
+     * @dev Threshold must be at least 2/3 of total validators
      */
     function updateValidatorSet(
         address[] calldata _validators,
@@ -245,7 +289,9 @@ contract IBCModule is
 
     /**
      * @dev Update IBC configuration
-     * @param _config New IBC configuration
+     * @param _config New IBC configuration parameters
+     * @notice Updates channel, port, timeout, and validator requirements
+     * @dev Critical operation that affects all IBC functionality
      */
     function updateIBCConfig(IBCConfig calldata _config) 
         external 
@@ -256,7 +302,9 @@ contract IBCModule is
 
     /**
      * @dev Update vault address
-     * @param _newVault New vault address
+     * @param _newVault New vault address for locked tokens
+     * @notice Changes where locked tokens are stored
+     * @dev Ensure proper token migration before updating
      */
     function updateVaultAddress(address _newVault) 
         external 
@@ -270,9 +318,11 @@ contract IBCModule is
 
     /**
      * @dev Emergency withdraw tokens
-     * @param _token Token address
+     * @param _token Token address (use address(0) for native token)
      * @param _to Recipient address
      * @param _amount Amount to withdraw
+     * @notice Allows admin to recover stuck tokens or ETH
+     * @dev Should only be used in emergency situations
      */
     function emergencyWithdraw(
         address _token,
@@ -292,6 +342,8 @@ contract IBCModule is
 
     /**
      * @dev Pause the contract
+     * @notice Pauses all IBC operations including locks and packet processing
+     * @dev Only OPERATOR_ROLE can pause
      */
     function pause() external onlyRole(OPERATOR_ROLE) {
         _pause();
@@ -299,6 +351,8 @@ contract IBCModule is
 
     /**
      * @dev Unpause the contract
+     * @notice Resumes normal IBC operations
+     * @dev Only OPERATOR_ROLE can unpause
      */
     function unpause() external onlyRole(OPERATOR_ROLE) {
         _unpause();
@@ -306,9 +360,11 @@ contract IBCModule is
 
     /**
      * @dev Verify validator signatures
-     * @param _packetId Packet ID
-     * @param _signatures Validator signatures
-     * @return valid Whether signatures are valid
+     * @param _packetId Packet ID to verify signatures against
+     * @param _signatures Array of validator signatures
+     * @return valid Whether threshold signatures are valid
+     * @notice Validates signatures from registered validators
+     * @dev Prevents duplicate signatures and requires threshold to be met
      */
     function _verifyValidatorSignatures(
         bytes32 _packetId,
@@ -344,9 +400,11 @@ contract IBCModule is
 
     /**
      * @dev Recover signer from signature
-     * @param _message Message hash
-     * @param _signature Signature
-     * @return signer Signer address
+     * @param _message Message hash that was signed
+     * @param _signature 65-byte signature (r, s, v)
+     * @return signer Address that created the signature
+     * @notice Uses ecrecover to extract signer address
+     * @dev Handles v normalization for compatibility
      */
     function _recoverSigner(
         bytes32 _message,
@@ -371,6 +429,7 @@ contract IBCModule is
 
     /**
      * @dev Override supportsInterface for multiple inheritance
+     * @notice Required for AccessControl compatibility
      */
     function supportsInterface(bytes4 interfaceId)
         public
@@ -384,6 +443,8 @@ contract IBCModule is
     /**
      * @dev Authorize upgrade for UUPS proxy
      * @param newImplementation New implementation address
+     * @notice Restricts upgrades to ADMIN_ROLE only
+     * @dev Critical security function for upgrade control
      */
     function _authorizeUpgrade(address newImplementation)
         internal

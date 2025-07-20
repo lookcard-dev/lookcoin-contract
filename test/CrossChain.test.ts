@@ -15,7 +15,7 @@ describe("CrossChain Integration", function () {
   let user2: SignerWithAddress;
   let relayer: SignerWithAddress;
   let validators: SignerWithAddress[];
-  
+
   let lookCoin: any;
   let celerIMModule: any;
   let ibcModule: any;
@@ -35,7 +35,13 @@ describe("CrossChain Integration", function () {
     mocks = await ignition.deploy(MocksModule, {
       parameters: {
         MocksModule: {
-          chainIds: [TEST_CHAINS.BSC, TEST_CHAINS.BASE, TEST_CHAINS.OPTIMISM, TEST_CHAINS.SAPPHIRE, TEST_CHAINS.AKASHIC],
+          chainIds: [
+            TEST_CHAINS.BSC,
+            TEST_CHAINS.BASE,
+            TEST_CHAINS.OPTIMISM,
+            TEST_CHAINS.SAPPHIRE,
+            TEST_CHAINS.AKASHIC,
+          ],
         },
       },
     });
@@ -81,7 +87,7 @@ describe("CrossChain Integration", function () {
           lookCoin: lookCoin.address,
           vault: vault.address,
           governanceVault: vault.address,
-          validators: validators.map(v => v.address),
+          validators: validators.map((v) => v.address),
           relayers: [relayer.address],
         },
       },
@@ -114,24 +120,23 @@ describe("CrossChain Integration", function () {
       const BURNER_ROLE = ROLES.BURNER_ROLE;
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, vault.address);
       await lookCoin.connect(vault).grantRole(BURNER_ROLE, lookCoin.address); // Self-burn for LayerZero
-      
+
       const amount = ethers.parseEther("1000");
       await lookCoin.connect(vault).mint(user1.address, amount);
-      
+
       // Configure peer for Base chain
       const baseChainId = getChainConfig("base").layerZero.lzChainId;
       const basePeer = ethers.zeroPadValue(lookCoin.address, 32);
       await lookCoin.connect(vault).connectPeer(baseChainId, basePeer);
-      
+
       // Simulate cross-chain transfer
       const initialBalance = await lookCoin.balanceOf(user1.address);
       const initialTotalBurned = await lookCoin.totalBurned();
-      
+
       // This would normally go through LayerZero endpoint
       // For testing, we simulate the burn
-      await expect(lookCoin.connect(user1).transfer(user2.address, amount))
-        .to.emit(lookCoin, "Transfer");
-      
+      await expect(lookCoin.connect(user1).transfer(user2.address, amount)).to.emit(lookCoin, "Transfer");
+
       // Verify state changes
       expect(await lookCoin.balanceOf(user1.address)).to.equal(0);
     });
@@ -140,7 +145,7 @@ describe("CrossChain Integration", function () {
       // Test DVN validation logic
       const dvns = [mocks.mockDVN.address, validators[0].address, validators[1].address];
       await lookCoin.connect(vault).configureDVN(dvns, 2, 1, 66);
-      
+
       // Verify DVN configuration event
       const filter = lookCoin.filters.DVNConfigured();
       const events = await lookCoin.queryFilter(filter);
@@ -156,31 +161,34 @@ describe("CrossChain Integration", function () {
       const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, vault.address);
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, celerIMModule.address);
-      
+
       const amount = ethers.parseEther("1000");
       await lookCoin.connect(vault).mint(user1.address, amount);
       await lookCoin.connect(user1).approve(celerIMModule.address, amount);
-      
+
       // Calculate expected fee
       const fee = await celerIMModule.calculateFee(amount);
       const netAmount = amount - fee;
-      
+
       // Estimate message fee
-      const messageFee = await celerIMModule.estimateMessageFee(10, ethers.AbiCoder.defaultAbiCoder().encode(
-        ["address", "address", "uint256", "bytes32"],
-        [user1.address, user2.address, netAmount, ethers.zeroPadValue("0x01", 32)]
-      ));
-      
+      const messageFee = await celerIMModule.estimateMessageFee(
+        10,
+        ethers.AbiCoder.defaultAbiCoder().encode(
+          ["address", "address", "uint256", "bytes32"],
+          [user1.address, user2.address, netAmount, ethers.zeroPadValue("0x01", 32)],
+        ),
+      );
+
       // Lock and bridge
       await expect(
         celerIMModule.connect(user1).lockAndBridge(
           10, // Optimism chain ID
           user2.address,
           amount,
-          { value: messageFee }
-        )
+          { value: messageFee },
+        ),
       ).to.emit(celerIMModule, "CrossChainTransferLocked");
-      
+
       // Verify tokens are locked
       expect(await lookCoin.balanceOf(user1.address)).to.equal(0);
       expect(await lookCoin.balanceOf(celerIMModule.address)).to.be.gt(0);
@@ -189,17 +197,17 @@ describe("CrossChain Integration", function () {
     it("Should handle incoming Celer IM message", async function () {
       const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, celerIMModule.address);
-      
+
       // Simulate incoming message from Optimism
       const srcChainId = 10;
       const amount = ethers.parseEther("500");
       const transferId = ethers.keccak256(ethers.toUtf8Bytes("test-transfer"));
-      
+
       const message = ethers.AbiCoder.defaultAbiCoder().encode(
         ["address", "address", "uint256", "bytes32"],
-        [user1.address, user2.address, amount, transferId]
+        [user1.address, user2.address, amount, transferId],
       );
-      
+
       // Mock MessageBus should call executeMessageWithTransfer
       await mocks.mockMessageBus.simulateIncomingMessage(
         celerIMModule.address,
@@ -208,9 +216,9 @@ describe("CrossChain Integration", function () {
         0,
         srcChainId,
         message,
-        owner.address
+        owner.address,
       );
-      
+
       // Verify minting occurred
       expect(await lookCoin.balanceOf(user2.address)).to.equal(amount);
     });
@@ -218,23 +226,25 @@ describe("CrossChain Integration", function () {
     it("Should support Oasis Sapphire transfers", async function () {
       const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, vault.address);
-      
+
       const amount = ethers.parseEther("1000");
       await lookCoin.connect(vault).mint(user1.address, amount);
       await lookCoin.connect(user1).approve(celerIMModule.address, amount);
-      
+
       const sapphireChainId = 23295;
       const messageFee = ethers.parseEther("0.01");
-      
+
       await expect(
-        celerIMModule.connect(user1).lockAndBridge(
+        celerIMModule.connect(user1).lockAndBridge(sapphireChainId, user2.address, amount, { value: messageFee }),
+      )
+        .to.emit(celerIMModule, "CrossChainTransferLocked")
+        .withArgs(
+          user1.address,
           sapphireChainId,
           user2.address,
-          amount,
-          { value: messageFee }
-        )
-      ).to.emit(celerIMModule, "CrossChainTransferLocked")
-        .withArgs(user1.address, sapphireChainId, user2.address, amount - await celerIMModule.calculateFee(amount), ethers.isHexString);
+          amount - (await celerIMModule.calculateFee(amount)),
+          ethers.isHexString,
+        );
     });
   });
 
@@ -242,17 +252,18 @@ describe("CrossChain Integration", function () {
     it("Should handle BSC to Akashic transfer via IBC", async function () {
       const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, vault.address);
-      
+
       const amount = ethers.parseEther("1000");
       await lookCoin.connect(vault).mint(user1.address, amount);
       await lookCoin.connect(user1).approve(ibcModule.address, amount);
-      
+
       const akashicRecipient = "akashic1234567890abcdef";
-      
-      await expect(
-        ibcModule.connect(user1).lockForIBC(akashicRecipient, amount)
-      ).to.emit(ibcModule, "IBCTransferInitiated");
-      
+
+      await expect(ibcModule.connect(user1).lockForIBC(akashicRecipient, amount)).to.emit(
+        ibcModule,
+        "IBCTransferInitiated",
+      );
+
       // Verify tokens are locked in vault
       expect(await lookCoin.balanceOf(user1.address)).to.equal(0);
       expect(await lookCoin.balanceOf(vault.address)).to.equal(amount); // vault holds locked tokens
@@ -261,7 +272,7 @@ describe("CrossChain Integration", function () {
     it("Should validate IBC packet with 21 validators", async function () {
       const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, ibcModule.address);
-      
+
       // Create IBC packet
       const packet = {
         sequence: 1,
@@ -271,27 +282,29 @@ describe("CrossChain Integration", function () {
         destinationChannel: "channel-0",
         data: ethers.AbiCoder.defaultAbiCoder().encode(
           ["address", "address", "uint256"],
-          [user1.address, user2.address, ethers.parseEther("500")]
+          [user1.address, user2.address, ethers.parseEther("500")],
         ),
         timeoutHeight: 0,
         timeoutTimestamp: Math.floor(Date.now() / 1000) + 3600,
       };
-      
+
       // Generate validator signatures (at least 14 out of 21)
-      const packetId = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(
-        ["uint64", "string", "string", "string", "string", "bytes", "uint64", "uint64"],
-        Object.values(packet)
-      ));
-      
+      const packetId = ethers.keccak256(
+        ethers.AbiCoder.defaultAbiCoder().encode(
+          ["uint64", "string", "string", "string", "string", "bytes", "uint64", "uint64"],
+          Object.values(packet),
+        ),
+      );
+
       const signatures = [];
       for (let i = 0; i < 14; i++) {
         const signature = await validators[i].signMessage(ethers.getBytes(packetId));
         signatures.push(signature);
       }
-      
+
       // Handle IBC packet
       await ibcModule.connect(relayer).handleIBCPacket(packet, "0x", signatures);
-      
+
       // Verify minting occurred
       expect(await lookCoin.balanceOf(user2.address)).to.equal(ethers.parseEther("500"));
     });
@@ -305,20 +318,20 @@ describe("CrossChain Integration", function () {
         destinationChannel: "channel-0",
         data: ethers.AbiCoder.defaultAbiCoder().encode(
           ["address", "address", "uint256"],
-          [user1.address, user2.address, ethers.parseEther("500")]
+          [user1.address, user2.address, ethers.parseEther("500")],
         ),
         timeoutHeight: 0,
         timeoutTimestamp: Math.floor(Date.now() / 1000) - 3600, // Already expired
       };
-      
+
       const signatures = [];
       for (let i = 0; i < 14; i++) {
         signatures.push("0x" + "00".repeat(65));
       }
-      
-      await expect(
-        ibcModule.connect(relayer).handleIBCPacket(packet, "0x", signatures)
-      ).to.be.revertedWith("IBC: packet timeout");
+
+      await expect(ibcModule.connect(relayer).handleIBCPacket(packet, "0x", signatures)).to.be.revertedWith(
+        "IBC: packet timeout",
+      );
     });
   });
 
@@ -328,38 +341,30 @@ describe("CrossChain Integration", function () {
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, vault.address);
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, celerIMModule.address);
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, ibcModule.address);
-      
+
       const amount = ethers.parseEther("3000");
       await lookCoin.connect(vault).mint(user1.address, amount);
-      
+
       // Approve all bridges
       await lookCoin.connect(user1).approve(celerIMModule.address, amount);
       await lookCoin.connect(user1).approve(ibcModule.address, amount);
-      
+
       // Execute transfers on different bridges
       const transfers = [];
-      
+
       // Celer IM transfer
       transfers.push(
-        celerIMModule.connect(user1).lockAndBridge(
-          10,
-          user2.address,
-          ethers.parseEther("1000"),
-          { value: ethers.parseEther("0.01") }
-        )
+        celerIMModule
+          .connect(user1)
+          .lockAndBridge(10, user2.address, ethers.parseEther("1000"), { value: ethers.parseEther("0.01") }),
       );
-      
+
       // IBC transfer
-      transfers.push(
-        ibcModule.connect(user1).lockForIBC(
-          "akashic1234567890abcdef",
-          ethers.parseEther("1000")
-        )
-      );
-      
+      transfers.push(ibcModule.connect(user1).lockForIBC("akashic1234567890abcdef", ethers.parseEther("1000")));
+
       // Execute all transfers
       await Promise.all(transfers);
-      
+
       // Verify remaining balance
       expect(await lookCoin.balanceOf(user1.address)).to.equal(ethers.parseEther("1000"));
     });
@@ -373,38 +378,32 @@ describe("CrossChain Integration", function () {
         lockedSupply: ethers.parseEther("100000000"),
         circulatingSupply: ethers.parseEther("400000000"),
       };
-      
+
       // This would normally require multi-sig
-      await supplyOracle.connect(vault).grantRole(
-        ethers.keccak256(ethers.toUtf8Bytes("ORACLE_ROLE")),
-        vault.address
-      );
-      
+      await supplyOracle.connect(vault).grantRole(ethers.keccak256(ethers.toUtf8Bytes("ORACLE_ROLE")), vault.address);
+
       // Update supply (simplified for testing)
       const updateId = ethers.keccak256(
         ethers.AbiCoder.defaultAbiCoder().encode(
           ["uint16", "uint256", "uint256", "uint256", "uint256"],
-          [56, bscSupply.totalSupply, bscSupply.lockedSupply, bscSupply.circulatingSupply, Date.now()]
-        )
+          [56, bscSupply.totalSupply, bscSupply.lockedSupply, bscSupply.circulatingSupply, Date.now()],
+        ),
       );
-      
+
       // Simulate multi-sig by having owner sign multiple times
       // In production, this would be different signers
-      await supplyOracle.connect(vault).submitSupplyUpdate(
-        56,
-        bscSupply.totalSupply,
-        bscSupply.lockedSupply,
-        bscSupply.circulatingSupply
-      );
+      await supplyOracle
+        .connect(vault)
+        .submitSupplyUpdate(56, bscSupply.totalSupply, bscSupply.lockedSupply, bscSupply.circulatingSupply);
     });
 
     it("Should detect supply mismatches", async function () {
       // Configure tolerance
       await supplyOracle.connect(vault).updateReconciliationParams(
         15 * 60, // 15 minutes
-        ethers.parseEther("1000") // 1000 token tolerance
+        ethers.parseEther("1000"), // 1000 token tolerance
       );
-      
+
       // This test would simulate a supply mismatch scenario
       // In production, the oracle would automatically pause bridges
     });
@@ -414,28 +413,23 @@ describe("CrossChain Integration", function () {
     it("Should handle multiple simultaneous transfers", async function () {
       const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, vault.address);
-      
+
       // Mint to multiple users
       const users = [user1, user2];
       const amount = ethers.parseEther("1000");
-      
+
       for (const user of users) {
         await lookCoin.connect(vault).mint(user.address, amount);
         await lookCoin.connect(user).approve(celerIMModule.address, amount);
       }
-      
+
       // Execute concurrent transfers
-      const transfers = users.map(user =>
-        celerIMModule.connect(user).lockAndBridge(
-          10,
-          owner.address,
-          amount,
-          { value: ethers.parseEther("0.01") }
-        )
+      const transfers = users.map((user) =>
+        celerIMModule.connect(user).lockAndBridge(10, owner.address, amount, { value: ethers.parseEther("0.01") }),
       );
-      
+
       await Promise.all(transfers);
-      
+
       // Verify all transfers completed
       for (const user of users) {
         expect(await lookCoin.balanceOf(user.address)).to.equal(0);
@@ -447,18 +441,13 @@ describe("CrossChain Integration", function () {
     it("Should enforce rate limits across bridge operations", async function () {
       const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, vault.address);
-      
+
       const amount = ethers.parseEther("600000"); // Exceeds rate limit
       await lookCoin.connect(vault).mint(user1.address, amount);
       await lookCoin.connect(user1).approve(celerIMModule.address, amount);
-      
+
       await expect(
-        celerIMModule.connect(user1).lockAndBridge(
-          10,
-          user2.address,
-          amount,
-          { value: ethers.parseEther("0.01") }
-        )
+        celerIMModule.connect(user1).lockAndBridge(10, user2.address, amount, { value: ethers.parseEther("0.01") }),
       ).to.be.revertedWith("RateLimiter: transfer amount exceeds limit");
     });
   });
@@ -467,28 +456,24 @@ describe("CrossChain Integration", function () {
     it("Should pause all bridges in emergency", async function () {
       const PAUSER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("PAUSER_ROLE"));
       const OPERATOR_ROLE = ethers.keccak256(ethers.toUtf8Bytes("OPERATOR_ROLE"));
-      
+
       await lookCoin.connect(vault).grantRole(PAUSER_ROLE, vault.address);
       await celerIMModule.connect(vault).grantRole(OPERATOR_ROLE, vault.address);
       await ibcModule.connect(vault).grantRole(OPERATOR_ROLE, vault.address);
-      
+
       // Pause all contracts
       await lookCoin.connect(vault).pause();
       await celerIMModule.connect(vault).pause();
       await ibcModule.connect(vault).pause();
-      
+
       // Verify all operations fail
-      await expect(
-        lookCoin.connect(user1).transfer(user2.address, 100)
-      ).to.be.revertedWith("Pausable: paused");
-      
-      await expect(
-        celerIMModule.lockAndBridge(10, user2.address, 100, { value: 100 })
-      ).to.be.revertedWith("Pausable: paused");
-      
-      await expect(
-        ibcModule.lockForIBC("akashic123", 100)
-      ).to.be.revertedWith("Pausable: paused");
+      await expect(lookCoin.connect(user1).transfer(user2.address, 100)).to.be.revertedWith("Pausable: paused");
+
+      await expect(celerIMModule.lockAndBridge(10, user2.address, 100, { value: 100 })).to.be.revertedWith(
+        "Pausable: paused",
+      );
+
+      await expect(ibcModule.lockForIBC("akashic123", 100)).to.be.revertedWith("Pausable: paused");
     });
   });
 });

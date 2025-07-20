@@ -10,7 +10,7 @@ Before bridging LOOK tokens, ensure you have:
 
 1. **Compatible Wallet**: MetaMask, Trust Wallet, or any Web3-compatible wallet
 2. **LOOK Tokens**: Sufficient balance on the source chain
-3. **Native Tokens for Gas**: 
+3. **Native Tokens for Gas**:
    - BSC: BNB
    - Base: ETH
    - Optimism: ETH
@@ -19,14 +19,15 @@ Before bridging LOOK tokens, ensure you have:
 
 ## Supported Networks
 
-| Network | Chain ID | LayerZero Support | Celer IM Support | Endpoint Address |
-|---------|----------|-------------------|------------------|------------------|
-| BSC | 56 |  |  | 0x1a44076050125825900e736c501f859c50fE728c |
-| Base | 8453 |  | L | 0x1a44076050125825900e736c501f859c50fE728c |
-| Optimism | 10 |  |  | 0x1a44076050125825900e736c501f859c50fE728c |
-| Sapphire | 23295 | L |  | TBD |
+| Network  | Chain ID | LayerZero Support | Celer IM Support | Endpoint Address                           |
+| -------- | -------- | ----------------- | ---------------- | ------------------------------------------ |
+| BSC      | 56       |                   |                  | 0x1a44076050125825900e736c501f859c50fE728c |
+| Base     | 8453     |                   | L                | 0x1a44076050125825900e736c501f859c50fE728c |
+| Optimism | 10       |                   |                  | 0x1a44076050125825900e736c501f859c50fE728c |
+| Sapphire | 23295    | L                 |                  | TBD                                        |
 
-**Note**: 
+**Note**:
+
 - Base uses LayerZero exclusively (no Celer IM support)
 - Sapphire uses Celer IM exclusively (no LayerZero support)
 - Akashic uses IBC exclusively (not shown in this table)
@@ -69,17 +70,18 @@ sequenceDiagram
    - Rate limits: Maximum 500,000 LOOK per hour, 3 transactions per hour
 
 3. **Initiate Bridge Transfer**
+
    ```javascript
    // Example: Bridge 1000 LOOK from BSC to Base
    const amount = ethers.parseEther("1000");
    const destinationChainId = 8453; // Base
    const recipientAddress = "0xYourAddressOnBase";
-   
+
    await lookCoin.bridgeToken(
      destinationChainId,
      recipientAddress,
      amount,
-     { value: ethers.parseEther("0.01") } // Native token fee
+     { value: ethers.parseEther("0.01") }, // Native token fee
    );
    ```
 
@@ -103,12 +105,12 @@ sequenceDiagram
 
 ### Troubleshooting
 
-| Error | Solution |
-|-------|----------|
+| Error                     | Solution                                                      |
+| ------------------------- | ------------------------------------------------------------- |
 | "Endpoint not configured" | The destination chain is not yet configured. Contact support. |
-| "Destination not trusted" | The path between chains is not established. Contact support. |
-| "Insufficient balance" | Ensure you have enough LOOK and native tokens. |
-| "Rate limit exceeded" | Wait for the cooldown period (1 hour) before next transfer. |
+| "Destination not trusted" | The path between chains is not established. Contact support.  |
+| "Insufficient balance"    | Ensure you have enough LOOK and native tokens.                |
+| "Rate limit exceeded"     | Wait for the cooldown period (1 hour) before next transfer.   |
 
 ## Celer IM Bridge (Lock-and-Mint)
 
@@ -148,12 +150,12 @@ Celer IM bridge charges two types of fees:
 
 ### Fee Examples
 
-| Transfer Amount | Bridge Fee | Net Received | Notes |
-|----------------|------------|--------------|-------|
-| 100 LOOK | 1 LOOK | 99 LOOK | Minimum fee applied |
-| 1,000 LOOK | 1 LOOK | 999 LOOK | Minimum fee applied |
-| 10,000 LOOK | 10 LOOK | 9,990 LOOK | 0.1% fee |
-| 5,000,000 LOOK | 100 LOOK | 4,999,900 LOOK | Maximum fee applied |
+| Transfer Amount | Bridge Fee | Net Received   | Notes               |
+| --------------- | ---------- | -------------- | ------------------- |
+| 100 LOOK        | 1 LOOK     | 99 LOOK        | Minimum fee applied |
+| 1,000 LOOK      | 1 LOOK     | 999 LOOK       | Minimum fee applied |
+| 10,000 LOOK     | 10 LOOK    | 9,990 LOOK     | 0.1% fee            |
+| 5,000,000 LOOK  | 100 LOOK   | 4,999,900 LOOK | Maximum fee applied |
 
 ### Step-by-Step Instructions
 
@@ -163,17 +165,14 @@ Celer IM bridge charges two types of fees:
    - Ensure you have sufficient LOOK balance plus bridge fee
 
 2. **Estimate Message Fee**
+
    ```javascript
    // Estimate the native token fee
    const amount = ethers.parseEther("1000");
    const destinationChainId = 10; // Optimism
    const recipientAddress = "0xYourAddressOnOptimism";
-   
-   const messageFee = await celerIMModule.estimateMessageFee(
-     destinationChainId,
-     recipientAddress,
-     amount
-   );
+
+   const messageFee = await celerIMModule.estimateMessageFee(destinationChainId, recipientAddress, amount);
    ```
 
 3. **Calculate Total Cost**
@@ -181,13 +180,14 @@ Celer IM bridge charges two types of fees:
    - Native tokens needed: Message fee + gas costs
 
 4. **Initiate Lock & Bridge**
+
    ```javascript
    // Example: Bridge 1000 LOOK from BSC to Optimism
    await celerIMModule.lockAndBridge(
      destinationChainId,
      recipientAddress,
      amount,
-     { value: messageFee } // Native token for message fee
+     { value: messageFee }, // Native token for message fee
    );
    ```
 
@@ -213,21 +213,21 @@ Celer IM bridge charges two types of fees:
 
 ## Bridge Comparison
 
-| Feature | LayerZero | Celer IM |
-|---------|-----------|----------|
-| **Mechanism** | Burn-and-mint | Lock-and-mint |
-| **Speed** | 8-15 minutes | 12-20 minutes |
-| **LOOK Fee** | None | 0.1% (1-100 LOOK) |
-| **Native Fee** | ~0.01 ETH | Variable (base + per-byte) |
-| **Supported Chains** | BSC, Base, Optimism | BSC, Optimism, Sapphire |
-| **Best For** | Base transfers, No LOOK fees | Sapphire transfers, Predictable fees |
+| Feature              | LayerZero                    | Celer IM                             |
+| -------------------- | ---------------------------- | ------------------------------------ |
+| **Mechanism**        | Burn-and-mint                | Lock-and-mint                        |
+| **Speed**            | 8-15 minutes                 | 12-20 minutes                        |
+| **LOOK Fee**         | None                         | 0.1% (1-100 LOOK)                    |
+| **Native Fee**       | ~0.01 ETH                    | Variable (base + per-byte)           |
+| **Supported Chains** | BSC, Base, Optimism          | BSC, Optimism, Sapphire              |
+| **Best For**         | Base transfers, No LOOK fees | Sapphire transfers, Predictable fees |
 
 ## Frequently Asked Questions
 
 ### How much gas do I need?
 
 - **BSC**: 0.01-0.02 BNB
-- **Base/Optimism**: 0.01-0.02 ETH  
+- **Base/Optimism**: 0.01-0.02 ETH
 - **Sapphire**: 0.5-1 ROSE
 
 Always keep extra for safety.
@@ -259,6 +259,7 @@ Always keep extra for safety.
 ### Is bridging safe?
 
 Yes, with these security measures:
+
 - Rate limiting prevents large-scale attacks
 - MPC vault wallet governance for secure operations
 - Automatic supply reconciliation every 15 minutes

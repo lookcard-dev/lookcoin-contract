@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
-import { getChainConfig, CHAIN_CONFIG } from "../../hardhat.config";
+import { getChainConfig } from "../../hardhat.config";
 
 // Common test constants exported from centralized config
 export const TEST_CHAINS = {
@@ -52,25 +52,18 @@ export interface TestDeploymentParams {
 }
 
 // Helper function to deploy mock contracts with standard configuration
-export async function deployMockLookCoin(
-  signer: SignerWithAddress,
-  params: TestDeploymentParams = {}
-) {
+export async function deployMockLookCoin(signer: SignerWithAddress, params: TestDeploymentParams = {}) {
   const LookCoin = await ethers.getContractFactory("LookCoin", signer);
   const defaultParams = {
     totalSupply: getChainConfig("bsc").totalSupply,
     governanceVault: params.governanceVault || signer.address,
     lzEndpoint: params.lzEndpoint || TEST_ADDRESSES.MOCK_ENDPOINT,
   };
-  
+
   const lookCoin = await LookCoin.deploy();
   await lookCoin.waitForDeployment();
-  await lookCoin.initialize(
-    defaultParams.lzEndpoint,
-    defaultParams.governanceVault,
-    defaultParams.totalSupply
-  );
-  
+  await lookCoin.initialize(defaultParams.lzEndpoint, defaultParams.governanceVault, defaultParams.totalSupply);
+
   return lookCoin;
 }
 
@@ -78,22 +71,18 @@ export async function deployMockLookCoin(
 export async function deployMockCelerModule(
   signer: SignerWithAddress,
   lookCoinAddress: string,
-  params: TestDeploymentParams = {}
+  params: TestDeploymentParams = {},
 ) {
   const CelerModule = await ethers.getContractFactory("CelerIMModule", signer);
   const defaultParams = {
     messageBus: params.messageBus || TEST_ADDRESSES.MOCK_MESSAGE_BUS,
     governanceVault: params.governanceVault || signer.address,
   };
-  
+
   const celerModule = await CelerModule.deploy();
   await celerModule.waitForDeployment();
-  await celerModule.initialize(
-    defaultParams.messageBus,
-    lookCoinAddress,
-    defaultParams.governanceVault
-  );
-  
+  await celerModule.initialize(defaultParams.messageBus, lookCoinAddress, defaultParams.governanceVault);
+
   return celerModule;
 }
 
@@ -102,51 +91,37 @@ export async function deployMockIBCModule(
   signer: SignerWithAddress,
   lookCoinAddress: string,
   vaultAddress: string,
-  params: TestDeploymentParams = {}
+  params: TestDeploymentParams = {},
 ) {
   const IBCModule = await ethers.getContractFactory("IBCModule", signer);
   const defaultParams = {
     governanceVault: params.governanceVault || signer.address,
   };
-  
+
   const ibcModule = await IBCModule.deploy();
   await ibcModule.waitForDeployment();
-  await ibcModule.initialize(
-    lookCoinAddress,
-    vaultAddress,
-    defaultParams.governanceVault
-  );
-  
+  await ibcModule.initialize(lookCoinAddress, vaultAddress, defaultParams.governanceVault);
+
   return ibcModule;
 }
 
 // Helper function to deploy mock Supply Oracle
-export async function deployMockSupplyOracle(
-  signer: SignerWithAddress,
-  params: TestDeploymentParams = {}
-) {
+export async function deployMockSupplyOracle(signer: SignerWithAddress, params: TestDeploymentParams = {}) {
   const SupplyOracle = await ethers.getContractFactory("SupplyOracle", signer);
   const defaultParams = {
     governanceVault: params.governanceVault || signer.address,
     totalSupply: params.totalSupply || getChainConfig("bsc").totalSupply,
   };
-  
+
   const supplyOracle = await SupplyOracle.deploy();
   await supplyOracle.waitForDeployment();
-  await supplyOracle.initialize(
-    defaultParams.governanceVault,
-    defaultParams.totalSupply
-  );
-  
+  await supplyOracle.initialize(defaultParams.governanceVault, defaultParams.totalSupply);
+
   return supplyOracle;
 }
 
 // Helper to create mock bridge registration data
-export function createMockBridgeRegistration(
-  chainId: number,
-  bridgeAddress: string,
-  selector: string = "0x01"
-) {
+export function createMockBridgeRegistration(chainId: number, bridgeAddress: string, selector: string = "0x01") {
   return {
     chainId,
     bridge: bridgeAddress,
@@ -157,10 +132,7 @@ export function createMockBridgeRegistration(
 }
 
 // Helper to create mock remote module mapping
-export function createMockRemoteModule(
-  chainId: number,
-  moduleAddress: string
-) {
+export function createMockRemoteModule(chainId: number, moduleAddress: string) {
   return {
     chainId,
     module: moduleAddress,
@@ -177,14 +149,8 @@ export function generateTestValidators(count: number): string[] {
 }
 
 // Helper to encode LayerZero trusted remote
-export function encodeTrustedRemote(
-  remoteAddress: string,
-  localAddress: string
-): string {
-  return ethers.solidityPacked(
-    ["address", "address"],
-    [remoteAddress, localAddress]
-  );
+export function encodeTrustedRemote(remoteAddress: string, localAddress: string): string {
+  return ethers.solidityPacked(["address", "address"], [remoteAddress, localAddress]);
 }
 
 // Helper to create test chain configuration override
@@ -224,14 +190,14 @@ export const MockContracts = {
     await messageBus.waitForDeployment();
     return messageBus;
   },
-  
+
   async deployMockLayerZeroEndpoint(signer: SignerWithAddress, chainId: number) {
     const MockEndpoint = await ethers.getContractFactory("MockLayerZeroEndpoint", signer);
     const endpoint = await MockEndpoint.deploy(chainId);
     await endpoint.waitForDeployment();
     return endpoint;
   },
-  
+
   async deployMockDVN(signer: SignerWithAddress) {
     const MockDVN = await ethers.getContractFactory("MockDVN", signer);
     const dvn = await MockDVN.deploy();
@@ -249,11 +215,11 @@ export const TestScenarios = {
     LARGE: ethers.parseUnits("100000", 8),
     MAX_PER_TX: ethers.parseUnits("500000", 8),
   },
-  
+
   // Common fee configurations for testing
   FEE_CONFIGS: {
     ZERO_FEES: { feePercentage: 0, minFee: "0", maxFee: "0" },
-    LOW_FEES: { 
+    LOW_FEES: {
       feePercentage: 10, // 0.1%
       minFee: ethers.parseUnits("1", 8).toString(),
       maxFee: ethers.parseUnits("100", 8).toString(),
@@ -264,7 +230,7 @@ export const TestScenarios = {
       maxFee: ethers.parseUnits("1000", 8).toString(),
     },
   },
-  
+
   // Common rate limit configurations
   RATE_LIMITS: {
     STRICT: {

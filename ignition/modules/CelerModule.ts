@@ -7,7 +7,7 @@ import {
   validateFeeParameters,
   validateParseEther,
   createParameterError,
-  validateChainId
+  validateChainId,
 } from "../utils/parameterValidation";
 
 const CelerModule = buildModule("CelerModule", (m) => {
@@ -21,7 +21,7 @@ const CelerModule = buildModule("CelerModule", (m) => {
   let minFee: bigint;
   let maxFee: bigint;
   let feeCollector: string;
-  
+
   try {
     // Validate message bus address
     const messageBusParam = m.getParameter("messageBus", ZeroAddress);
@@ -31,7 +31,7 @@ const CelerModule = buildModule("CelerModule", (m) => {
     } else {
       messageBus = validateNonZeroAddress(messageBusParam as string, "messageBus");
     }
-    
+
     // Validate lookCoin address
     const lookCoinParam = m.getParameter("lookCoin", ZeroAddress);
     if (lookCoinParam === ZeroAddress) {
@@ -40,15 +40,15 @@ const CelerModule = buildModule("CelerModule", (m) => {
     } else {
       lookCoin = validateNonZeroAddress(lookCoinParam as string, "lookCoin");
     }
-    
+
     // Validate governance vault
     const governanceVaultParam = m.getParameter("governanceVault", m.getAccount(0));
     governanceVault = validateNonZeroAddress(governanceVaultParam as string, "governanceVault");
-    
+
     // Validate chain ID
     const chainIdParam = m.getParameter("chainId", 56); // Default to BSC
     chainId = validateChainId(chainIdParam as number, "chainId");
-    
+
     // Parse and validate remote modules from JSON string
     const remoteModulesParam = m.getParameter("remoteModules", "{}");
     if (typeof remoteModulesParam === "string") {
@@ -61,19 +61,23 @@ const CelerModule = buildModule("CelerModule", (m) => {
           throw createParameterError(`remoteModules.${remoteChainIdStr}`, "numeric chain ID", remoteChainIdStr);
         }
         if (remoteChainId === chainId) {
-          throw createParameterError(`remoteModules.${remoteChainIdStr}`, "different from current chain ID", remoteChainIdStr);
+          throw createParameterError(
+            `remoteModules.${remoteChainIdStr}`,
+            "different from current chain ID",
+            remoteChainIdStr,
+          );
         }
         validateNonZeroAddress(address as string, `remoteModules.${remoteChainIdStr}`);
         remoteModules[remoteChainIdStr] = address as string;
       }
     }
-    
+
     // Validate fee percentage
     feePercentage = m.getParameter("feePercentage", 50) as number; // 0.5% in basis points
     if (feePercentage < 0 || feePercentage > 10000) {
       throw createParameterError("feePercentage", "0-10000 (basis points)", feePercentage.toString());
     }
-    
+
     // Parse and validate min fee
     const minFeeParam = m.getParameter("minFee", "10"); // 10 LOOK tokens as string
     if (typeof minFeeParam === "string") {
@@ -84,7 +88,7 @@ const CelerModule = buildModule("CelerModule", (m) => {
       // Handle legacy format (10n * 10n ** 18n)
       minFee = parseEther("10");
     }
-    
+
     // Parse and validate max fee
     const maxFeeParam = m.getParameter("maxFee", "1000"); // 1000 LOOK tokens as string
     if (typeof maxFeeParam === "string") {
@@ -95,16 +99,15 @@ const CelerModule = buildModule("CelerModule", (m) => {
       // Handle legacy format (1000n * 10n ** 18n)
       maxFee = parseEther("1000");
     }
-    
+
     // Validate fee parameters relationship
     if (minFee > maxFee) {
       throw createParameterError("minFee", `<= maxFee (${maxFee})`, minFee.toString());
     }
-    
+
     // Validate fee collector
     const feeCollectorParam = m.getParameter("feeCollector", governanceVault);
     feeCollector = validateNonZeroAddress(feeCollectorParam as string, "feeCollector");
-    
   } catch (error: any) {
     throw new Error(`CelerModule parameter validation failed: ${error.message}`);
   }
@@ -120,9 +123,9 @@ const CelerModule = buildModule("CelerModule", (m) => {
   // Configure remote modules for supported chains
   const supportedChains = m.getParameter("celerSupportedChains", "56,10,23295"); // BSC, Optimism, Sapphire
   let chainIds: number[] = [];
-  
+
   if (typeof supportedChains === "string") {
-    chainIds = supportedChains.split(',').map(id => {
+    chainIds = supportedChains.split(",").map((id) => {
       const parsedId = parseInt(id.trim());
       if (isNaN(parsedId)) {
         throw createParameterError("celerSupportedChains", "comma-separated chain IDs", id);
@@ -130,18 +133,13 @@ const CelerModule = buildModule("CelerModule", (m) => {
       return validateChainId(parsedId, `celerSupportedChains[${id}]`);
     });
   } else if (Array.isArray(supportedChains)) {
-    chainIds = (supportedChains as number[]).map(id => 
-      validateChainId(id, `celerSupportedChains[${id}]`)
-    );
+    chainIds = (supportedChains as number[]).map((id) => validateChainId(id, `celerSupportedChains[${id}]`));
   }
 
   // Set remote modules for each supported chain
   for (const remoteChainId of chainIds) {
     if (remoteChainId !== chainId && remoteModules[remoteChainId.toString()]) {
-      m.call(celerIMModule, "setRemoteModule", [
-        remoteChainId,
-        remoteModules[remoteChainId.toString()],
-      ], {
+      m.call(celerIMModule, "setRemoteModule", [remoteChainId, remoteModules[remoteChainId.toString()]], {
         id: `setRemoteModule_${remoteChainId}`,
       });
     }

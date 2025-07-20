@@ -5,7 +5,7 @@ import {
   validateParseEther,
   validateBridgeRegistrations,
   createParameterError,
-  validateChainId
+  validateChainId,
 } from "../utils/parameterValidation";
 
 const OracleModule = buildModule("OracleModule", (m) => {
@@ -16,12 +16,12 @@ const OracleModule = buildModule("OracleModule", (m) => {
   let toleranceThreshold: bigint;
   let requiredSignatures: number;
   let bridgeRegistrations: { [chainId: string]: string } = {};
-  
+
   try {
     // Validate governance vault
     const governanceVaultParam = m.getParameter("governanceVault", m.getAccount(0));
     governanceVault = validateNonZeroAddress(governanceVaultParam as string, "governanceVault");
-    
+
     // Parse and validate total supply
     const totalSupplyParam = m.getParameter("totalSupply", "1000000000"); // 1B tokens as string
     if (typeof totalSupplyParam === "string") {
@@ -29,13 +29,13 @@ const OracleModule = buildModule("OracleModule", (m) => {
     } else {
       totalSupply = totalSupplyParam as bigint;
     }
-    
+
     // Validate reconciliation interval
     reconciliationInterval = m.getParameter("reconciliationInterval", 15 * 60) as number; // 15 minutes
     if (reconciliationInterval <= 0) {
       throw createParameterError("reconciliationInterval", "positive number", reconciliationInterval.toString());
     }
-    
+
     // Parse and validate tolerance threshold
     const toleranceThresholdParam = m.getParameter("toleranceThreshold", "1000"); // 1000 tokens as string
     if (typeof toleranceThresholdParam === "string") {
@@ -43,13 +43,13 @@ const OracleModule = buildModule("OracleModule", (m) => {
     } else {
       toleranceThreshold = toleranceThresholdParam as bigint;
     }
-    
+
     // Validate required signatures
     requiredSignatures = m.getParameter("requiredSignatures", 3) as number;
     if (requiredSignatures <= 0) {
       throw createParameterError("requiredSignatures", "positive number", requiredSignatures.toString());
     }
-    
+
     // Parse and validate bridge registrations from JSON string
     const bridgeRegistrationsParam = m.getParameter("bridgeRegistrations", "{}");
     if (typeof bridgeRegistrationsParam === "string") {
@@ -66,7 +66,6 @@ const OracleModule = buildModule("OracleModule", (m) => {
         bridgeRegistrations[chainIdStr] = address as string;
       }
     }
-    
   } catch (error: any) {
     throw new Error(`OracleModule parameter validation failed: ${error.message}`);
   }
@@ -102,9 +101,9 @@ const OracleModule = buildModule("OracleModule", (m) => {
   // Register bridge contracts for each chain
   const supportedChains = m.getParameter("supportedChains", "56,8453,10,23295,999"); // BSC, Base, Optimism, Sapphire, Akashic
   let chainIds: number[] = [];
-  
+
   if (typeof supportedChains === "string") {
-    chainIds = supportedChains.split(',').map(id => {
+    chainIds = supportedChains.split(",").map((id) => {
       const chainId = parseInt(id.trim());
       if (isNaN(chainId)) {
         throw createParameterError("supportedChains", "comma-separated chain IDs", id);
@@ -112,9 +111,7 @@ const OracleModule = buildModule("OracleModule", (m) => {
       return validateChainId(chainId, `supportedChains[${id}]`);
     });
   } else if (Array.isArray(supportedChains)) {
-    chainIds = (supportedChains as number[]).map(id => 
-      validateChainId(id, `supportedChains[${id}]`)
-    );
+    chainIds = (supportedChains as number[]).map((id) => validateChainId(id, `supportedChains[${id}]`));
   }
 
   // Register bridges for supported chains
