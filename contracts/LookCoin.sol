@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@hyperlane-xyz/core/interfaces/IMessageRecipient.sol";
+import "./external/xERC20/interfaces/IXERC20.sol";
+import "./interfaces/ICrossChainRouter.sol";
 
 // LayerZero interfaces
 interface ILayerZeroEndpoint {
@@ -50,7 +53,7 @@ interface ILayerZeroReceiver {
 
 /**
  * @title LookCoin
- * @dev Omnichain fungible token with LayerZero integration capabilities
+ * @dev Native multi-protocol cross-chain token with LayerZero OFT V2, xERC20, and Hyperlane support
  * @notice LookCoin (LOOK) is the primary payment method for LookCard's crypto-backed credit/debit card system
  */
 contract LookCoin is 
@@ -59,7 +62,9 @@ contract LookCoin is
     AccessControlUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
-    ILayerZeroReceiver
+    ILayerZeroReceiver,
+    IXERC20,
+    IMessageRecipient
 {
     // Role definitions
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -67,6 +72,8 @@ contract LookCoin is
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 public constant BRIDGE_ROLE = keccak256("BRIDGE_ROLE");
+    bytes32 public constant PROTOCOL_ADMIN_ROLE = keccak256("PROTOCOL_ADMIN_ROLE");
+    bytes32 public constant ROUTER_ADMIN_ROLE = keccak256("ROUTER_ADMIN_ROLE");
     
     // LayerZero OFT v2 constants
     uint16 internal constant PT_SEND = 0; // Packet type for standard transfer
@@ -86,6 +93,17 @@ contract LookCoin is
     uint256 public totalMinted;
     /// @dev Total amount of tokens burned across all operations
     uint256 public totalBurned;
+    
+    // Multi-protocol support
+    /// @dev Cross-chain router for unified bridge operations
+    ICrossChainRouter public crossChainRouter;
+    /// @dev Mapping of authorized bridge addresses for xERC20 compatibility
+    mapping(address => bool) public authorizedBridges;
+    /// @dev Hyperlane mailbox address for message passing
+    address public hyperlaneMailbox;
+    
+    // Storage gap for future upgrades
+    uint256[47] private __gap;
     
     // Events
     /// @notice Emitted when the contract is paused for emergency
@@ -160,6 +178,8 @@ contract LookCoin is
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(PAUSER_ROLE, _admin);
         _grantRole(UPGRADER_ROLE, _admin);
+        _grantRole(PROTOCOL_ADMIN_ROLE, _admin);
+        _grantRole(ROUTER_ADMIN_ROLE, _admin);
 
         // Set LayerZero endpoint if provided
         if (_lzEndpoint != address(0)) {
@@ -169,92 +189,130 @@ contract LookCoin is
     }
 
     /**
-     * @dev Mint tokens to address. Only callable by MINTER_ROLE (bridge modules)
+     * @dev Mint tokens to address. Supports both role-based and xERC20 bridge-based minting
      * @param to Address to mint tokens to
      * @param amount Amount to mint
      */
     function mint(address to, uint256 amount) 
-        external 
-        onlyRole(MINTER_ROLE) 
+        public 
+        override
         whenNotPaused 
         nonReentrant
     {
         require(to != address(0), "LookCoin: mint to zero address");
+        require(
+            hasRole(MINTER_ROLE, msg.sender) || 
+            hasRole(BRIDGE_ROLE, msg.sender) ||
+            authorizedBridges[msg.sender],
+            "LookCoin: unauthorized minter"
+        );
         
         totalMinted += amount;
         _mint(to, amount);
     }
 
     /**
-     * @dev Burn tokens from address. Only callable by BURNER_ROLE
+     * @dev Burn tokens from address. Supports both role-based and xERC20 bridge-based burning
      * @param from Address to burn tokens from
      * @param amount Amount to burn
      */
     function burn(address from, uint256 amount) 
-        external 
-        onlyRole(BURNER_ROLE) 
+        public 
+        override
         whenNotPaused 
         nonReentrant
     {
         require(from != address(0), "LookCoin: burn from zero address");
+        require(
+            hasRole(BURNER_ROLE, msg.sender) || 
+            hasRole(BRIDGE_ROLE, msg.sender) ||
+            authorizedBridges[msg.sender] ||
+            (from == msg.sender), // Allow self-burn
+            "LookCoin: unauthorized burner"
+        );
         
         totalBurned += amount;
         _burn(from, amount);
     }
 
     /**
-     * @dev Bridge function for cross-chain transfers using LayerZero OFT v2
+     * @dev Bridge function for cross-chain transfers - delegates to CrossChainRouter
      * @param _dstChainId Destination chain ID
      * @param _toAddress Recipient address on destination chain (encoded as bytes)
      * @param _amount Amount to transfer
-     * @notice Burns tokens on source chain and sends LayerZero message to mint on destination
-     * @dev Requires msg.value to cover LayerZero fees
+     * @notice This function is maintained for backward compatibility
+     * @dev Delegates to CrossChainRouter for protocol selection and execution
      */
     function bridgeToken(
         uint16 _dstChainId,
         bytes calldata _toAddress,
         uint256 _amount
     ) external payable whenNotPaused nonReentrant {
-        require(address(lzEndpoint) != address(0), "LookCoin: LayerZero not configured");
-        require(trustedRemoteLookup[_dstChainId] != bytes32(0), "LookCoin: destination not trusted");
-        require(_amount > 0, "LookCoin: invalid amount");
-        require(_toAddress.length > 0, "LookCoin: invalid recipient");
-        
-        // Burn tokens on source chain
-        totalBurned += _amount;
-        _burn(msg.sender, _amount);
-        
-        // Encode OFT v2 payload
-        bytes memory payload = abi.encode(
-            PT_SEND,                    // Packet type for OFT transfer
-            msg.sender,                 // Sender address
-            _toAddress,                 // Recipient address (bytes)
-            _amount                     // Amount to transfer
-        );
-        
-        // Prepare adapter parameters for gas on destination
-        bytes memory adapterParams = abi.encodePacked(
-            uint16(1),                  // Version 1
-            gasForDestinationLzReceive  // Gas for destination execution
-        );
-        
-        // Get the trusted remote address
-        bytes memory trustedRemote = abi.encodePacked(
-            trustedRemoteLookup[_dstChainId],
-            address(this)
-        );
-        
-        // Send via LayerZero
-        lzEndpoint.send{value: msg.value}(
-            _dstChainId,                // Destination chain ID
-            trustedRemote,               // Remote contract address
-            payload,                     // Encoded payload
-            payable(msg.sender),         // Refund address
-            address(0),                  // ZRO payment address (not used)
-            adapterParams                // Adapter parameters
-        );
-        
-        emit CrossChainTransferInitiated(msg.sender, _dstChainId, _toAddress, _amount);
+        if (address(crossChainRouter) != address(0)) {
+            // Decode recipient address from bytes
+            address recipient;
+            if (_toAddress.length == 20) {
+                assembly {
+                    recipient := mload(add(_toAddress, 20))
+                }
+            } else {
+                revert("LookCoin: invalid recipient format");
+            }
+            
+            // Transfer tokens to router and let it handle the bridge
+            _transfer(msg.sender, address(crossChainRouter), _amount);
+            
+            // Delegate to router for optimal protocol selection
+            crossChainRouter.bridgeToken{value: msg.value}(
+                uint256(_dstChainId),
+                recipient,
+                _amount,
+                ICrossChainRouter.Protocol.LayerZero, // Default to LayerZero for compatibility
+                _toAddress
+            );
+        } else {
+            // Fallback to direct LayerZero if router not configured
+            require(address(lzEndpoint) != address(0), "LookCoin: LayerZero not configured");
+            require(trustedRemoteLookup[_dstChainId] != bytes32(0), "LookCoin: destination not trusted");
+            require(_amount > 0, "LookCoin: invalid amount");
+            require(_toAddress.length > 0, "LookCoin: invalid recipient");
+            
+            // Burn tokens on source chain
+            totalBurned += _amount;
+            _burn(msg.sender, _amount);
+            
+            // Encode OFT v2 payload
+            bytes memory payload = abi.encode(
+                PT_SEND,                    // Packet type for OFT transfer
+                msg.sender,                 // Sender address
+                _toAddress,                 // Recipient address (bytes)
+                _amount                     // Amount to transfer
+            );
+            
+            // Prepare adapter parameters for gas on destination
+            bytes memory adapterParams = abi.encodePacked(
+                uint16(1),                  // Version 1
+                gasForDestinationLzReceive  // Gas for destination execution
+            );
+            
+            // Get the trusted remote address
+            bytes memory trustedRemote = abi.encodePacked(
+                trustedRemoteLookup[_dstChainId],
+                address(this)
+            );
+            
+            // Send via LayerZero
+            lzEndpoint.send{value: msg.value}(
+                _dstChainId,                // Destination chain ID
+                trustedRemote,               // Remote contract address
+                payload,                     // Encoded payload
+                payable(msg.sender),         // Refund address
+                address(0),                  // ZRO payment address (not used)
+                adapterParams                // Adapter parameters
+            );
+            
+            emit CrossChainTransferInitiated(msg.sender, _dstChainId, _toAddress, _amount);
+        }
     }
 
     /**
@@ -392,6 +450,114 @@ contract LookCoin is
             false,
             adapterParams
         );
+    }
+
+    /**
+     * @dev Set the cross-chain router contract
+     * @param _router Address of the CrossChainRouter contract
+     */
+    function setCrossChainRouter(address _router) external onlyRole(ROUTER_ADMIN_ROLE) {
+        require(_router != address(0), "LookCoin: invalid router");
+        crossChainRouter = ICrossChainRouter(_router);
+    }
+
+    /**
+     * @dev Set Hyperlane mailbox for message passing
+     * @param _mailbox Address of Hyperlane mailbox
+     */
+    function setHyperlaneMailbox(address _mailbox) external onlyRole(PROTOCOL_ADMIN_ROLE) {
+        require(_mailbox != address(0), "LookCoin: invalid mailbox");
+        hyperlaneMailbox = _mailbox;
+    }
+
+    /**
+     * @dev Authorize a bridge for xERC20 minting/burning
+     * @param bridge Address of the bridge to authorize
+     * @param authorized Whether the bridge is authorized
+     */
+    function setAuthorizedBridge(address bridge, bool authorized) external onlyRole(PROTOCOL_ADMIN_ROLE) {
+        require(bridge != address(0), "LookCoin: invalid bridge");
+        authorizedBridges[bridge] = authorized;
+        
+        if (authorized) {
+            emit BridgeRegistered(bridge);
+        } else {
+            emit BridgeRemoved(bridge);
+        }
+    }
+
+    /**
+     * @dev Set limits for xERC20 bridges (compatibility function)
+     * @param bridge Address of the bridge
+     * @param mintingLimit Maximum minting limit
+     * @param burningLimit Maximum burning limit
+     */
+    function setLimits(
+        address bridge,
+        uint256 mintingLimit,
+        uint256 burningLimit
+    ) external override onlyRole(PROTOCOL_ADMIN_ROLE) {
+        // For simplicity, we just authorize the bridge if limits are non-zero
+        bool authorized = mintingLimit > 0 || burningLimit > 0;
+        setAuthorizedBridge(bridge, authorized);
+        emit BridgeLimitsSet(bridge, mintingLimit, burningLimit);
+    }
+
+    /**
+     * @dev Get minting limit for a bridge (xERC20 compatibility)
+     * @param bridge Address to check
+     * @return limit Returns max uint256 if authorized, 0 otherwise
+     */
+    function mintingCurrentLimitOf(address bridge) external view override returns (uint256) {
+        return authorizedBridges[bridge] ? type(uint256).max : 0;
+    }
+
+    /**
+     * @dev Get burning limit for a bridge (xERC20 compatibility)
+     * @param bridge Address to check
+     * @return limit Returns max uint256 if authorized, 0 otherwise
+     */
+    function burningCurrentLimitOf(address bridge) external view override returns (uint256) {
+        return authorizedBridges[bridge] ? type(uint256).max : 0;
+    }
+
+    /**
+     * @dev Get max minting limit for a bridge (xERC20 compatibility)
+     * @param bridge Address to check
+     * @return limit Returns max uint256 if authorized, 0 otherwise
+     */
+    function mintingMaxLimitOf(address bridge) external view override returns (uint256) {
+        return authorizedBridges[bridge] ? type(uint256).max : 0;
+    }
+
+    /**
+     * @dev Get max burning limit for a bridge (xERC20 compatibility)
+     * @param bridge Address to check
+     * @return limit Returns max uint256 if authorized, 0 otherwise
+     */
+    function burningMaxLimitOf(address bridge) external view override returns (uint256) {
+        return authorizedBridges[bridge] ? type(uint256).max : 0;
+    }
+
+    /**
+     * @dev Handle incoming Hyperlane messages
+     * @param _origin Origin domain ID
+     * @param _sender Sender address on origin chain
+     * @param _message Encoded message data
+     */
+    function handle(
+        uint32 _origin,
+        bytes32 _sender,
+        bytes calldata _message
+    ) external override {
+        require(msg.sender == hyperlaneMailbox, "LookCoin: unauthorized mailbox");
+        
+        // Decode the message
+        (address recipient, uint256 amount) = abi.decode(_message, (address, uint256));
+        
+        // Mint tokens to recipient
+        totalMinted += amount;
+        _mint(recipient, amount);
     }
 
     /**

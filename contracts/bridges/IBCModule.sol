@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -15,10 +15,11 @@ interface ILookCoin {
 }
 
 /**
- * @title IBCModule
- * @dev IBC bridge module for LookCoin BSC-to-Akashic transfers using lock-and-mint mechanism
- * @notice Handles cross-chain transfers between BSC and Akashic chain using IBC protocol
- * @dev Security features include validator consensus, replay prevention, and timeout handling
+ * @title IBCModule [DEPRECATED]
+ * @dev DEPRECATED: This module is being replaced by HyperlaneModule for improved Akashic chain integration
+ * @notice Legacy IBC bridge module - new transfers should use HyperlaneModule instead
+ * @dev Existing transfers will be honored but no new transfers are accepted
+ * @custom:deprecated Use HyperlaneModule for BSC-Akashic transfers
  */
 contract IBCModule is 
     AccessControlUpgradeable,
@@ -56,6 +57,14 @@ contract IBCModule is
     mapping(bytes32 => bool) public processedPackets;
     /// @dev Mapping of user addresses to their locked token balances
     mapping(address => uint256) public lockedBalances;
+    
+    // Deprecation state
+    /// @dev Flag indicating if the module is deprecated
+    bool public isDeprecated;
+    /// @dev Timestamp when deprecation was activated
+    uint256 public deprecationTimestamp;
+    /// @dev Address of the replacement module (HyperlaneModule)
+    address public replacementModule;
     
     // Validator set
     /// @dev Array of active validator addresses
@@ -116,6 +125,11 @@ contract IBCModule is
     /// @param to Recipient address
     /// @param amount Amount withdrawn
     event EmergencyWithdraw(address indexed token, address indexed to, uint256 amount);
+    
+    /// @notice Emitted when the module is deprecated
+    /// @param timestamp Timestamp when deprecation was activated
+    /// @param replacementModule Address of the replacement module
+    event ModuleDeprecated(uint256 timestamp, address replacementModule);
 
     /**
      * @dev Initialize the IBC module
@@ -174,6 +188,7 @@ contract IBCModule is
         nonReentrant
         // Rate limiting check removed
     {
+        require(!isDeprecated, "IBC: module deprecated - use HyperlaneModule");
         require(bytes(_recipient).length > 0, "IBC: invalid recipient");
         require(_amount > 0, "IBC: invalid amount");
         require(validators.length >= ibcConfig.minValidators, "IBC: insufficient validators");
@@ -438,6 +453,52 @@ contract IBCModule is
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @dev Deprecate this module and set replacement
+     * @param _replacementModule Address of the replacement module (HyperlaneModule)
+     * @notice Marks module as deprecated and prevents new transfers
+     * @dev Can only be called once by admin
+     */
+    function deprecateModule(address _replacementModule) external onlyRole(ADMIN_ROLE) {
+        require(!isDeprecated, "IBC: already deprecated");
+        require(_replacementModule != address(0), "IBC: invalid replacement");
+        
+        isDeprecated = true;
+        deprecationTimestamp = block.timestamp;
+        replacementModule = _replacementModule;
+        
+        emit ModuleDeprecated(block.timestamp, _replacementModule);
+    }
+    
+    /**
+     * @dev Emergency migration function to move locked balances
+     * @param users Array of user addresses to migrate
+     * @param amounts Array of corresponding locked amounts
+     * @param destination Address to transfer funds to (usually HyperlaneModule)
+     * @notice Allows migration of locked funds to new module
+     * @dev Only callable by admin after deprecation
+     */
+    function migrateLockedBalances(
+        address[] calldata users,
+        uint256[] calldata amounts,
+        address destination
+    ) external onlyRole(ADMIN_ROLE) {
+        require(isDeprecated, "IBC: not deprecated");
+        require(users.length == amounts.length, "IBC: array mismatch");
+        require(destination != address(0), "IBC: invalid destination");
+        
+        uint256 totalAmount = 0;
+        for (uint256 i = 0; i < users.length; i++) {
+            require(lockedBalances[users[i]] >= amounts[i], "IBC: insufficient balance");
+            lockedBalances[users[i]] -= amounts[i];
+            totalAmount += amounts[i];
+        }
+        
+        if (totalAmount > 0) {
+            IERC20(address(lookCoin)).safeTransfer(destination, totalAmount);
+        }
     }
 
     /**

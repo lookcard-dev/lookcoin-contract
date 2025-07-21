@@ -49,6 +49,45 @@ const CELER_MESSAGEBUS = {
   akashic: "0x0000000000000000000000000000000000000000", // IBC only
 };
 
+// Hyperlane Mailbox Addresses
+const HYPERLANE_MAILBOX = {
+  bsc: "0x2971b9Aec44bE4eb673DF1B88cDB57b96eefe8a4",
+  bscTestnet: "0xF9F6F5646F478d5ab4e20B0F910C92F1CCC9Cc6D",
+  base: "0xeA87ae93Fa0019a82A727bfd3eBd1cFCa8f64f1D",
+  baseSepolia: "0x6966b0E55883d49BFB24539356a2f8A673E02039",
+  optimism: "0xd4C1905BB1D26BC93DAC913e13CaCC278CdCC80D",
+  opSepolia: "0x6966b0E55883d49BFB24539356a2f8A673E02039",
+  sapphire: "0x0000000000000000000000000000000000000000", // Not supported by Hyperlane
+  sapphireTestnet: "0x0000000000000000000000000000000000000000", // Not supported by Hyperlane
+  akashic: "0x0000000000000000000000000000000000000000", // Custom Hyperlane deployment needed
+};
+
+// Hyperlane Gas Paymaster Addresses
+const HYPERLANE_GAS_PAYMASTER = {
+  bsc: "0x78E25e7f84416e69b9339B0A6336EB6EFfF6b451",
+  bscTestnet: "0x86fb9F1c124fB20ff130C41a79a432F770f67AFD",
+  base: "0x3b6044acd6767f017e99318AA6Ef93b7B06A5a22",
+  baseSepolia: "0x86fb9F1c124fB20ff130C41a79a432F770f67AFD",
+  optimism: "0xD8A76C4D91fCbB7Cc8eA795DFDF870E48886f43e",
+  opSepolia: "0x86fb9F1c124fB20ff130C41a79a432F770f67AFD",
+  sapphire: "0x0000000000000000000000000000000000000000",
+  sapphireTestnet: "0x0000000000000000000000000000000000000000",
+  akashic: "0x0000000000000000000000000000000000000000",
+};
+
+// xERC20 Bridge Addresses (SuperChain)
+const XERC20_BRIDGES = {
+  bsc: "0x0000000000000000000000000000000000000000", // Not SuperChain
+  bscTestnet: "0x0000000000000000000000000000000000000000", // Not SuperChain
+  base: "0x4200000000000000000000000000000000000010", // L2 Standard Bridge
+  baseSepolia: "0x4200000000000000000000000000000000000010", // L2 Standard Bridge
+  optimism: "0x4200000000000000000000000000000000000010", // L2 Standard Bridge
+  opSepolia: "0x4200000000000000000000000000000000000010", // L2 Standard Bridge
+  sapphire: "0x0000000000000000000000000000000000000000", // Not SuperChain
+  sapphireTestnet: "0x0000000000000000000000000000000000000000", // Not SuperChain
+  akashic: "0x0000000000000000000000000000000000000000", // Not SuperChain
+};
+
 // DVN (Decentralized Verifier Network) Addresses for LayerZero
 const LZ_DVN = {
   bsc: [
@@ -351,11 +390,31 @@ export interface ChainConfig {
       layerZero?: { selector: string; module: string };
       celer?: { selector: string; module: string };
       ibc?: { selector: string; module: string };
+      hyperlane?: { selector: string; module: string };
+      xerc20?: { selector: string; module: string };
     };
     updateInterval: number;
     tolerance: number;
   };
   remoteModules: { [network: string]: string };
+  hyperlane: {
+    mailbox: string;
+    gasPaymaster: string;
+    hyperlaneDomainId: number;
+    validatorSet: string[];
+    ism: string; // Interchain Security Module
+  };
+  xerc20: {
+    bridge: string;
+    mintingLimit: string;
+    burningLimit: string;
+  };
+  protocols: {
+    layerZero: boolean;
+    celer: boolean;
+    xerc20: boolean;
+    hyperlane: boolean;
+  };
 }
 
 // Centralized chain configuration
@@ -395,6 +454,24 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       tolerance: 100, // 1%
     },
     remoteModules: REMOTE_MODULES.bsc || {},
+    hyperlane: {
+      mailbox: HYPERLANE_MAILBOX.bsc,
+      gasPaymaster: HYPERLANE_GAS_PAYMASTER.bsc,
+      hyperlaneDomainId: 56,
+      validatorSet: [],
+      ism: "0x0000000000000000000000000000000000000000",
+    },
+    xerc20: {
+      bridge: XERC20_BRIDGES.bsc,
+      mintingLimit: "0",
+      burningLimit: "0",
+    },
+    protocols: {
+      layerZero: true,
+      celer: true,
+      xerc20: false, // BSC is not part of SuperChain
+      hyperlane: true,
+    },
   },
   bsctestnet: {
     chainId: 97,
@@ -431,6 +508,24 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       tolerance: 100,
     },
     remoteModules: {},
+    hyperlane: {
+      mailbox: HYPERLANE_MAILBOX.bscTestnet,
+      gasPaymaster: HYPERLANE_GAS_PAYMASTER.bscTestnet,
+      hyperlaneDomainId: 97,
+      validatorSet: [],
+      ism: "0x0000000000000000000000000000000000000000",
+    },
+    xerc20: {
+      bridge: XERC20_BRIDGES.bscTestnet,
+      mintingLimit: "0",
+      burningLimit: "0",
+    },
+    protocols: {
+      layerZero: true,
+      celer: true,
+      xerc20: false,
+      hyperlane: true,
+    },
   },
   basemainnet: {
     chainId: 8453,
@@ -783,6 +878,29 @@ export function generateIgnitionParams(network: string): any {
     OracleModule: {
       updateInterval: chainConfig.oracle.updateInterval,
       tolerance: chainConfig.oracle.tolerance,
+    },
+    // Hyperlane module parameters
+    HyperlaneModule: {
+      mailbox: chainConfig.hyperlane?.mailbox || "0x0000000000000000000000000000000000000000",
+      gasPaymaster: chainConfig.hyperlane?.gasPaymaster || "0x0000000000000000000000000000000000000000",
+      hyperlaneDomainId: chainConfig.hyperlane?.hyperlaneDomainId || 0,
+      validatorSet: chainConfig.hyperlane?.validatorSet || [],
+      ism: chainConfig.hyperlane?.ism || "0x0000000000000000000000000000000000000000",
+    },
+    // XERC20 module parameters
+    XERC20Module: {
+      bridge: chainConfig.xerc20?.bridge || "0x0000000000000000000000000000000000000000",
+      mintingLimit: chainConfig.xerc20?.mintingLimit || "0",
+      burningLimit: chainConfig.xerc20?.burningLimit || "0",
+    },
+    // Router module parameters
+    CrossChainRouter: {
+      protocols: chainConfig.protocols || {
+        layerZero: false,
+        celer: false,
+        xerc20: false,
+        hyperlane: false,
+      },
     },
     // Common parameters
     chainId: chainConfig.chainId,

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-// RateLimiter import removed for now
+import "../interfaces/ILookBridgeModule.sol";
 
 interface ILookCoin {
     function mint(address to, uint256 amount) external;
@@ -63,7 +63,8 @@ contract CelerIMModule is
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
     UUPSUpgradeable,
-    IMessageReceiverApp
+    IMessageReceiverApp,
+    ILookBridgeModule
 {
     using SafeERC20 for IERC20;
 
@@ -89,6 +90,8 @@ contract CelerIMModule is
     mapping(address => bool) public blacklist;
     /// @dev Mapping to track processed transfers to prevent replay attacks
     mapping(bytes32 => bool) public processedTransfers;
+    /// @dev Mapping to store transfer details for ILookBridgeModule compatibility
+    mapping(bytes32 => BridgeTransfer) public transfers;
     
     // Fee parameters
     /// @dev Bridge fee percentage in basis points (100 = 1%)
@@ -269,6 +272,153 @@ contract CelerIMModule is
     }
 
     /**
+     * @dev ILookBridgeModule implementation - bridge tokens to another chain
+     * @param destinationChain Destination chain ID
+     * @param recipient Recipient address on destination chain
+     * @param amount Amount to transfer
+     * @param params Additional parameters (unused for Celer)
+     * @return transferId Unique transfer identifier
+     */
+    function bridgeOut(
+        uint256 destinationChain,
+        address recipient,
+        uint256 amount,
+        bytes calldata params
+    ) external payable override whenNotPaused nonReentrant returns (bytes32 transferId) {
+        // Call existing lockAndBridge functionality
+        uint64 dstChainId = uint64(destinationChain);
+        
+        // Calculate fee
+        uint256 fee = calculateFee(amount);
+        uint256 netAmount = amount - fee;
+        
+        // Generate transfer ID
+        transferId = keccak256(
+            abi.encodePacked(msg.sender, recipient, amount, block.timestamp, block.number)
+        );
+        
+        // Store transfer info for ILookBridgeModule
+        transfers[transferId] = BridgeTransfer({
+            id: transferId,
+            sender: msg.sender,
+            recipient: recipient,
+            amount: amount,
+            sourceChain: block.chainid,
+            destinationChain: destinationChain,
+            protocol: "Celer",
+            status: TransferStatus.Pending,
+            timestamp: block.timestamp
+        });
+        
+        // Execute the bridge operation
+        lockAndBridge(dstChainId, recipient, amount);
+        
+        emit TransferInitiated(transferId, msg.sender, destinationChain, amount, "Celer");
+    }
+
+    /**
+     * @dev ILookBridgeModule implementation - handle incoming transfer
+     * @param sourceChain Source chain ID
+     * @param sender Sender address on source chain
+     * @param recipient Recipient address on this chain
+     * @param amount Amount to transfer
+     * @param data Additional data
+     */
+    function handleIncoming(
+        uint256 sourceChain,
+        address sender,
+        address recipient,
+        uint256 amount,
+        bytes calldata data
+    ) external override {
+        // This is handled by executeMessageWithTransfer
+        revert("Use executeMessageWithTransfer for Celer incoming transfers");
+    }
+
+    /**
+     * @dev ILookBridgeModule implementation - estimate transfer fee
+     * @param destinationChain Destination chain ID
+     * @param amount Transfer amount
+     * @param params Additional parameters
+     * @return fee Estimated fee
+     * @return estimatedTime Estimated transfer time in seconds
+     */
+    function estimateFee(
+        uint256 destinationChain,
+        uint256 amount,
+        bytes calldata params
+    ) external view override returns (uint256 fee, uint256 estimatedTime) {
+        fee = calculateFee(amount);
+        
+        // Add Celer message fee
+        uint256 messageFee = messageBus.feeBase() + (200 * messageBus.feePerByte());
+        fee += messageFee;
+        
+        // Celer transfers typically take 5-10 minutes
+        estimatedTime = 300;
+    }
+
+    /**
+     * @dev ILookBridgeModule implementation - get transfer status
+     * @param transferId Transfer identifier
+     * @return status Current transfer status
+     */
+    function getStatus(bytes32 transferId) external view override returns (TransferStatus) {
+        return transfers[transferId].status;
+    }
+
+    /**
+     * @dev ILookBridgeModule implementation - update module configuration
+     * @param config Encoded configuration data
+     */
+    function updateConfig(bytes calldata config) external override onlyRole(ADMIN_ROLE) {
+        // Decode and apply configuration
+        (uint256 newFeePercentage, uint256 newMinFee, uint256 newMaxFee) = abi.decode(
+            config,
+            (uint256, uint256, uint256)
+        );
+        
+        if (newFeePercentage > 0) {
+            setFeeParameters(newFeePercentage, newMinFee, newMaxFee);
+        }
+    }
+
+    /**
+     * @dev ILookBridgeModule implementation - pause the module
+     */
+    function pause() external override onlyRole(ADMIN_ROLE) {
+        _pause();
+        emit ProtocolStatusChanged(ProtocolStatus.Paused);
+    }
+
+    /**
+     * @dev ILookBridgeModule implementation - unpause the module
+     */
+    function unpause() external override onlyRole(ADMIN_ROLE) {
+        _unpause();
+        emit ProtocolStatusChanged(ProtocolStatus.Active);
+    }
+
+    /**
+     * @dev ILookBridgeModule implementation - emergency withdrawal
+     * @param token Token address (0 for native)
+     * @param to Recipient address
+     * @param amount Amount to withdraw
+     */
+    function emergencyWithdraw(
+        address token,
+        address to,
+        uint256 amount
+    ) external override onlyRole(ADMIN_ROLE) {
+        if (token == address(0)) {
+            payable(to).transfer(amount);
+        } else {
+            IERC20(token).safeTransfer(to, amount);
+        }
+        emit EmergencyWithdrawal(token, to, amount);
+    }
+
+    /**
      * @dev Execute incoming cross-chain message and mint tokens
      * @param _sender Sender address on source chain (must be registered remote module)
      * @param _token Token address (unused for mint operations)
@@ -310,7 +460,21 @@ contract CelerIMModule is
         // Mint tokens to recipient
         lookCoin.mint(recipient, mintAmount);
         
+        // Update transfer status for ILookBridgeModule
+        transfers[transferId] = BridgeTransfer({
+            id: transferId,
+            sender: originalSender,
+            recipient: recipient,
+            amount: mintAmount,
+            sourceChain: uint256(_srcChainId),
+            destinationChain: block.chainid,
+            protocol: "Celer",
+            status: TransferStatus.Completed,
+            timestamp: block.timestamp
+        });
+        
         emit CrossChainTransferMinted(_srcChainId, originalSender, recipient, mintAmount, transferId);
+        emit TransferCompleted(transferId, recipient, mintAmount);
         
         return ExecutionStatus.Success;
     }
