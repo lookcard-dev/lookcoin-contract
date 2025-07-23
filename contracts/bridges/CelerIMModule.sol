@@ -311,7 +311,7 @@ contract CelerIMModule is
         });
         
         // Execute the bridge operation
-        lockAndBridge(dstChainId, recipient, amount);
+        this.lockAndBridge{value: msg.value}(dstChainId, recipient, amount);
         
         emit TransferInitiated(transferId, msg.sender, destinationChain, amount, "Celer");
     }
@@ -379,7 +379,14 @@ contract CelerIMModule is
         );
         
         if (newFeePercentage > 0) {
-            setFeeParameters(newFeePercentage, newMinFee, newMaxFee);
+            require(newFeePercentage <= 1000, "CelerIM: fee too high"); // Max 10%
+            require(newMinFee <= newMaxFee, "CelerIM: invalid fee range");
+            
+            feePercentage = newFeePercentage;
+            minFee = newMinFee;
+            maxFee = newMaxFee;
+            
+            emit FeeParametersUpdated(newFeePercentage, newMinFee, newMaxFee);
         }
     }
 
@@ -415,7 +422,7 @@ contract CelerIMModule is
         } else {
             IERC20(token).safeTransfer(to, amount);
         }
-        emit EmergencyWithdrawal(token, to, amount);
+        emit EmergencyWithdraw(token, to, amount);
     }
 
     /**
@@ -631,47 +638,6 @@ contract CelerIMModule is
         blacklist[_address] = _blacklisted;
     }
 
-    /**
-     * @dev Emergency withdraw tokens
-     * @param _token Token address (use address(0) for native token)
-     * @param _to Recipient address
-     * @param _amount Amount to withdraw
-     * @notice Allows admin to recover stuck tokens or ETH
-     * @dev Should only be used in emergency situations
-     */
-    function emergencyWithdraw(
-        address _token,
-        address _to,
-        uint256 _amount
-    ) external onlyRole(ADMIN_ROLE) {
-        require(_to != address(0), "CelerIM: invalid recipient");
-        
-        if (_token == address(0)) {
-            payable(_to).transfer(_amount);
-        } else {
-            IERC20(_token).safeTransfer(_to, _amount);
-        }
-        
-        emit EmergencyWithdraw(_token, _to, _amount);
-    }
-
-    /**
-     * @dev Pause the contract
-     * @notice Pauses all bridge operations except for whitelisted addresses
-     * @dev Only OPERATOR_ROLE can pause
-     */
-    function pause() external onlyRole(OPERATOR_ROLE) {
-        _pause();
-    }
-
-    /**
-     * @dev Unpause the contract
-     * @notice Resumes normal bridge operations
-     * @dev Only OPERATOR_ROLE can unpause
-     */
-    function unpause() external onlyRole(OPERATOR_ROLE) {
-        _unpause();
-    }
 
     /**
      * @dev Override supportsInterface for multiple inheritance

@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "@hyperlane-xyz/core/interfaces/IMessageRecipient.sol";
+import "@hyperlane-xyz/core/contracts/interfaces/IMessageRecipient.sol";
 import "./external/xERC20/interfaces/IXERC20.sol";
 import "./interfaces/ICrossChainRouter.sol";
 
@@ -84,7 +84,7 @@ contract LookCoin is
     /// @dev Mapping from chain ID to trusted remote contract addresses
     mapping(uint16 => bytes32) public trustedRemoteLookup;
     /// @dev Gas limit for destination chain execution
-    uint public gasForDestinationLzReceive = 350000;
+    uint public gasForDestinationLzReceive;
     /// @dev Mapping to track processed nonces per source chain
     mapping(uint16 => mapping(uint64 => bool)) public processedNonces;
     
@@ -174,6 +174,9 @@ contract LookCoin is
         __Pausable_init();
         __ReentrancyGuard_init();
 
+        // Initialize gas for LayerZero
+        gasForDestinationLzReceive = 350000;
+
         // Grant roles
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(PAUSER_ROLE, _admin);
@@ -253,7 +256,8 @@ contract LookCoin is
             address recipient;
             if (_toAddress.length == 20) {
                 assembly {
-                    recipient := mload(add(_toAddress, 20))
+                    let ptr := add(_toAddress.offset, 0x20)
+                    recipient := mload(ptr)
                 }
             } else {
                 revert("LookCoin: invalid recipient format");
@@ -499,7 +503,7 @@ contract LookCoin is
     ) external override onlyRole(PROTOCOL_ADMIN_ROLE) {
         // For simplicity, we just authorize the bridge if limits are non-zero
         bool authorized = mintingLimit > 0 || burningLimit > 0;
-        setAuthorizedBridge(bridge, authorized);
+        authorizedBridges[bridge] = authorized;
         emit BridgeLimitsSet(bridge, mintingLimit, burningLimit);
     }
 
@@ -549,7 +553,7 @@ contract LookCoin is
         uint32 _origin,
         bytes32 _sender,
         bytes calldata _message
-    ) external override {
+    ) external payable override {
         require(msg.sender == hyperlaneMailbox, "LookCoin: unauthorized mailbox");
         
         // Decode the message

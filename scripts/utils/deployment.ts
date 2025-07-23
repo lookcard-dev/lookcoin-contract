@@ -33,6 +33,8 @@ export interface Deployment {
   chainId: number;
   deployer: string;
   timestamp: string;
+  deploymentMode?: "standard" | "multi-protocol"; // New field
+  protocolsDeployed?: string[]; // New field
   contracts: {
     LookCoin: {
       proxy: string;
@@ -42,26 +44,120 @@ export interface Deployment {
       proxy: string;
       implementation?: string;
     };
-    IBCModule?: {
-      proxy: string;
-      implementation?: string;
-    };
     SupplyOracle: {
       proxy: string;
       implementation?: string;
     };
   };
+  protocolContracts?: { // New field for protocol-specific contracts
+    layerZeroModule?: string;
+    celerIMModule?: string;
+    xerc20Module?: string;
+    hyperlaneModule?: string;
+  };
+  infrastructureContracts?: { // New field for multi-protocol infrastructure
+    crossChainRouter?: string;
+    feeManager?: string;
+    securityManager?: string;
+    protocolRegistry?: string;
+  };
   config?: {
     governanceVault?: string;
     layerZeroEndpoint?: string;
     celerMessageBus?: string;
-    ibcHandler?: string;
   };
   implementationHashes?: {
     [contractName: string]: string;
   };
   lastDeployed?: string;
   lastUpgraded?: string;
+}
+
+// Migration function for legacy deployment formats
+function migrateDeploymentFormat(deployment: any): Deployment {
+  // If already has new fields, return as-is
+  if (deployment.deploymentMode && deployment.protocolsDeployed) {
+    return deployment;
+  }
+
+  // Detect deployment mode by analyzing contracts
+  const hasMultipleProtocols = 
+    (deployment.contracts.CelerIMModule && deployment.config?.layerZeroEndpoint) ||
+    (deployment.contracts.CelerIMModule && deployment.config?.layerZeroEndpoint);
+
+  const protocolsDeployed: string[] = [];
+  const protocolContracts: any = {};
+
+  // Detect LayerZero
+  if (deployment.config?.layerZeroEndpoint && deployment.config.layerZeroEndpoint !== ethers.ZeroAddress) {
+    protocolsDeployed.push("layerZero");
+    protocolContracts.layerZeroModule = deployment.contracts.LookCoin.proxy;
+  }
+
+  // Detect Celer
+  if (deployment.contracts.CelerIMModule) {
+    protocolsDeployed.push("celer");
+    protocolContracts.celerIMModule = deployment.contracts.CelerIMModule.proxy;
+  }
+
+
+  // Check for infrastructure contracts (these would exist in multi-protocol deployments)
+  const infrastructureContracts: any = {};
+  if ((deployment.contracts as any).CrossChainRouter) {
+    infrastructureContracts.crossChainRouter = (deployment.contracts as any).CrossChainRouter.proxy;
+  }
+  if ((deployment.contracts as any).FeeManager) {
+    infrastructureContracts.feeManager = (deployment.contracts as any).FeeManager.proxy;
+  }
+  if ((deployment.contracts as any).SecurityManager) {
+    infrastructureContracts.securityManager = (deployment.contracts as any).SecurityManager.proxy;
+  }
+  if ((deployment.contracts as any).ProtocolRegistry) {
+    infrastructureContracts.protocolRegistry = (deployment.contracts as any).ProtocolRegistry.proxy;
+  }
+
+  // Determine deployment mode
+  const deploymentMode = (protocolsDeployed.length > 1 || Object.keys(infrastructureContracts).length > 0) 
+    ? "multi-protocol" 
+    : "standard";
+
+  // Return migrated deployment
+  return {
+    ...deployment,
+    deploymentMode,
+    protocolsDeployed,
+    protocolContracts: Object.keys(protocolContracts).length > 0 ? protocolContracts : undefined,
+    infrastructureContracts: Object.keys(infrastructureContracts).length > 0 ? infrastructureContracts : undefined
+  };
+}
+
+// Validation function for deployment format
+export function validateDeploymentFormat(deployment: Deployment): boolean {
+  // Check required fields
+  if (!deployment.network || !deployment.chainId || !deployment.contracts) {
+    return false;
+  }
+
+  // Check core contracts
+  if (!deployment.contracts.LookCoin || !deployment.contracts.SupplyOracle) {
+    return false;
+  }
+
+  // Validate deployment mode consistency
+  if (deployment.deploymentMode === "multi-protocol") {
+    if (!deployment.protocolsDeployed || deployment.protocolsDeployed.length <= 1) {
+      console.warn("Multi-protocol mode but only one or no protocols deployed");
+    }
+  }
+
+  // Validate protocol contracts consistency
+  if (deployment.protocolsDeployed && deployment.protocolsDeployed.length > 0) {
+    if (!deployment.protocolContracts) {
+      console.warn("Protocols deployed but no protocol contracts tracked");
+    }
+  }
+
+  return true;
 }
 
 // Network mapping functions
@@ -151,7 +247,8 @@ export function loadDeployment(networkName: string, useLevel: boolean = false): 
         console.warn(`⚠️  Using legacy deployment file: ${legacyFileName}. Consider renaming to canonical format.`);
         try {
           const content = fs.readFileSync(legacyPath, "utf-8");
-          return JSON.parse(content);
+          const deployment = JSON.parse(content);
+          return migrateDeploymentFormat(deployment);
         } catch (error) {
           console.error(`Failed to load legacy deployment from ${legacyPath}:`, error);
           return null;
@@ -163,7 +260,8 @@ export function loadDeployment(networkName: string, useLevel: boolean = false): 
 
     try {
       const content = fs.readFileSync(deploymentPath, "utf-8");
-      return JSON.parse(content);
+      const deployment = JSON.parse(content);
+      return migrateDeploymentFormat(deployment);
     } catch (error) {
       console.error(`Failed to load deployment from ${deploymentPath}:`, error);
       return null;
@@ -304,9 +402,6 @@ export async function loadDeploymentFromLevel(chainId: number): Promise<Deployme
           break;
         case "CelerIMModule":
           deployment.contracts.CelerIMModule = contractEntry;
-          break;
-        case "IBCModule":
-          deployment.contracts.IBCModule = contractEntry;
           break;
         case "SupplyOracle":
           deployment.contracts.SupplyOracle = contractEntry;

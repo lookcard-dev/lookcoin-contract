@@ -9,15 +9,6 @@ interface IgnitionParameters {
     totalSupply: string;
     governanceVault: string;
   };
-  IBCModule?: {
-    validators: string[];
-    minValidators: number;
-    threshold: number;
-    channelId: string;
-    portId: string;
-    unbondingPeriod: number;
-    packetTimeout: number;
-  };
   CelerModule?: {
     messageBus: string;
     feePercentage: number;
@@ -57,24 +48,6 @@ function generateLookCoinParams(network: string): IgnitionParameters["LookCoin"]
   };
 }
 
-function generateIBCParams(network: string): IgnitionParameters["IBCModule"] {
-  const config = getChainConfig(network);
-
-  // Only generate IBC params for networks with IBC support
-  if (config.ibc.validators.length === 0) {
-    return undefined;
-  }
-
-  return {
-    validators: config.ibc.validators,
-    minValidators: config.ibc.minValidators,
-    threshold: config.ibc.threshold,
-    channelId: config.ibc.channelId,
-    portId: config.ibc.portId,
-    unbondingPeriod: config.ibc.unbondingPeriod,
-    packetTimeout: config.ibc.packetTimeout,
-  };
-}
 
 function generateCelerParams(network: string): IgnitionParameters["CelerModule"] {
   const config = getChainConfig(network);
@@ -135,10 +108,6 @@ function generateIgnitionParameters(network: string): IgnitionParameters {
     params.LookCoin = lookCoinParams;
   }
 
-  const ibcParams = generateIBCParams(network);
-  if (ibcParams) {
-    params.IBCModule = ibcParams;
-  }
 
   const celerParams = generateCelerParams(network);
   if (celerParams) {
@@ -208,12 +177,6 @@ function validateConfiguration(): void {
         }
       }
 
-      // Validate IBC config if applicable
-      if (config.ibc.validators.length > 0) {
-        if (!config.ibc.channelId || !config.ibc.portId) {
-          throw new Error(`Missing IBC channel/port configuration for ${network}`);
-        }
-      }
 
       console.log(`✅ ${network} configuration is valid`);
     } catch (error) {

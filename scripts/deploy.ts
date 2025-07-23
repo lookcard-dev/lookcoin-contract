@@ -1,8 +1,9 @@
 import hre from "hardhat";
 import { ethers, upgrades } from "hardhat";
 import { getChainConfig, getNetworkName } from "../hardhat.config";
-import { loadDeployment, saveDeployment, getBytecodeHash, Deployment } from "./utils/deployment";
-import { fetchDeployOrUpgradeProxy } from "./utils/state";
+import { loadDeployment, saveDeployment, getBytecodeHash, Deployment, validateDeploymentFormat } from "./utils/deployment";
+import { ProtocolDetector } from "./utils/protocolDetector";
+import { DeploymentOrchestrator, DeploymentConfig } from "./utils/deploymentOrchestrator";
 import fs from "fs";
 import path from "path";
 
@@ -42,65 +43,65 @@ function saveDeploymentState(state: DeploymentState) {
   return statePath;
 }
 
-// Load latest deployment state
-function loadDeploymentState(network: string): DeploymentState | null {
-  const latestPath = path.join(__dirname, `../deployments/.state/${network}-latest.json`);
-  if (fs.existsSync(latestPath)) {
-    return JSON.parse(fs.readFileSync(latestPath, 'utf8'));
-  }
-  return null;
-}
+// // Load latest deployment state
+// function loadDeploymentState(network: string): DeploymentState | null {
+//   const latestPath = path.join(__dirname, `../deployments/.state/${network}-latest.json`);
+//   if (fs.existsSync(latestPath)) {
+//     return JSON.parse(fs.readFileSync(latestPath, 'utf8'));
+//   }
+//   return null;
+// }
 
-// Wait for transaction with timeout
-async function waitForTransaction(hash: string, confirmations = 2, timeoutMs = 300000) {
-  const provider = ethers.provider;
-  const startTime = Date.now();
+// // Wait for transaction with timeout
+// async function waitForTransaction(hash: string, confirmations = 2, timeoutMs = 300000) {
+//   const provider = ethers.provider;
+//   const startTime = Date.now();
   
-  while (Date.now() - startTime < timeoutMs) {
-    try {
-      const receipt = await provider.waitForTransaction(hash, confirmations);
-      if (receipt && receipt.status === 1) {
-        return receipt;
-      } else if (receipt && receipt.status === 0) {
-        throw new Error("Transaction failed");
-      }
-    } catch (error) {
-      if (Date.now() - startTime >= timeoutMs) {
-        throw new Error(`Transaction timeout after ${timeoutMs}ms`);
-      }
-      // Continue waiting
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    }
-  }
+//   while (Date.now() - startTime < timeoutMs) {
+//     try {
+//       const receipt = await provider.waitForTransaction(hash, confirmations);
+//       if (receipt && receipt.status === 1) {
+//         return receipt;
+//       } else if (receipt && receipt.status === 0) {
+//         throw new Error("Transaction failed");
+//       }
+//     } catch (error) {
+//       if (Date.now() - startTime >= timeoutMs) {
+//         throw new Error(`Transaction timeout after ${timeoutMs}ms`);
+//       }
+//       // Continue waiting
+//       await new Promise(resolve => setTimeout(resolve, 5000));
+//     }
+//   }
   
-  throw new Error(`Transaction timeout after ${timeoutMs}ms`);
-}
+//   throw new Error(`Transaction timeout after ${timeoutMs}ms`);
+// }
 
-// Retry logic with exponential backoff
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  maxRetries = 3,
-  initialDelay = 1000
-): Promise<T> {
-  let lastError: any;
+// // Retry logic with exponential backoff
+// async function retryWithBackoff<T>(
+//   fn: () => Promise<T>,
+//   maxRetries = 3,
+//   initialDelay = 1000
+// ): Promise<T> {
+//   let lastError: any;
   
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      console.log(`Attempt ${i + 1} failed: ${error}`);
+//   for (let i = 0; i < maxRetries; i++) {
+//     try {
+//       return await fn();
+//     } catch (error) {
+//       lastError = error;
+//       console.log(`Attempt ${i + 1} failed: ${error}`);
       
-      if (i < maxRetries - 1) {
-        const delay = initialDelay * Math.pow(2, i);
-        console.log(`Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
+//       if (i < maxRetries - 1) {
+//         const delay = initialDelay * Math.pow(2, i);
+//         console.log(`Retrying in ${delay}ms...`);
+//         await new Promise(resolve => setTimeout(resolve, delay));
+//       }
+//     }
+//   }
   
-  throw lastError;
-}
+//   throw lastError;
+// }
 
 async function main() {
   console.log("Starting LookCoin deployment with enhanced safety features...");
@@ -150,10 +151,10 @@ async function main() {
     deployer: deployer.address,
     startTime: new Date().toISOString(),
     steps: [
-      { name: "LookCoin", status: 'pending' },
-      { name: "CelerIMModule", status: 'pending' },
-      { name: "IBCModule", status: 'pending' },
-      { name: "SupplyOracle", status: 'pending' }
+      { name: "ProtocolDetection", status: 'pending' },
+      { name: "CoreContracts", status: 'pending' },
+      { name: "ProtocolModules", status: 'pending' },
+      { name: "Infrastructure", status: 'pending' }
     ],
     checkpoint: existingDeployment
   };
@@ -168,6 +169,8 @@ async function main() {
     chainId: chainId,
     deployer: deployer.address,
     timestamp: new Date().toISOString(),
+    deploymentMode: "standard", // Will be updated based on detection
+    protocolsDeployed: [], // Will be populated during deployment
     contracts: {
       LookCoin: { proxy: "" },
       SupplyOracle: { proxy: "" },
@@ -181,190 +184,169 @@ async function main() {
     lastDeployed: new Date().toISOString(),
   };
 
-  // Deploy or upgrade LookCoin
-  console.log("\n⌛️ 1. Processing LookCoin...");
-  const lookCoinStep = deploymentState.steps.find(s => s.name === "LookCoin")!;
-  lookCoinStep.status = 'in_progress';
-  lookCoinStep.timestamp = new Date().toISOString();
-  saveDeploymentState(deploymentState);
+  // Detect supported protocols
+  console.log("\n🔍 Detecting supported protocols...");
+  const protocolSupport = ProtocolDetector.detectSupportedProtocols(chainConfig);
+  console.log("Supported protocols:", protocolSupport.protocols);
   
-  try {
-    const lookCoin = await retryWithBackoff(async () => {
-      // Estimate gas before deployment
-      console.log("  📊 Estimating gas...");
-      const deployTx = await ethers.getContractFactory("LookCoin").then(f => f.getDeployTransaction());
-      const gasEstimate = await ethers.provider.estimateGas(deployTx);
-      console.log(`  ⛽ Estimated gas: ${gasEstimate.toString()}`);
-      
-      return fetchDeployOrUpgradeProxy(hre, "LookCoin", [governanceVault, lzEndpoint], {
-        initializer: "initialize",
-        kind: "uups",
-      });
-    });
-    
-    const lookCoinAddress = await lookCoin.getAddress();
-    const lookCoinArtifact = await hre.artifacts.readArtifact("LookCoin");
-    const lookCoinBytecodeHash = getBytecodeHash(lookCoinArtifact.deployedBytecode);
-
-    // Verify deployment
-    console.log("  🔍 Verifying deployment...");
-    const code = await ethers.provider.getCode(lookCoinAddress);
-    if (code === "0x") {
-      throw new Error("Contract deployment failed - no code at address");
-    }
-
-    deployment.contracts.LookCoin = {
-      proxy: lookCoinAddress,
-      implementation: await upgrades.erc1967.getImplementationAddress(lookCoinAddress),
+  // Determine deployment mode
+  const deploymentMode = DeploymentOrchestrator.determineDeploymentMode(protocolSupport);
+  console.log(`Deployment mode: ${deploymentMode}`);
+  
+  // Prepare deployment configuration
+  let deploymentConfig: DeploymentConfig = {
+    chainConfig,
+    deployer: deployer.address,
+    deploymentName: networkName,
+    existingDeployment
+  };
+  
+  // Deploy core contracts
+  console.log("\n🚀 Deploying core contracts...");
+  const coreContracts = await DeploymentOrchestrator.deployCore(deploymentConfig);
+  
+  // Update deployment object with core contracts
+  deployment.contracts.LookCoin = {
+    proxy: coreContracts.lookCoin,
+    implementation: await upgrades.erc1967.getImplementationAddress(coreContracts.lookCoin),
+  };
+  deployment.contracts.SupplyOracle = {
+    proxy: coreContracts.supplyOracle,
+    implementation: await upgrades.erc1967.getImplementationAddress(coreContracts.supplyOracle),
+  };
+  
+  // Update deployment config with the newly deployed contracts
+  deploymentConfig.existingDeployment = deployment;
+  
+  // Deploy protocol modules
+  const protocolContracts = await DeploymentOrchestrator.deployProtocols(deploymentConfig, coreContracts.lookCoin);
+  
+  // Update deployment object with protocol contracts
+  deployment.protocolContracts = {};
+  deployment.protocolsDeployed = [];
+  
+  if (protocolContracts.layerZeroModule) {
+    deployment.protocolContracts.layerZeroModule = protocolContracts.layerZeroModule;
+    deployment.protocolsDeployed.push("layerZero");
+  }
+  
+  if (protocolContracts.celerIMModule) {
+    deployment.contracts.CelerIMModule = {
+      proxy: protocolContracts.celerIMModule,
+      implementation: await upgrades.erc1967.getImplementationAddress(protocolContracts.celerIMModule),
     };
-    deployment.implementationHashes!.LookCoin = lookCoinBytecodeHash;
-    
-    lookCoinStep.status = 'completed';
-    lookCoinStep.contractAddress = lookCoinAddress;
-    saveDeploymentState(deploymentState);
-    
-    console.log("✅ 1. LookCoin completed at:", lookCoinAddress);
-  } catch (error: any) {
-    lookCoinStep.status = 'failed';
-    lookCoinStep.error = error.message;
-    saveDeploymentState(deploymentState);
-    
-    console.error("❌ Failed to deploy/upgrade LookCoin:", error);
-    console.error("\n🔄 Rollback information saved. To resume, run: npm run deploy:resume");
-    throw error;
+    deployment.protocolContracts.celerIMModule = protocolContracts.celerIMModule;
+    deployment.protocolsDeployed.push("celer");
   }
-
-  // Deploy or upgrade CelerIMModule (if Celer is available on this chain)
-  let celerModuleAddress: string | null = null;
-  if (celerMessageBus !== "0x0000000000000000000000000000000000000000") {
-    console.log("\n⌛️ 2. Processing CelerIMModule...");
-    const celerStep = deploymentState.steps.find(s => s.name === "CelerIMModule")!;
-    celerStep.status = 'in_progress';
-    celerStep.timestamp = new Date().toISOString();
-    saveDeploymentState(deploymentState);
-    
-    try {
-      const lookCoinAddress = deployment.contracts.LookCoin.proxy;
-      const celerModule = await retryWithBackoff(async () => {
-        return fetchDeployOrUpgradeProxy(
-          hre,
-          "CelerIMModule",
-          [lookCoinAddress, celerMessageBus, governanceVault],
-          { initializer: "initialize", kind: "uups" },
-        );
-      });
-      
-      celerModuleAddress = await celerModule.getAddress();
-      
-      // Verify deployment
-      const code = await ethers.provider.getCode(celerModuleAddress);
-      if (code === "0x") {
-        throw new Error("Contract deployment failed - no code at address");
-      }
-      
-      const celerArtifact = await hre.artifacts.readArtifact("CelerIMModule");
-      const celerBytecodeHash = getBytecodeHash(celerArtifact.deployedBytecode);
-
-      deployment.contracts.CelerIMModule = {
-        proxy: celerModuleAddress,
-        implementation: await upgrades.erc1967.getImplementationAddress(celerModuleAddress),
-      };
-      deployment.implementationHashes!.CelerIMModule = celerBytecodeHash;
-      
-      celerStep.status = 'completed';
-      celerStep.contractAddress = celerModuleAddress;
-      saveDeploymentState(deploymentState);
-      console.log("✅ 2. CelerIMModule completed");
-    } catch (error) {
-      console.error("❌ Failed to deploy/upgrade CelerIMModule:", error);
-      throw error;
-    }
+  
+  
+  if (protocolContracts.xerc20Module) {
+    deployment.protocolContracts.xerc20Module = protocolContracts.xerc20Module;
+    deployment.protocolsDeployed.push("xerc20");
   }
-
-  // Deploy or upgrade IBCModule (only on BSC)
-  let ibcModuleAddress: string | null = null;
-  if (chainId === 56 || chainId === 97) {
-    console.log("\n⌛️ 3. Processing IBCModule...");
-    try {
-      const lookCoinAddress = deployment.contracts.LookCoin.proxy;
-      const vaultAddress = governanceVault;
-      const ibcModule = await fetchDeployOrUpgradeProxy(
-        hre,
-        "IBCModule",
-        [lookCoinAddress, vaultAddress, governanceVault],
-        { initializer: "initialize", kind: "uups" },
-      );
-      ibcModuleAddress = await ibcModule.getAddress();
-      const ibcArtifact = await hre.artifacts.readArtifact("IBCModule");
-      const ibcBytecodeHash = getBytecodeHash(ibcArtifact.deployedBytecode);
-
-      deployment.contracts.IBCModule = {
-        proxy: ibcModuleAddress,
-        implementation: await upgrades.erc1967.getImplementationAddress(ibcModuleAddress),
-      };
-      deployment.implementationHashes!.IBCModule = ibcBytecodeHash;
-      console.log("✅ 3. IBCModule completed");
-    } catch (error) {
-      console.error("❌ Failed to deploy/upgrade IBCModule:", error);
-      throw error;
-    }
+  
+  if (protocolContracts.hyperlaneModule) {
+    deployment.protocolContracts.hyperlaneModule = protocolContracts.hyperlaneModule;
+    deployment.protocolsDeployed.push("hyperlane");
   }
-
-  // Deploy or upgrade SupplyOracle
-  console.log("\n⌛️ 4. Processing SupplyOracle...");
-  try {
-    const totalSupply = chainConfig.totalSupply;
-    const supplyOracle = await fetchDeployOrUpgradeProxy(hre, "SupplyOracle", [governanceVault, totalSupply], {
-      initializer: "initialize",
-      kind: "uups",
-    });
-    const supplyOracleAddress = await supplyOracle.getAddress();
-    const oracleArtifact = await hre.artifacts.readArtifact("SupplyOracle");
-    const oracleBytecodeHash = getBytecodeHash(oracleArtifact.deployedBytecode);
-
-    deployment.contracts.SupplyOracle = {
-      proxy: supplyOracleAddress,
-      implementation: await upgrades.erc1967.getImplementationAddress(supplyOracleAddress),
-    };
-    deployment.implementationHashes!.SupplyOracle = oracleBytecodeHash;
-    console.log("✅ 4. SupplyOracle completed");
-  } catch (error) {
-    console.error("❌ Failed to deploy/upgrade SupplyOracle:", error);
-    throw error;
+  
+  // Deploy infrastructure for multi-protocol mode
+  if (deploymentMode === "multi-protocol") {
+    const infraContracts = await DeploymentOrchestrator.deployInfrastructure(deploymentConfig);
+    deployment.infrastructureContracts = infraContracts;
   }
+  
+  // Set deployment mode
+  deployment.deploymentMode = deploymentMode;
+  
+  // Update implementation hashes
+  const lookCoinArtifact = await hre.artifacts.readArtifact("LookCoin");
+  deployment.implementationHashes!.LookCoin = getBytecodeHash(lookCoinArtifact.deployedBytecode);
+  
+  const supplyOracleArtifact = await hre.artifacts.readArtifact("SupplyOracle");
+  deployment.implementationHashes!.SupplyOracle = getBytecodeHash(supplyOracleArtifact.deployedBytecode);
+  
+  if (deployment.contracts.CelerIMModule) {
+    const celerArtifact = await hre.artifacts.readArtifact("CelerIMModule");
+    deployment.implementationHashes!.CelerIMModule = getBytecodeHash(celerArtifact.deployedBytecode);
+  }
+  
 
   // Update deployment timestamp
   deployment.timestamp = new Date().toISOString();
   deployment.lastDeployed = new Date().toISOString();
 
+  // Validate deployment format
+  if (!validateDeploymentFormat(deployment)) {
+    console.warn("⚠️  Deployment format validation warnings detected. Please review.");
+  }
+
   console.log("\n5. Deployment Summary:");
-  console.log(JSON.stringify(deployment, null, 2));
+  console.log("=======================");
+  console.log(`Network: ${deployment.network} (Chain ID: ${deployment.chainId})`);
+  console.log(`Deployment Mode: ${deployment.deploymentMode}`);
+  console.log(`Protocols Deployed: ${deployment.protocolsDeployed?.join(", ") || "None"}`);
+  console.log("\nCore Contracts:");
+  console.log(`  - LookCoin: ${deployment.contracts.LookCoin.proxy}`);
+  console.log(`  - SupplyOracle: ${deployment.contracts.SupplyOracle.proxy}`);
+  
+  if (deployment.protocolContracts && Object.keys(deployment.protocolContracts).length > 0) {
+    console.log("\nProtocol Modules:");
+    for (const [name, address] of Object.entries(deployment.protocolContracts)) {
+      console.log(`  - ${name}: ${address}`);
+    }
+  }
+  
+  if (deployment.infrastructureContracts && Object.keys(deployment.infrastructureContracts).length > 0) {
+    console.log("\nInfrastructure Contracts:");
+    for (const [name, address] of Object.entries(deployment.infrastructureContracts)) {
+      console.log(`  - ${name}: ${address}`);
+    }
+  }
 
   // Save deployment
   await saveDeployment(networkName, deployment);
 
   console.log("\n✅ Deployment completed successfully!");
-  console.log("\n⚠️  Next steps:");
-  console.log(`1. Run setup script: npm run setup:${networkName.toLowerCase().replace(/\s+/g, "-")}`);
+  console.log("\n📋 Next Steps:");
+  console.log("=============");
+  console.log(`1. Run setup script to configure local roles and settings:`);
+  console.log(`   npm run setup:${networkName.toLowerCase().replace(/\s+/g, "-")}`);
 
-  // Provide network-specific configure script instructions
-  const networkKey = networkName.toLowerCase().replace(/\s+/g, "");
-  const configureScriptMap: { [key: string]: string } = {
-    bsctestnet: "npm run configure:bsc-testnet",
-    basesepolia: "npm run configure:base-sepolia",
-    opsepolia: "npm run configure:optimism-sepolia",
-    optimismsepolia: "npm run configure:optimism-sepolia",
-    sapphire: "npm run configure:sapphire-mainnet",
-  };
+  // Check if cross-chain configuration is available
+  const hasOtherDeployments = fs.existsSync(path.join(__dirname, "../deployments")) && 
+    fs.readdirSync(path.join(__dirname, "../deployments"))
+      .filter(f => f.endsWith(".json") && !f.includes(networkName.toLowerCase())).length > 0;
 
-  if (configureScriptMap[networkKey]) {
-    console.log(`2. Run configure script: ${configureScriptMap[networkKey]}`);
+  if (hasOtherDeployments) {
+    console.log(`\n2. Run configure script to set up cross-chain connections:`);
+    const networkKey = networkName.toLowerCase().replace(/\s+/g, "");
+    const configureScriptMap: { [key: string]: string } = {
+      bsctestnet: "npm run configure:bsc-testnet",
+      basesepolia: "npm run configure:base-sepolia",
+      opsepolia: "npm run configure:optimism-sepolia",
+      optimismsepolia: "npm run configure:optimism-sepolia",
+      sapphire: "npm run configure:sapphire-mainnet",
+    };
+
+    if (configureScriptMap[networkKey]) {
+      console.log(`   ${configureScriptMap[networkKey]}`);
+    } else {
+      console.log(`   npm run configure:${networkName.toLowerCase().replace(/\s+/g, "-")}`);
+    }
   } else {
-    console.log("2. No network-specific configure script available for this network");
+    console.log(`\n2. Configure script will be available after deploying to other networks`);
   }
 
-  console.log("3. Verify contracts on block explorer");
-  console.log("4. Configure monitoring and alerting");
+  console.log("\n3. Verify contracts on block explorer:");
+  console.log("   npm run verify");
+  
+  console.log("\n4. Monitor deployment health and set up alerts");
+  
+  if (deployment.deploymentMode === "multi-protocol") {
+    console.log("\n⚡ Multi-Protocol Mode Detected!");
+    console.log("Additional configuration may be required for protocol-specific settings.");
+  }
 }
 
 main()

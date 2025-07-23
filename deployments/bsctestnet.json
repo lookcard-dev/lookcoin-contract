@@ -1,24 +1,25 @@
 {
-  "network": "BSC Testnet",
+  "network": "bsctestnet",
   "chainId": 97,
   "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
-  "timestamp": "2025-07-16T13:35:50.224Z",
+  "timestamp": "2025-07-23T11:46:02.406Z",
+  "deploymentMode": "multi-protocol",
+  "protocolsDeployed": [
+    "layerZero",
+    "celer"
+  ],
   "contracts": {
     "LookCoin": {
-      "proxy": "0xbb3ede4eE25900b260877C0F20e3DFD6D718c342",
-      "implementation": "0xD29Dd15530BFE25d89d446B16530dC8cDA3bD056"
+      "proxy": "0x12EbF0ca24831d0553C073289F13E1cc014B29fF",
+      "implementation": "0xCC29079424F48ecb569B79E3257d736ea4e7FDee"
     },
     "SupplyOracle": {
-      "proxy": "0xF936F96de720753D01B27C8Bb4805bE9714D612e",
+      "proxy": "0x3D8816060f1e59e1586A78F0F2b5559Cb352e1e2",
       "implementation": "0xbCb0a67E981490dDb8833D2F1B33A9dBB1a7A0f4"
     },
     "CelerIMModule": {
-      "proxy": "0xA83c8E40adD558597644784Ac57a3dDADF89b9Fd",
-      "implementation": "0x84D4e17EDfFc4693aFf272BA4ED86963CE8BB19E"
-    },
-    "IBCModule": {
-      "proxy": "0x90BE1aa8ad442dbF1440d3A831E52b6Ce0b1236b",
-      "implementation": "0x21d5AaB5f993B9A6F1202219d81AABC6e50A3224"
+      "proxy": "0xeB9E7dEb894b60f1A5739D63b75B3cc681988A40",
+      "implementation": "0xc86539388a0BA2ee5C41BFEcA8ef96bebBcB84A1"
     }
   },
   "config": {
@@ -27,10 +28,19 @@
     "governanceVault": "0x0bec539fd761cae579802072d9ee7fde86ed05a3"
   },
   "implementationHashes": {
-    "LookCoin": "0xb9b750fac2a9c354dfecbeb77078a081303b168daaf4294e31db542b19ffd8c2",
-    "CelerIMModule": "0xc185ed44d2e19ae85235a8d461d8aa46725810bddea85431bf05b4af6db4f19c",
-    "IBCModule": "0x752530d9cb1b2282aa7d7598fd64dea8594d8db231d840dac352a8cc9c7a686b",
-    "SupplyOracle": "0x6ee2b6ffab6a13c0b27263ff486b950fd24d3648f42d91a778e618f786156f90"
+    "LookCoin": "0x151ba37669486e1febb72eeed020702c1698a2f471f33a7be31cd9c832666c4d",
+    "SupplyOracle": "0x6ee2b6ffab6a13c0b27263ff486b950fd24d3648f42d91a778e618f786156f90",
+    "CelerIMModule": "0x034e341f9ef32470716bc4dccf44eaccf3ed84e9e85fb3f12c62258f05d3a4d9"
   },
-  "lastDeployed": "2025-07-16T13:35:50.224Z"
+  "lastDeployed": "2025-07-23T11:46:02.406Z",
+  "protocolContracts": {
+    "layerZeroModule": "0x12EbF0ca24831d0553C073289F13E1cc014B29fF",
+    "celerIMModule": "0xeB9E7dEb894b60f1A5739D63b75B3cc681988A40"
+  },
+  "infrastructureContracts": {
+    "crossChainRouter": "",
+    "feeManager": "",
+    "securityManager": "",
+    "protocolRegistry": ""
+  }
 }

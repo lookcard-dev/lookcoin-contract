@@ -12,24 +12,36 @@ import {
 
 const LookCoinModule = buildModule("LookCoinModule", (m) => {
   // Validate and parse parameters
-  let governanceVault: string;
-  let lzEndpoint: string;
+  let governanceVault: any; // Can be string or AccountRuntimeValue
+  let lzEndpoint: any; // Can be string or contract reference
   let totalSupply: bigint;
   let chainId: number;
-  let dvnAddresses: string[] = [];
+  let dvnAddresses: any[] = []; // Can be strings or contract references
 
   try {
-    // Validate governance vault
+    // Get governance vault parameter
     const governanceVaultParam = m.getParameter("governanceVault", m.getAccount(0));
-    governanceVault = validateNonZeroAddress(governanceVaultParam as string, "governanceVault");
+    
+    // If it's a string, validate it
+    if (typeof governanceVaultParam === "string") {
+      governanceVault = validateNonZeroAddress(governanceVaultParam, "governanceVault");
+    } else {
+      // Otherwise, it's an AccountRuntimeValue from m.getAccount(0)
+      governanceVault = governanceVaultParam;
+    }
 
-    // Validate LayerZero endpoint (can be ZeroAddress)
+    // Get LayerZero endpoint parameter
     const lzEndpointParam = m.getParameter("lzEndpoint", ZeroAddress);
+    
+    // Handle different parameter types
     if (lzEndpointParam === ZeroAddress) {
       console.warn("Warning: lzEndpoint is ZeroAddress, LayerZero features will be disabled");
       lzEndpoint = ZeroAddress;
+    } else if (typeof lzEndpointParam === "string") {
+      lzEndpoint = validateAddress(lzEndpointParam, "lzEndpoint");
     } else {
-      lzEndpoint = validateAddress(lzEndpointParam as string, "lzEndpoint");
+      // It's a contract reference or other object, use as-is
+      lzEndpoint = lzEndpointParam as any;
     }
 
     // Parse and validate total supply
@@ -41,14 +53,27 @@ const LookCoinModule = buildModule("LookCoinModule", (m) => {
       totalSupply = totalSupplyParam as bigint;
     }
 
-    // Validate chain ID
+    // Get chain ID parameter
     const chainIdParam = m.getParameter("chainId", 56); // Default to BSC
-    chainId = validateChainId(chainIdParam as number, "chainId");
+    
+    // Validate chain ID if it's a number
+    if (typeof chainIdParam === "number") {
+      chainId = validateChainId(chainIdParam, "chainId");
+    } else {
+      // If it's not a number at module build time, use the default
+      chainId = 56; // BSC mainnet
+      console.warn("Warning: chainId parameter is not a number at build time, using default BSC (56)");
+    }
 
-    // Parse DVN addresses from comma-separated string if provided
+    // Parse DVN addresses if provided
     const dvnsParam = m.getParameter("dvns", "");
     if (dvnsParam && dvnsParam !== "" && lzEndpoint !== ZeroAddress) {
-      dvnAddresses = parseCommaSeparatedAddresses(dvnsParam as string, "dvns");
+      if (typeof dvnsParam === "string") {
+        dvnAddresses = parseCommaSeparatedAddresses(dvnsParam, "dvns");
+      } else if (Array.isArray(dvnsParam)) {
+        // It's already an array of addresses or contract references
+        dvnAddresses = dvnsParam;
+      }
     }
   } catch (error: any) {
     throw new Error(`LookCoinModule parameter validation failed: ${error.message}`);

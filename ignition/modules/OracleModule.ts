@@ -10,17 +10,24 @@ import {
 
 const OracleModule = buildModule("OracleModule", (m) => {
   // Validate and parse parameters
-  let governanceVault: string;
+  let governanceVault: any; // Can be string or AccountRuntimeValue
   let totalSupply: bigint;
   let reconciliationInterval: number;
   let toleranceThreshold: bigint;
   let requiredSignatures: number;
-  let bridgeRegistrations: { [chainId: string]: string } = {};
+  let bridgeRegistrations: { [chainId: string]: string[] } = {};
 
   try {
-    // Validate governance vault
+    // Get governance vault parameter
     const governanceVaultParam = m.getParameter("governanceVault", m.getAccount(0));
-    governanceVault = validateNonZeroAddress(governanceVaultParam as string, "governanceVault");
+    
+    // If it's a string, validate it
+    if (typeof governanceVaultParam === "string") {
+      governanceVault = validateNonZeroAddress(governanceVaultParam, "governanceVault");
+    } else {
+      // Otherwise, it's an AccountRuntimeValue from m.getAccount(0)
+      governanceVault = governanceVaultParam;
+    }
 
     // Parse and validate total supply
     const totalSupplyParam = m.getParameter("totalSupply", "1000000000"); // 1B tokens as string
@@ -55,15 +62,39 @@ const OracleModule = buildModule("OracleModule", (m) => {
     if (typeof bridgeRegistrationsParam === "string") {
       bridgeRegistrations = validateBridgeRegistrations(bridgeRegistrationsParam, "bridgeRegistrations");
     } else if (typeof bridgeRegistrationsParam === "object") {
-      // If it's already an object, validate each entry
-      for (const [chainIdStr, address] of Object.entries(bridgeRegistrationsParam)) {
-        const chainId = parseInt(chainIdStr);
-        if (isNaN(chainId)) {
-          throw createParameterError(`bridgeRegistrations.${chainIdStr}`, "numeric chain ID", chainIdStr);
+      // If it's already an object, validate it if possible
+      try {
+        for (const [chainIdStr, addresses] of Object.entries(bridgeRegistrationsParam)) {
+          const chainId = parseInt(chainIdStr);
+          if (isNaN(chainId)) {
+            // Skip validation at build time if keys are not numeric
+            console.warn(`Warning: bridgeRegistrations key '${chainIdStr}' is not numeric at build time, skipping validation`);
+            continue;
+          }
+          
+          // Handle both single address and array of addresses
+          if (Array.isArray(addresses)) {
+            bridgeRegistrations[chainIdStr] = [];
+            for (let i = 0; i < addresses.length; i++) {
+              if (typeof addresses[i] === "string") {
+                const validatedAddress = validateNonZeroAddress(addresses[i], `bridgeRegistrations.${chainIdStr}[${i}]`);
+                bridgeRegistrations[chainIdStr].push(validatedAddress);
+              } else {
+                // Contract reference, use as-is
+                bridgeRegistrations[chainIdStr].push(addresses[i] as any);
+              }
+            }
+          } else if (typeof addresses === "string") {
+            const validatedAddress = validateNonZeroAddress(addresses, `bridgeRegistrations.${chainIdStr}`);
+            bridgeRegistrations[chainIdStr] = [validatedAddress];
+          } else {
+            // Contract reference or other type, use as-is
+            bridgeRegistrations[chainIdStr] = [addresses as any];
+          }
         }
-        validateChainId(chainId, `bridgeRegistrations.${chainIdStr}`);
-        validateNonZeroAddress(address as string, `bridgeRegistrations.${chainIdStr}`);
-        bridgeRegistrations[chainIdStr] = address as string;
+      } catch (e) {
+        // If object.entries fails (due to computed properties), use as-is
+        bridgeRegistrations = bridgeRegistrationsParam as any;
       }
     }
   } catch (error: any) {
@@ -116,11 +147,14 @@ const OracleModule = buildModule("OracleModule", (m) => {
 
   // Register bridges for supported chains
   for (const chainId of chainIds) {
-    const bridgeAddress = bridgeRegistrations[chainId.toString()];
-    if (bridgeAddress) {
-      m.call(supplyOracle, "registerBridge", [chainId, bridgeAddress], {
-        id: `registerBridge_${chainId}`,
-      });
+    const bridgeAddresses = bridgeRegistrations[chainId.toString()];
+    if (bridgeAddresses && bridgeAddresses.length > 0) {
+      // Register each bridge address for the chain
+      for (let i = 0; i < bridgeAddresses.length; i++) {
+        m.call(supplyOracle, "registerBridge", [chainId, bridgeAddresses[i]], {
+          id: `registerBridge_${chainId}_${i}`,
+        });
+      }
     }
   }
 

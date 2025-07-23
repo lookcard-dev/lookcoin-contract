@@ -18,6 +18,7 @@ const OPTIMISM_TESTNET_RPC_URL = process.env.OPTIMISM_TESTNET_RPC_URL || "https:
 const SAPPHIRE_RPC_URL = process.env.SAPPHIRE_RPC_URL || "https://sapphire.oasis.io";
 const SAPPHIRE_TESTNET_RPC_URL = process.env.SAPPHIRE_TESTNET_RPC_URL || "https://testnet.sapphire.oasis.io";
 const AKASHIC_RPC_URL = process.env.AKASHIC_RPC_URL || "https://rpc-mainnet.akashicrecords.io";
+const AKASHIC_TESTNET_RPC_URL = process.env.AKASHIC_TESTNET_RPC_URL || "https://rpc-testnet.akashicrecords.io";
 
 // Private key for deployments
 const DEPLOYER_PRIVATE_KEY =
@@ -107,14 +108,6 @@ const LZ_DVN = {
   ],
 };
 
-// IBC Validator Set Configuration
-const IBC_VALIDATORS = {
-  minValidators: 21,
-  threshold: 14, // 2/3 majority
-  unbondingPeriod: 14 * 24 * 60 * 60, // 14 days in seconds
-  packetTimeout: 60 * 60, // 1 hour in seconds
-};
-
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.28",
@@ -173,7 +166,7 @@ const config: HardhatUserConfig = {
     },
     sapphireTestnet: {
       url: SAPPHIRE_TESTNET_RPC_URL,
-      chainId: 23295, // Same as mainnet
+      chainId: 23295,
       accounts: [DEPLOYER_PRIVATE_KEY],
     },
     akashic: {
@@ -181,12 +174,17 @@ const config: HardhatUserConfig = {
       chainId: 9070,
       accounts: [DEPLOYER_PRIVATE_KEY],
     },
+    akashicTestnet: {
+      url: AKASHIC_TESTNET_RPC_URL,
+      chainId: 9071,
+      accounts: [DEPLOYER_PRIVATE_KEY],
+    },
   },
   contractSizer: {
     alphaSort: false,
     runOnCompile: !!process.env.CONTRACT_SIZER,
     disambiguatePaths: false,
-    only: ["LookCoin", "LayerZeroModule", "CelerIMModule", "IBCModule", "SupplyOracle", "MPCMultisig"],
+    only: ["LookCoin", "LayerZeroModule", "CelerIMModule", "SupplyOracle", "MPCMultisig"],
   },
   gasReporter: {
     enabled: !!process.env.REPORT_GAS,
@@ -218,14 +216,6 @@ const CELER_CHAIN_IDS = {
   opSepolia: 11155420,
   sapphire: 23294,
   sapphireTestnet: 23295,
-};
-
-// IBC Channel and Port configuration
-const IBC_CHANNELS = {
-  akashic: {
-    channelId: "channel-0",
-    portId: "transfer",
-  },
 };
 
 // Celer Fee Parameters
@@ -272,7 +262,6 @@ const CELER_FEES = {
 const SUPPORTED_CHAINS = {
   layerZero: ["bsc", "bscTestnet", "base", "baseSepolia", "optimism", "opSepolia"],
   celer: ["bsc", "bscTestnet", "optimism", "opSepolia", "sapphire", "sapphireTestnet"],
-  ibc: ["akashic"],
 };
 
 // Remote modules configuration for cross-chain communication
@@ -302,7 +291,6 @@ const ORACLE_BRIDGE_REGISTRATIONS = {
   bsc: {
     layerZero: { selector: "0x1", module: "0x0000000000000000000000000000000000000000" },
     celer: { selector: "0x2", module: "0x0000000000000000000000000000000000000000" },
-    ibc: { selector: "0x3", module: "0x0000000000000000000000000000000000000000" },
   },
   base: {
     layerZero: { selector: "0x1", module: "0x0000000000000000000000000000000000000000" },
@@ -313,18 +301,7 @@ const ORACLE_BRIDGE_REGISTRATIONS = {
   sapphire: {
     celer: { selector: "0x2", module: "0x0000000000000000000000000000000000000000" },
   },
-  akashic: {
-    ibc: { selector: "0x3", module: "0x0000000000000000000000000000000000000000" },
-  },
-};
-
-// IBC Validator addresses per network
-const IBC_VALIDATOR_ADDRESSES = {
-  akashic: [
-    "0x1111111111111111111111111111111111111111",
-    "0x2222222222222222222222222222222222222222",
-    "0x3333333333333333333333333333333333333333",
-  ],
+  akashic: {},
 };
 
 // Governance vault addresses per network
@@ -376,20 +353,10 @@ export interface ChainConfig {
       feeCollector: string;
     };
   };
-  ibc: {
-    channelId: string;
-    portId: string;
-    validators: string[];
-    minValidators: number;
-    threshold: number;
-    unbondingPeriod: number;
-    packetTimeout: number;
-  };
   oracle: {
     bridges: {
       layerZero?: { selector: string; module: string };
       celer?: { selector: string; module: string };
-      ibc?: { selector: string; module: string };
       hyperlane?: { selector: string; module: string };
       xerc20?: { selector: string; module: string };
     };
@@ -439,15 +406,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       celerChainId: CELER_CHAIN_IDS.bsc,
       fees: CELER_FEES.bsc,
     },
-    ibc: {
-      channelId: "",
-      portId: "",
-      validators: [],
-      minValidators: 0,
-      threshold: 0,
-      unbondingPeriod: 0,
-      packetTimeout: 0,
-    },
     oracle: {
       bridges: ORACLE_BRIDGE_REGISTRATIONS.bsc,
       updateInterval: 900, // 15 minutes
@@ -492,15 +450,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       messageBus: CELER_MESSAGEBUS.bscTestnet,
       celerChainId: CELER_CHAIN_IDS.bscTestnet,
       fees: CELER_FEES.bscTestnet,
-    },
-    ibc: {
-      channelId: "",
-      portId: "",
-      validators: [],
-      minValidators: 0,
-      threshold: 0,
-      unbondingPeriod: 0,
-      packetTimeout: 0,
     },
     oracle: {
       bridges: {},
@@ -552,21 +501,30 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
         feeCollector: "0x0000000000000000000000000000000000000000",
       },
     },
-    ibc: {
-      channelId: "",
-      portId: "",
-      validators: [],
-      minValidators: 0,
-      threshold: 0,
-      unbondingPeriod: 0,
-      packetTimeout: 0,
-    },
     oracle: {
       bridges: ORACLE_BRIDGE_REGISTRATIONS.base || {},
       updateInterval: 900,
       tolerance: 100,
     },
     remoteModules: REMOTE_MODULES.base || {},
+    hyperlane: {
+      mailbox: HYPERLANE_MAILBOX.base,
+      gasPaymaster: HYPERLANE_GAS_PAYMASTER.base,
+      hyperlaneDomainId: 8453,
+      validatorSet: [],
+      ism: "0x0000000000000000000000000000000000000000",
+    },
+    xerc20: {
+      bridge: XERC20_BRIDGES.base,
+      mintingLimit: "0",
+      burningLimit: "0",
+    },
+    protocols: {
+      layerZero: true,
+      celer: false, // Not supported by Celer
+      xerc20: true, // Part of SuperChain
+      hyperlane: true,
+    },
   },
   basesepolia: {
     chainId: 84532,
@@ -593,21 +551,30 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
         feeCollector: "0x0000000000000000000000000000000000000000",
       },
     },
-    ibc: {
-      channelId: "",
-      portId: "",
-      validators: [],
-      minValidators: 0,
-      threshold: 0,
-      unbondingPeriod: 0,
-      packetTimeout: 0,
-    },
     oracle: {
       bridges: {},
       updateInterval: 900,
       tolerance: 100,
     },
     remoteModules: {},
+    hyperlane: {
+      mailbox: HYPERLANE_MAILBOX.baseSepolia,
+      gasPaymaster: HYPERLANE_GAS_PAYMASTER.baseSepolia,
+      hyperlaneDomainId: 84532,
+      validatorSet: [],
+      ism: "0x0000000000000000000000000000000000000000",
+    },
+    xerc20: {
+      bridge: XERC20_BRIDGES.baseSepolia,
+      mintingLimit: "0",
+      burningLimit: "0",
+    },
+    protocols: {
+      layerZero: true,
+      celer: false,
+      xerc20: true,
+      hyperlane: true,
+    },
   },
   optimismmainnet: {
     chainId: 10,
@@ -629,21 +596,30 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       celerChainId: CELER_CHAIN_IDS.optimism,
       fees: CELER_FEES.optimism,
     },
-    ibc: {
-      channelId: "",
-      portId: "",
-      validators: [],
-      minValidators: 0,
-      threshold: 0,
-      unbondingPeriod: 0,
-      packetTimeout: 0,
-    },
     oracle: {
       bridges: ORACLE_BRIDGE_REGISTRATIONS.optimism || {},
       updateInterval: 900,
       tolerance: 100,
     },
     remoteModules: REMOTE_MODULES.optimism || {},
+    hyperlane: {
+      mailbox: HYPERLANE_MAILBOX.optimism,
+      gasPaymaster: HYPERLANE_GAS_PAYMASTER.optimism,
+      hyperlaneDomainId: 10,
+      validatorSet: [],
+      ism: "0x0000000000000000000000000000000000000000",
+    },
+    xerc20: {
+      bridge: XERC20_BRIDGES.optimism,
+      mintingLimit: "0",
+      burningLimit: "0",
+    },
+    protocols: {
+      layerZero: true,
+      celer: true,
+      xerc20: true, // Part of SuperChain
+      hyperlane: true,
+    },
   },
   optimismsepolia: {
     chainId: 11155420,
@@ -665,21 +641,30 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       celerChainId: CELER_CHAIN_IDS.opSepolia,
       fees: CELER_FEES.opSepolia,
     },
-    ibc: {
-      channelId: "",
-      portId: "",
-      validators: [],
-      minValidators: 0,
-      threshold: 0,
-      unbondingPeriod: 0,
-      packetTimeout: 0,
-    },
     oracle: {
       bridges: {},
       updateInterval: 900,
       tolerance: 100,
     },
     remoteModules: {},
+    hyperlane: {
+      mailbox: HYPERLANE_MAILBOX.opSepolia,
+      gasPaymaster: HYPERLANE_GAS_PAYMASTER.opSepolia,
+      hyperlaneDomainId: 11155420,
+      validatorSet: [],
+      ism: "0x0000000000000000000000000000000000000000",
+    },
+    xerc20: {
+      bridge: XERC20_BRIDGES.opSepolia,
+      mintingLimit: "0",
+      burningLimit: "0",
+    },
+    protocols: {
+      layerZero: true,
+      celer: true,
+      xerc20: true,
+      hyperlane: true,
+    },
   },
   sapphiremainnet: {
     chainId: 23295,
@@ -701,21 +686,30 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       celerChainId: CELER_CHAIN_IDS.sapphire,
       fees: CELER_FEES.sapphire,
     },
-    ibc: {
-      channelId: "",
-      portId: "",
-      validators: [],
-      minValidators: 0,
-      threshold: 0,
-      unbondingPeriod: 0,
-      packetTimeout: 0,
-    },
     oracle: {
       bridges: ORACLE_BRIDGE_REGISTRATIONS.sapphire || {},
       updateInterval: 900,
       tolerance: 100,
     },
     remoteModules: REMOTE_MODULES.sapphire || {},
+    hyperlane: {
+      mailbox: HYPERLANE_MAILBOX.sapphire,
+      gasPaymaster: HYPERLANE_GAS_PAYMASTER.sapphire,
+      hyperlaneDomainId: 23294,
+      validatorSet: [],
+      ism: "0x0000000000000000000000000000000000000000",
+    },
+    xerc20: {
+      bridge: XERC20_BRIDGES.sapphire,
+      mintingLimit: "0",
+      burningLimit: "0",
+    },
+    protocols: {
+      layerZero: false, // Not supported by LayerZero
+      celer: true,
+      xerc20: false, // Not part of SuperChain
+      hyperlane: false, // Not supported by Hyperlane
+    },
   },
   sapphiretestnet: {
     chainId: 23295,
@@ -737,21 +731,30 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       celerChainId: CELER_CHAIN_IDS.sapphireTestnet,
       fees: CELER_FEES.sapphireTestnet,
     },
-    ibc: {
-      channelId: "",
-      portId: "",
-      validators: [],
-      minValidators: 0,
-      threshold: 0,
-      unbondingPeriod: 0,
-      packetTimeout: 0,
-    },
     oracle: {
       bridges: {},
       updateInterval: 900,
       tolerance: 100,
     },
     remoteModules: {},
+    hyperlane: {
+      mailbox: HYPERLANE_MAILBOX.sapphireTestnet,
+      gasPaymaster: HYPERLANE_GAS_PAYMASTER.sapphireTestnet,
+      hyperlaneDomainId: 23295,
+      validatorSet: [],
+      ism: "0x0000000000000000000000000000000000000000",
+    },
+    xerc20: {
+      bridge: XERC20_BRIDGES.sapphireTestnet,
+      mintingLimit: "0",
+      burningLimit: "0",
+    },
+    protocols: {
+      layerZero: false,
+      celer: true,
+      xerc20: false,
+      hyperlane: false,
+    },
   },
   akashicmainnet: {
     chainId: 9070,
@@ -778,21 +781,30 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
         feeCollector: "0x0000000000000000000000000000000000000000",
       },
     },
-    ibc: {
-      channelId: IBC_CHANNELS.akashic.channelId,
-      portId: IBC_CHANNELS.akashic.portId,
-      validators: IBC_VALIDATOR_ADDRESSES.akashic,
-      minValidators: IBC_VALIDATORS.minValidators,
-      threshold: IBC_VALIDATORS.threshold,
-      unbondingPeriod: IBC_VALIDATORS.unbondingPeriod,
-      packetTimeout: IBC_VALIDATORS.packetTimeout,
-    },
     oracle: {
       bridges: ORACLE_BRIDGE_REGISTRATIONS.akashic || {},
       updateInterval: 900,
       tolerance: 100,
     },
     remoteModules: REMOTE_MODULES.akashic || {},
+    hyperlane: {
+      mailbox: HYPERLANE_MAILBOX.akashic,
+      gasPaymaster: HYPERLANE_GAS_PAYMASTER.akashic,
+      hyperlaneDomainId: 9070,
+      validatorSet: [],
+      ism: "0x0000000000000000000000000000000000000000",
+    },
+    xerc20: {
+      bridge: XERC20_BRIDGES.akashic,
+      mintingLimit: "0",
+      burningLimit: "0",
+    },
+    protocols: {
+      layerZero: false, // Not supported by LayerZero
+      celer: false, // Not supported by Celer
+      xerc20: false, // Not part of SuperChain
+      hyperlane: false, // Custom deployment needed
+    },
   },
   hardhat: {
     chainId: 31337,
@@ -819,21 +831,30 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
         feeCollector: "0x0000000000000000000000000000000000000000",
       },
     },
-    ibc: {
-      validators: [],
-      minValidators: 0,
-      threshold: 0,
-      channelId: "",
-      portId: "",
-      unbondingPeriod: 0,
-      packetTimeout: 0,
-    },
     oracle: {
       bridges: {},
       updateInterval: 900,
       tolerance: 100,
     },
     remoteModules: {},
+    hyperlane: {
+      mailbox: "0x0000000000000000000000000000000000000000",
+      gasPaymaster: "0x0000000000000000000000000000000000000000",
+      hyperlaneDomainId: 31337,
+      validatorSet: [],
+      ism: "0x0000000000000000000000000000000000000000",
+    },
+    xerc20: {
+      bridge: "0x0000000000000000000000000000000000000000",
+      mintingLimit: "0",
+      burningLimit: "0",
+    },
+    protocols: {
+      layerZero: false,
+      celer: false,
+      xerc20: false,
+      hyperlane: false,
+    },
   },
 };
 
@@ -847,7 +868,7 @@ export function getChainConfig(network: string): ChainConfig {
 }
 
 // Helper function to generate Ignition parameters from centralized config
-export function generateIgnitionParams(network: string): any {
+export function generateIgnitionParams(network: string): Record<string, unknown> {
   const chainConfig = getChainConfig(network);
 
   return {
@@ -855,16 +876,6 @@ export function generateIgnitionParams(network: string): any {
     LookCoin: {
       totalSupply: chainConfig.totalSupply,
       governanceVault: chainConfig.governanceVault,
-    },
-    // IBC module parameters
-    IBCModule: {
-      validators: chainConfig.ibc.validators,
-      minValidators: chainConfig.ibc.minValidators,
-      threshold: chainConfig.ibc.threshold,
-      channelId: chainConfig.ibc.channelId,
-      portId: chainConfig.ibc.portId,
-      unbondingPeriod: chainConfig.ibc.unbondingPeriod,
-      packetTimeout: chainConfig.ibc.packetTimeout,
     },
     // Celer module parameters
     CelerModule: {
@@ -970,17 +981,15 @@ export function getNetworkTier(chainId: number): "mainnet" | "testnet" | "dev" |
 }
 
 // Export LayerZero and Celer configurations for use in scripts (DEPRECATED - use getChainConfig instead)
-export { LZ_ENDPOINTS, CELER_MESSAGEBUS, LZ_DVN, IBC_VALIDATORS };
+export { LZ_ENDPOINTS, CELER_MESSAGEBUS, LZ_DVN };
 
 // Additional exports for backward compatibility
 export {
   CELER_CHAIN_IDS,
-  IBC_CHANNELS,
   CELER_FEES,
   SUPPORTED_CHAINS,
   REMOTE_MODULES,
   ORACLE_BRIDGE_REGISTRATIONS,
-  IBC_VALIDATOR_ADDRESSES,
   GOVERNANCE_VAULTS,
   LZ_CHAIN_IDS,
 };

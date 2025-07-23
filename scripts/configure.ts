@@ -1,7 +1,9 @@
 import { ethers } from "hardhat";
 import * as fs from "fs";
 import { getChainConfig, getNetworkTier, getNetworkName } from "../hardhat.config";
-import { getLayerZeroChainId, getCelerChainId, loadOtherChainDeployments, loadDeployment } from "./utils/deployment";
+import { getLayerZeroChainId, getCelerChainId, loadOtherChainDeployments, loadDeployment, validateDeploymentFormat } from "./utils/deployment";
+import { ProtocolDetector } from "./utils/protocolDetector";
+import * as configurators from "./utils/protocolConfigurators";
 
 // Dynamically import readline/promises
 const readlinePromises = import("readline/promises");
@@ -42,7 +44,12 @@ async function main() {
   if (!deployment) {
     throw new Error(`Deployment not found for ${networkName}. Please run deploy.ts first.`);
   }
-  console.log(`Loaded deployment from ${networkName}`);
+  console.log(`Loaded ${deployment.deploymentMode || 'legacy'} deployment from ${networkName}`);
+  
+  // Validate deployment format
+  if (!validateDeploymentFormat(deployment)) {
+    console.warn("[WARNING]  Deployment format validation warnings detected");
+  }
 
   // Load other chain deployments with tier filtering
   const otherChainDeployments = loadOtherChainDeployments(chainId, { allowCrossTier });
@@ -72,7 +79,7 @@ async function main() {
 
   // Display warning and require confirmation for cross-tier configuration
   if (crossTierDeployments.length > 0 && allowCrossTier && !isCI) {
-    console.warn("\n⚠️  WARNING: Cross-tier configuration detected! ⚠️");
+    console.warn("\n[WARNING]  WARNING: Cross-tier configuration detected! [WARNING]");
     console.warn(`\nYou are configuring a ${currentTier} network to trust contracts from:`);
     crossTierDeployments.forEach((d) => {
       console.warn(`  - ${d.network} (${d.tier} tier)`);
@@ -98,98 +105,86 @@ async function main() {
   // Get contract instances
   const lookCoin = await ethers.getContractAt("LookCoin", deployment.contracts.LookCoin.proxy);
   const supplyOracle = await ethers.getContractAt("SupplyOracle", deployment.contracts.SupplyOracle.proxy);
+  
+  // Detect protocols to configure
+  const protocolDetector = new ProtocolDetector();
+  const protocolSupport = protocolDetector.detectSupportedProtocols(chainConfig);
+  console.log(`\nDetected protocols: ${protocolSupport.protocols.join(", ")}`);
 
-  // Configure LayerZero trusted remotes
-  console.log("\n1. Configuring LayerZero trusted remotes...");
-  for (const [otherChainId, otherDeployment] of Object.entries(otherChainDeployments)) {
-    const remoteChainId = getLayerZeroChainId(parseInt(otherChainId));
-    const remoteLookCoin = otherDeployment.contracts.LookCoin.proxy;
-    const remoteTier = getNetworkTier(parseInt(otherChainId));
-
-    const trustedRemote = ethers.solidityPacked(
-      ["address", "address"],
-      [remoteLookCoin, deployment.contracts.LookCoin.proxy],
-    );
-
-    const tierWarning = remoteTier !== currentTier ? ` ⚠️  (${remoteTier} tier)` : "";
-    console.log(`Setting trusted remote for chain ${remoteChainId}: ${remoteLookCoin}${tierWarning}`);
-    await lookCoin.setTrustedRemote(remoteChainId, trustedRemote);
-  }
-
-  // Configure DVN settings
-  console.log("\n2. Configuring DVN settings...");
-  const dvnConfig = {
-    requiredDVNs: chainConfig.layerZero.requiredDVNs,
-    optionalDVNs: chainConfig.layerZero.optionalDVNs,
-    optionalDVNThreshold: chainConfig.layerZero.optionalDVNThreshold,
-    confirmations: chainConfig.layerZero.confirmations,
-  };
-
-  // Note: Actual DVN configuration would require LayerZero V2 specific methods
-  console.log("DVN configuration (to be implemented with LayerZero V2 SDK):");
-  console.log(JSON.stringify(dvnConfig, null, 2));
-
-  // Configure Celer IM modules
-  if (deployment.contracts.CelerIMModule) {
-    console.log("\n3. Configuring Celer IM module...");
-    const celerModule = await ethers.getContractAt("CelerIMModule", deployment.contracts.CelerIMModule.proxy);
-
-    for (const [otherChainId, otherDeployment] of Object.entries(otherChainDeployments)) {
-      if (otherDeployment.contracts.CelerIMModule) {
-        const remoteCelerChainId = getCelerChainId(parseInt(otherChainId));
-        const remoteCelerModule = otherDeployment.contracts.CelerIMModule.proxy;
-        const remoteTier = getNetworkTier(parseInt(otherChainId));
-
-        const tierWarning = remoteTier !== currentTier ? ` ⚠️  (${remoteTier} tier)` : "";
-        console.log(`Setting remote Celer module for chain ${remoteCelerChainId}: ${remoteCelerModule}${tierWarning}`);
-        await celerModule.setRemoteModule(remoteCelerChainId, remoteCelerModule);
+  // Configure protocols based on deployment
+  console.log("\n[OK] Configuring protocols...");
+  const configurationResults: configurators.ConfigurationResult[] = [];
+  
+  // Configure each deployed protocol
+  if (deployment.protocolsDeployed) {
+    for (const protocol of deployment.protocolsDeployed) {
+      console.log(`Configuring ${protocol}...`);
+      
+      let result: configurators.ConfigurationResult;
+      switch (protocol.toLowerCase()) {
+        case 'layerzero':
+          result = await configurators.configureLayerZero(deployment, otherChainDeployments, chainConfig);
+          break;
+        case 'celer':
+          result = await configurators.configureCeler(deployment, otherChainDeployments, chainConfig);
+          break;
+        case 'xerc20':
+          result = await configurators.configureXERC20(deployment, otherChainDeployments, chainConfig);
+          break;
+        case 'hyperlane':
+          result = await configurators.configureHyperlane(deployment, otherChainDeployments, chainConfig);
+          break;
+        default:
+          result = { protocol, configured: false, details: 'Unknown protocol' };
+      }
+      
+      configurationResults.push(result);
+      if (result.error) {
+        console.error(`[ERROR] ${result.protocol}: ${result.error}`);
+      } else if (result.configured) {
+        console.log(`[OK] ${result.protocol}: ${result.details}`);
+      } else {
+        console.log(`[INFO]  ${result.protocol}: ${result.details}`);
       }
     }
-
-    // Configure fee parameters from centralized config
-    console.log("Setting Celer fee parameters...");
-    await celerModule.updateFeeParameters(
-      chainConfig.celer.fees.feePercentage,
-      chainConfig.celer.fees.minFee,
-      chainConfig.celer.fees.maxFee,
-    );
-
-    // Configure rate limits from centralized config
-    console.log("Setting Celer rate limits...");
-    await celerModule.updateRateLimits(
-      chainConfig.rateLimiter.perAccountLimit,
-      chainConfig.rateLimiter.globalDailyLimit,
-    );
+  }
+  
+  // Configure infrastructure for multi-protocol deployments
+  if (deployment.deploymentMode === 'multi-protocol' && deployment.infrastructureContracts) {
+    console.log("\n[CONFIG]  Configuring multi-protocol infrastructure...");
+    
+    const infraResults = await Promise.all([
+      configurators.configureCrossChainRouter(deployment, otherChainDeployments, chainConfig),
+      configurators.configureFeeManager(deployment, otherChainDeployments, chainConfig),
+      configurators.configureProtocolRegistry(deployment, otherChainDeployments, chainConfig)
+    ]);
+    
+    configurationResults.push(...infraResults);
+    
+    infraResults.forEach(result => {
+      if (result.error) {
+        console.error(`[ERROR] ${result.protocol}: ${result.error}`);
+      } else if (result.configured) {
+        console.log(`[OK] ${result.protocol}: ${result.details}`);
+      } else {
+        console.log(`[INFO]  ${result.protocol}: ${result.details}`);
+      }
+    });
   }
 
-  // Configure IBC module (BSC only)
-  // if (deployment.contracts.IBCModule && (chainId === 56 || chainId === 97)) {
-  //   console.log("\n4. Configuring IBC module...");
-  //   const ibcModule = await ethers.getContractAt("IBCModule", deployment.contracts.IBCModule.proxy);
-
-  //   // Add validators from centralized config
-  //   const validators = chainConfig.ibc.validators;
-
-  //   console.log("Setting IBC validators...");
-  //   await ibcModule.updateValidatorSet(validators, chainConfig.ibc.threshold);
-
-  //   // Update IBC configuration from centralized config
-  //   const ibcConfig = {
-  //     channelId: chainConfig.ibc.channelId,
-  //     portId: chainConfig.ibc.portId,
-  //     timeoutHeight: 0,
-  //     timeoutTimestamp: chainConfig.ibc.packetTimeout,
-  //     minValidators: chainConfig.ibc.minValidators,
-  //     unbondingPeriod: chainConfig.ibc.unbondingPeriod
-  //   };
-
-  //   console.log("Updating IBC configuration...");
-  //   await ibcModule.updateIBCConfig(ibcConfig);
-
-  //   // Set daily limit from centralized config
-  //   console.log("Setting IBC daily limit...");
-  //   await ibcModule.updateDailyLimit(chainConfig.rateLimiter.globalDailyLimit);
-  // }
+  // Legacy support for deployments without protocolsDeployed field
+  if (!deployment.protocolsDeployed && deployment.config?.layerZeroEndpoint) {
+    console.log("\n[WARNING]  Legacy deployment detected, configuring LayerZero...");
+    const result = await configurators.configureLayerZero(deployment, otherChainDeployments, chainConfig);
+    configurationResults.push(result);
+  }
+  
+  if (!deployment.protocolsDeployed && deployment.contracts.CelerIMModule) {
+    console.log("\n[WARNING]  Legacy deployment detected, configuring Celer...");
+    const result = await configurators.configureCeler(deployment, otherChainDeployments, chainConfig);
+    configurationResults.push(result);
+  }
+  
 
   // Configure Supply Oracle
   console.log("\n5. Configuring Supply Oracle...");
@@ -198,7 +193,7 @@ async function main() {
   for (const [otherChainId, otherDeployment] of Object.entries(otherChainDeployments)) {
     const lzChainId = getLayerZeroChainId(parseInt(otherChainId));
     const remoteTier = getNetworkTier(parseInt(otherChainId));
-    const tierWarning = remoteTier !== currentTier ? ` ⚠️  (${remoteTier} tier)` : "";
+    const tierWarning = remoteTier !== currentTier ? ` [WARNING]  (${remoteTier} tier)` : "";
 
     console.log(`Registering bridge for chain ${lzChainId}${tierWarning}`);
 
@@ -208,9 +203,6 @@ async function main() {
       await supplyOracle.registerBridge(lzChainId, otherDeployment.contracts.CelerIMModule.proxy);
     }
 
-    if (otherDeployment.contracts.IBCModule) {
-      await supplyOracle.registerBridge(lzChainId, otherDeployment.contracts.IBCModule.proxy);
-    }
   }
 
   // Set reconciliation parameters from centralized config
@@ -236,12 +228,14 @@ async function main() {
   await supplyOracle.grantRole(ORACLE_ROLE, deployer.address);
   await supplyOracle.grantRole(OPERATOR_ROLE, deployer.address);
 
-  console.log("\n✅ Configuration completed successfully!");
+  console.log("\n[OK] Configuration completed successfully!");
 
   // Generate configuration summary
   const configSummary = {
     chainId,
+    network: networkName,
     networkTier: currentTier,
+    deploymentMode: deployment.deploymentMode || 'legacy',
     timestamp: new Date().toISOString(),
     tierValidation: {
       crossTierAllowed: allowCrossTier,
@@ -252,19 +246,28 @@ async function main() {
           ? "CROSS_TIER_OK=1"
           : "none",
     },
-    layerZeroRemotes: Object.entries(otherChainDeployments).map(([chainId, dep]) => ({
-      chainId: getLayerZeroChainId(parseInt(chainId)),
-      networkTier: getNetworkTier(parseInt(chainId)),
-      lookCoin: dep.contracts.LookCoin.proxy,
+    protocolsConfigured: configurationResults.map(r => ({
+      protocol: r.protocol,
+      configured: r.configured,
+      details: r.details,
+      error: r.error
     })),
-    celerRemotes: deployment.contracts.CelerIMModule
+    layerZeroRemotes: deployment.protocolsDeployed?.includes('layerZero') || deployment.config?.layerZeroEndpoint
       ? Object.entries(otherChainDeployments)
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          .filter(([_, dep]) => dep.contracts.CelerIMModule)
+          .filter(([_, dep]) => dep.protocolsDeployed?.includes('layerZero') || dep.config?.layerZeroEndpoint)
+          .map(([chainId, dep]) => ({
+            chainId: getLayerZeroChainId(parseInt(chainId)),
+            networkTier: getNetworkTier(parseInt(chainId)),
+            lookCoin: dep.contracts.LookCoin.proxy,
+          }))
+      : [],
+    celerRemotes: deployment.protocolsDeployed?.includes('celer') || deployment.contracts.CelerIMModule
+      ? Object.entries(otherChainDeployments)
+          .filter(([_, dep]) => dep.protocolsDeployed?.includes('celer') || dep.contracts.CelerIMModule)
           .map(([chainId, dep]) => ({
             chainId: getCelerChainId(parseInt(chainId)),
             networkTier: getNetworkTier(parseInt(chainId)),
-            module: dep.contracts.CelerIMModule!.proxy,
+            module: dep.contracts.CelerIMModule?.proxy || dep.protocolContracts?.celerIMModule || '',
           }))
       : [],
     supplyOracleConfig: {

@@ -4,14 +4,14 @@ import { getChainConfig } from "../../hardhat.config";
 
 // Common test constants exported from centralized config
 export const TEST_CHAINS = {
-  BSC: getChainConfig("bsc").chainId,
-  BSC_TESTNET: getChainConfig("bscTestnet").chainId,
-  BASE: getChainConfig("base").chainId,
-  BASE_SEPOLIA: getChainConfig("baseSepolia").chainId,
-  OPTIMISM: getChainConfig("optimism").chainId,
-  OP_SEPOLIA: getChainConfig("opSepolia").chainId,
-  SAPPHIRE: getChainConfig("sapphire").chainId,
-  AKASHIC: getChainConfig("akashic").chainId,
+  BSC: getChainConfig("bscmainnet").chainId,
+  BSC_TESTNET: getChainConfig("bsctestnet").chainId,
+  BASE: getChainConfig("basemainnet").chainId,
+  BASE_SEPOLIA: getChainConfig("basesepolia").chainId,
+  OPTIMISM: getChainConfig("optimismmainnet").chainId,
+  OP_SEPOLIA: getChainConfig("optimismsepolia").chainId,
+  SAPPHIRE: getChainConfig("sapphiremainnet").chainId,
+  AKASHIC: getChainConfig("akashicmainnet").chainId,
   HARDHAT: 31337,
 };
 
@@ -55,7 +55,7 @@ export interface TestDeploymentParams {
 export async function deployMockLookCoin(signer: SignerWithAddress, params: TestDeploymentParams = {}) {
   const LookCoin = await ethers.getContractFactory("LookCoin", signer);
   const defaultParams = {
-    totalSupply: getChainConfig("bsc").totalSupply,
+    totalSupply: getChainConfig("bscmainnet").totalSupply,
     governanceVault: params.governanceVault || signer.address,
     lzEndpoint: params.lzEndpoint || TEST_ADDRESSES.MOCK_ENDPOINT,
   };
@@ -86,31 +86,13 @@ export async function deployMockCelerModule(
   return celerModule;
 }
 
-// Helper function to deploy mock IBC module
-export async function deployMockIBCModule(
-  signer: SignerWithAddress,
-  lookCoinAddress: string,
-  vaultAddress: string,
-  params: TestDeploymentParams = {},
-) {
-  const IBCModule = await ethers.getContractFactory("IBCModule", signer);
-  const defaultParams = {
-    governanceVault: params.governanceVault || signer.address,
-  };
-
-  const ibcModule = await IBCModule.deploy();
-  await ibcModule.waitForDeployment();
-  await ibcModule.initialize(lookCoinAddress, vaultAddress, defaultParams.governanceVault);
-
-  return ibcModule;
-}
 
 // Helper function to deploy mock Supply Oracle
 export async function deployMockSupplyOracle(signer: SignerWithAddress, params: TestDeploymentParams = {}) {
   const SupplyOracle = await ethers.getContractFactory("SupplyOracle", signer);
   const defaultParams = {
     governanceVault: params.governanceVault || signer.address,
-    totalSupply: params.totalSupply || getChainConfig("bsc").totalSupply,
+    totalSupply: params.totalSupply || getChainConfig("bscmainnet").totalSupply,
   };
 
   const supplyOracle = await SupplyOracle.deploy();
@@ -155,7 +137,7 @@ export function encodeTrustedRemote(remoteAddress: string, localAddress: string)
 
 // Helper to create test chain configuration override
 export function createTestChainConfig(overrides: Partial<any> = {}) {
-  const baseConfig = getChainConfig("bsc");
+  const baseConfig = getChainConfig("bscmainnet");
   return {
     ...baseConfig,
     ...overrides,
@@ -166,10 +148,6 @@ export function createTestChainConfig(overrides: Partial<any> = {}) {
     celer: {
       ...baseConfig.celer,
       ...(overrides.celer || {}),
-    },
-    ibc: {
-      ...baseConfig.ibc,
-      ...(overrides.ibc || {}),
     },
     oracle: {
       ...baseConfig.oracle,

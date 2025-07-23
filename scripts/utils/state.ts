@@ -48,7 +48,16 @@ export async function getContract(chainId: number, contractName: string): Promis
 export async function putContract(chainId: number, contract: ContractType): Promise<void> {
   const database = await createDatabase();
   const key = `${chainId}-${contract.contractName}`;
-  await database.put(key, contract);
+  
+  // Convert BigInt values to strings for serialization
+  const serializedContract = {
+    ...contract,
+    deploymentArgs: contract.deploymentArgs?.map(arg => 
+      typeof arg === 'bigint' ? arg.toString() : arg
+    )
+  };
+  
+  await database.put(key, serializedContract);
 }
 
 export async function fetchDeployOrUpgradeProxy<T extends Contract>(

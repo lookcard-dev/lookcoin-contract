@@ -31,14 +31,6 @@ async function runSecurityAudit() {
             deployer.address
         );
 
-        // Deploy IBCModule
-        const IBCModule = await ethers.getContractFactory("IBCModule");
-        const ibcModule = await IBCModule.deploy();
-        await ibcModule.initialize(
-            await lookCoin.getAddress(),
-            9070, // Akashic chain ID
-            deployer.address
-        );
 
         // Deploy SupplyOracle
         const SupplyOracle = await ethers.getContractFactory("SupplyOracle");

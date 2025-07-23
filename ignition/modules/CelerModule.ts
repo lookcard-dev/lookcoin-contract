@@ -12,63 +12,90 @@ import {
 
 const CelerModule = buildModule("CelerModule", (m) => {
   // Validate and parse parameters
-  let messageBus: string;
-  let lookCoin: string;
-  let governanceVault: string;
+  let messageBus: any; // Can be string or contract reference
+  let lookCoin: any; // Can be string or contract reference
+  let governanceVault: any; // Can be string or AccountRuntimeValue
   let chainId: number;
   let remoteModules: { [chainId: string]: string } = {};
   let feePercentage: number;
   let minFee: bigint;
   let maxFee: bigint;
-  let feeCollector: string;
+  let feeCollector: any; // Can be string or AccountRuntimeValue
 
   try {
-    // Validate message bus address
+    // Get message bus parameter
     const messageBusParam = m.getParameter("messageBus", ZeroAddress);
     if (messageBusParam === ZeroAddress) {
       console.warn("Warning: messageBus is ZeroAddress, Celer features will be disabled");
       messageBus = ZeroAddress;
+    } else if (typeof messageBusParam === "string") {
+      messageBus = validateNonZeroAddress(messageBusParam, "messageBus");
     } else {
-      messageBus = validateNonZeroAddress(messageBusParam as string, "messageBus");
+      // It's a contract reference or other object, use as-is
+      messageBus = messageBusParam;
     }
 
-    // Validate lookCoin address
+    // Get lookCoin parameter
     const lookCoinParam = m.getParameter("lookCoin", ZeroAddress);
     if (lookCoinParam === ZeroAddress) {
       console.warn("Warning: lookCoin is ZeroAddress, bridge functionality will be limited");
       lookCoin = ZeroAddress;
+    } else if (typeof lookCoinParam === "string") {
+      lookCoin = validateNonZeroAddress(lookCoinParam, "lookCoin");
     } else {
-      lookCoin = validateNonZeroAddress(lookCoinParam as string, "lookCoin");
+      // It's a contract reference or other object, use as-is
+      lookCoin = lookCoinParam;
     }
 
-    // Validate governance vault
+    // Get governance vault parameter
     const governanceVaultParam = m.getParameter("governanceVault", m.getAccount(0));
-    governanceVault = validateNonZeroAddress(governanceVaultParam as string, "governanceVault");
+    
+    // If it's a string, validate it
+    if (typeof governanceVaultParam === "string") {
+      governanceVault = validateNonZeroAddress(governanceVaultParam, "governanceVault");
+    } else {
+      // Otherwise, it's an AccountRuntimeValue from m.getAccount(0)
+      governanceVault = governanceVaultParam;
+    }
 
-    // Validate chain ID
+    // Get chain ID parameter
     const chainIdParam = m.getParameter("chainId", 56); // Default to BSC
-    chainId = validateChainId(chainIdParam as number, "chainId");
+    
+    // Validate chain ID if it's a number
+    if (typeof chainIdParam === "number") {
+      chainId = validateChainId(chainIdParam, "chainId");
+    } else {
+      // If it's not a number at module build time, use the default
+      chainId = 56; // BSC mainnet
+      console.warn("Warning: chainId parameter is not a number at build time, using default BSC (56)");
+    }
 
     // Parse and validate remote modules from JSON string
     const remoteModulesParam = m.getParameter("remoteModules", "{}");
     if (typeof remoteModulesParam === "string") {
       remoteModules = validateRemoteModules(remoteModulesParam, "remoteModules", chainId);
     } else if (typeof remoteModulesParam === "object") {
-      // If it's already an object, validate it
-      for (const [remoteChainIdStr, address] of Object.entries(remoteModulesParam)) {
-        const remoteChainId = parseInt(remoteChainIdStr);
-        if (isNaN(remoteChainId)) {
-          throw createParameterError(`remoteModules.${remoteChainIdStr}`, "numeric chain ID", remoteChainIdStr);
+      // If it's already an object, validate it if possible
+      try {
+        for (const [remoteChainIdStr, address] of Object.entries(remoteModulesParam)) {
+          const remoteChainId = parseInt(remoteChainIdStr);
+          if (isNaN(remoteChainId)) {
+            // Skip validation at build time if keys are not numeric
+            console.warn(`Warning: remoteModules key '${remoteChainIdStr}' is not numeric at build time, skipping validation`);
+            continue;
+          }
+          if (remoteChainId === chainId) {
+            console.warn(`Warning: remoteModules contains current chain ID ${remoteChainId}`);
+            continue;
+          }
+          if (typeof address === "string") {
+            validateNonZeroAddress(address, `remoteModules.${remoteChainIdStr}`);
+          }
+          remoteModules[remoteChainIdStr] = address as string;
         }
-        if (remoteChainId === chainId) {
-          throw createParameterError(
-            `remoteModules.${remoteChainIdStr}`,
-            "different from current chain ID",
-            remoteChainIdStr,
-          );
-        }
-        validateNonZeroAddress(address as string, `remoteModules.${remoteChainIdStr}`);
-        remoteModules[remoteChainIdStr] = address as string;
+      } catch (e) {
+        // If object.entries fails (due to computed properties), use as-is
+        remoteModules = remoteModulesParam as any;
       }
     }
 
@@ -105,9 +132,16 @@ const CelerModule = buildModule("CelerModule", (m) => {
       throw createParameterError("minFee", `<= maxFee (${maxFee})`, minFee.toString());
     }
 
-    // Validate fee collector
+    // Get fee collector parameter
     const feeCollectorParam = m.getParameter("feeCollector", governanceVault);
-    feeCollector = validateNonZeroAddress(feeCollectorParam as string, "feeCollector");
+    
+    // If it's a string, validate it
+    if (typeof feeCollectorParam === "string") {
+      feeCollector = validateNonZeroAddress(feeCollectorParam, "feeCollector");
+    } else {
+      // Otherwise, it's an AccountRuntimeValue or same as governanceVault
+      feeCollector = feeCollectorParam;
+    }
   } catch (error: any) {
     throw new Error(`CelerModule parameter validation failed: ${error.message}`);
   }

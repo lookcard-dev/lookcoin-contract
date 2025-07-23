@@ -4,7 +4,6 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import LookCoinModule from "../ignition/modules/LookCoinModule";
 import CelerModule from "../ignition/modules/CelerModule";
-import IBCModule from "../ignition/modules/IBCModule";
 import OracleModule from "../ignition/modules/OracleModule";
 import MocksModule from "../ignition/modules/MocksModule";
 
@@ -19,7 +18,6 @@ describe("Security Tests", function () {
 
   let lookCoin: any;
   let celerIMModule: any;
-  let ibcModule: any;
   let supplyOracle: any;
   let mocks: any;
 
@@ -58,17 +56,6 @@ describe("Security Tests", function () {
     });
     celerIMModule = celerDeployment.celerIMModule;
 
-    const ibcDeployment = await ignition.deploy(IBCModule, {
-      parameters: {
-        IBCModule: {
-          lookCoin: lookCoin.address,
-          vault: vault.address,
-          governanceVault: vault.address,
-          validators: validators.map((v) => v.address),
-        },
-      },
-    });
-    ibcModule = ibcDeployment.ibcModule;
 
     const oracleDeployment = await ignition.deploy(OracleModule, {
       parameters: {
@@ -92,9 +79,6 @@ describe("Security Tests", function () {
         "AccessControl",
       );
 
-      await expect(ibcModule.connect(attacker).updateValidatorSet([attacker.address], 1)).to.be.revertedWith(
-        "AccessControl",
-      );
 
       await expect(supplyOracle.connect(attacker).activateEmergencyMode()).to.be.revertedWith("AccessControl");
     });
@@ -204,7 +188,6 @@ describe("Security Tests", function () {
     it("Should enforce multi-signature requirements", async function () {
       // Register bridge modules
       await supplyOracle.connect(vault).registerBridge(celerIMModule.address, "CelerIM");
-      await supplyOracle.connect(vault).registerBridge(ibcModule.address, "IBC");
       
       // Single operator update should not execute immediately
       const chainSupply = ethers.parseEther("1000000");
@@ -282,11 +265,9 @@ describe("Security Tests", function () {
       // Setup bridge roles
       const MINTER_ROLE = await lookCoin.MINTER_ROLE();
       await lookCoin.connect(vault).grantRole(MINTER_ROLE, celerIMModule.address);
-      await lookCoin.connect(vault).grantRole(MINTER_ROLE, ibcModule.address);
       
       // Register bridges with oracle
       await supplyOracle.connect(vault).registerBridge(celerIMModule.address, "CelerIM");
-      await supplyOracle.connect(vault).registerBridge(ibcModule.address, "IBC");
       
       // Simulate coordinated minting attempts
       // In production, supply oracle would detect and prevent this
@@ -295,7 +276,6 @@ describe("Security Tests", function () {
       // Both bridges attempting to mint simultaneously should be monitored
       // This is a simplified test - actual implementation would have more sophisticated detection
       expect(await supplyOracle.registeredBridges(celerIMModule.address)).to.be.true;
-      expect(await supplyOracle.registeredBridges(ibcModule.address)).to.be.true;
     });
 
     it("Should maintain security during high-volume operations", async function () {
@@ -402,26 +382,6 @@ describe("Security Tests", function () {
       ).to.be.revertedWith("CelerIM: transfer already processed");
     });
 
-    it("Should validate IBC validator consensus", async function () {
-      // Test 2/3 majority requirement
-      const packet = {
-        sequence: 1,
-        sourcePort: "transfer",
-        sourceChannel: "channel-0",
-        destinationPort: "transfer",
-        destinationChannel: "channel-0",
-        data: "0x",
-        timeoutHeight: 0,
-        timeoutTimestamp: Math.floor(Date.now() / 1000) + 3600,
-      };
-
-      // Less than 14 signatures should fail
-      const insufficientSigs = new Array(13).fill("0x" + "00".repeat(65));
-
-      await expect(ibcModule.connect(operators[0]).handleIBCPacket(packet, "0x", insufficientSigs)).to.be.revertedWith(
-        "IBC: insufficient signatures",
-      );
-    });
   });
 
   describe("Governance Security Tests", function () {

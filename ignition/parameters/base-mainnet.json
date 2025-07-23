@@ -9,16 +9,6 @@
     "optionalDVNs": 1,
     "dvnThreshold": 66
   },
-  "IBCModule": {
-    "lookCoin": "0x0000000000000000000000000000000000000000",
-    "vault": "0x0000000000000000000000000000000000000000",
-    "governanceVault": "0x0000000000000000000000000000000000000000",
-    "validators": "",
-    "channelId": "channel-0",
-    "portId": "transfer",
-    "timeoutTimestamp": 3600,
-    "unbondingPeriod": 1209600
-  },
   "CelerModule": {
     "messageBus": "0x0000000000000000000000000000000000000000",
     "lookCoin": "0x0000000000000000000000000000000000000000",
@@ -45,8 +35,6 @@
     "mockSupportedChains": "8453,56",
     "celerFeeBase": "0.001",
     "celerFeePerByte": "0.000000001",
-    "ibcPacketTimeout": 3600,
-    "ibcUnbondingPeriod": 1209600,
     "networkLatency": 1000,
     "packetLoss": 0,
     "networkJitter": 100

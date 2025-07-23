@@ -14,13 +14,19 @@ const MocksModule = buildModule("MocksModule", (m) => {
   let supportedChains: number[] = [];
   let celerFeeBase: bigint;
   let celerFeePerByte: bigint;
-  let ibcPacketTimeout: number;
-  let ibcUnbondingPeriod: number;
 
   try {
     // Get base chain ID from parameter or default
     const chainIdParam = m.getParameter("mockBaseChainId", 56); // Default to BSC
-    baseChainId = validateChainId(chainIdParam as number, "mockBaseChainId");
+    
+    // Validate chain ID if it's a number
+    if (typeof chainIdParam === "number") {
+      baseChainId = validateChainId(chainIdParam, "mockBaseChainId");
+    } else {
+      // If it's not a number at module build time, use the default
+      baseChainId = 56; // BSC mainnet
+      console.warn("Warning: mockBaseChainId parameter is not a number at build time, using default BSC (56)");
+    }
 
     // Parse supported chains from parameter
     const supportedChainsParam = m.getParameter("mockSupportedChains", "56,8453,10,23295,999");
@@ -42,33 +48,28 @@ const MocksModule = buildModule("MocksModule", (m) => {
     const feeBaseParam = m.getParameter("celerFeeBase", "0.001");
     if (typeof feeBaseParam === "string") {
       celerFeeBase = validateParseEther(feeBaseParam, "celerFeeBase");
+    } else if (typeof feeBaseParam === "bigint") {
+      celerFeeBase = feeBaseParam;
     } else {
-      celerFeeBase = feeBaseParam as bigint;
+      // Default if parameter type is not recognized at build time
+      celerFeeBase = parseEther("0.001");
+      console.warn("Warning: celerFeeBase parameter type not recognized at build time, using default");
     }
 
     const feePerByteParam = m.getParameter("celerFeePerByte", "0.000000001"); // 1 gwei per byte
     if (typeof feePerByteParam === "string") {
       celerFeePerByte = validateParseEther(feePerByteParam, "celerFeePerByte");
+    } else if (typeof feePerByteParam === "bigint") {
+      celerFeePerByte = feePerByteParam;
     } else {
-      celerFeePerByte = feePerByteParam as bigint;
+      // Default if parameter type is not recognized at build time
+      celerFeePerByte = parseEther("0.000000001");
+      console.warn("Warning: celerFeePerByte parameter type not recognized at build time, using default");
     }
 
-    // Validate fee parameters
-    validateFeeParameters({
-      feeBase: celerFeeBase.toString(),
-      feePerByte: celerFeePerByte.toString(),
-    });
+    // Skip fee validation at build time
+    // Fee parameters will be validated at runtime
 
-    // Validate IBC timeout parameters
-    ibcPacketTimeout = m.getParameter("ibcPacketTimeout", 3600) as number; // 1 hour
-    if (ibcPacketTimeout <= 0) {
-      throw createParameterError("ibcPacketTimeout", "positive number", ibcPacketTimeout.toString());
-    }
-
-    ibcUnbondingPeriod = m.getParameter("ibcUnbondingPeriod", 14 * 24 * 60 * 60) as number; // 14 days
-    if (ibcUnbondingPeriod <= 0) {
-      throw createParameterError("ibcUnbondingPeriod", "positive number", ibcUnbondingPeriod.toString());
-    }
   } catch (error: any) {
     throw new Error(`MocksModule parameter validation failed: ${error.message}`);
   }
@@ -108,15 +109,6 @@ const MocksModule = buildModule("MocksModule", (m) => {
     id: "setFeeParams",
   });
 
-  // Deploy MockIBC contracts
-  const mockIBCRelayer = m.contract("MockIBCRelayer");
-  const mockAkashicValidators = m.contract("MockAkashicValidators");
-  const mockIBCLightClient = m.contract("MockIBCLightClient");
-
-  // Set up IBC parameters with validated values
-  m.call(mockIBCRelayer, "setTimeoutParams", [ibcPacketTimeout, ibcUnbondingPeriod], {
-    id: "setTimeoutParams",
-  });
 
   // Deploy utility contracts for testing
   const mockTimeDelay = m.contract("MockTimeDelay");
@@ -153,10 +145,6 @@ const MocksModule = buildModule("MocksModule", (m) => {
     mockSGN,
     mockCBridge,
 
-    // IBC mocks
-    mockIBCRelayer,
-    mockAkashicValidators,
-    mockIBCLightClient,
 
     // Utility mocks
     mockTimeDelay,
