@@ -139,13 +139,23 @@ export async function configureCeler(
       const remoteModuleAddress = otherDeployment.contracts.CelerIMModule?.proxy || 
                                  otherDeployment.protocolContracts?.celerIMModule;
       
+      // First check if chain is supported, if not, add it
+      const isChainSupported = await celerModule.supportedChains(remoteCelerChainId);
+      if (!isChainSupported) {
+        console.log(`Setting Celer supported chain ${remoteCelerChainId}...`);
+        const tx = await celerModule.setSupportedChain(remoteCelerChainId, true);
+        await tx.wait();
+        details.push(`Supported chain ${remoteCelerChainId}`);
+        configured = true;
+      }
+      
       const currentRemoteModule = await celerModule.remoteModules(remoteCelerChainId);
 
       if (currentRemoteModule === ethers.ZeroAddress && remoteModuleAddress) {
         console.log(`Setting Celer remote module for chain ${remoteCelerChainId}...`);
         const tx = await celerModule.setRemoteModule(remoteCelerChainId, remoteModuleAddress);
         await tx.wait();
-        details.push(`Chain ${remoteCelerChainId}: ${remoteModuleAddress}`);
+        details.push(`Remote module ${remoteCelerChainId}: ${remoteModuleAddress}`);
         configured = true;
       }
     }
@@ -179,20 +189,33 @@ export async function configureHyperlane(
   chainConfig: ChainConfig
 ): Promise<ConfigurationResult> {
   try {
-    // For Hyperlane, we use the LookCoin contract itself (no separate module)
-    if (!deployment.contracts?.LookCoin?.proxy) {
+    // Check if HyperlaneModule is deployed
+    if (!deployment.protocolContracts?.hyperlaneModule) {
       return {
         protocol: "Hyperlane",
         configured: false,
-        details: "LookCoin contract not deployed"
+        details: "HyperlaneModule contract not deployed"
       };
     }
 
-    const lookCoin = await ethers.getContractAt("LookCoin", deployment.contracts.LookCoin.proxy);
+    const hyperlaneModule = await ethers.getContractAt("HyperlaneModule", deployment.protocolContracts.hyperlaneModule);
     let configured = false;
     const details: string[] = [];
 
-    // Configure trusted senders using Hyperlane domain IDs
+    // Configure current chain domain mapping first
+    const currentChainId = await ethers.provider.getNetwork().then(n => Number(n.chainId));
+    const currentDomainId = chainConfig.hyperlane?.hyperlaneDomainId || currentChainId;
+    
+    const currentDomainMapping = await hyperlaneModule.domainToChainId(currentDomainId);
+    if (currentDomainMapping === 0) {
+      console.log(`Setting domain mapping for current chain ${currentChainId} -> domain ${currentDomainId}...`);
+      const tx = await hyperlaneModule.setDomainMapping(currentDomainId, currentChainId);
+      await tx.wait();
+      details.push(`Current chain mapping: ${currentChainId} <-> ${currentDomainId}`);
+      configured = true;
+    }
+
+    // Configure trusted senders and domain mappings for other chains
     for (const [chainId, otherDeployment] of Object.entries(otherDeployments)) {
       if (!otherDeployment.protocolsDeployed?.includes('hyperlane')) {
         continue;
@@ -203,44 +226,39 @@ export async function configureHyperlane(
       const otherNetworkName = getNetworkName(Number(chainId));
       const otherChainConfig = getChainConfig(otherNetworkName.toLowerCase().replace(/\s+/g, ""));
       
-      const remoteDomainId = otherChainConfig.hyperlane?.hyperlaneDomainId;
-      if (!remoteDomainId) {
-        console.log(`⚠️  Skipping chain ${chainId} - no Hyperlane domain ID configured`);
+      const remoteDomainId = otherChainConfig.hyperlane?.hyperlaneDomainId || Number(chainId);
+      const remoteChainId = Number(chainId);
+      
+      // Set domain mapping if not already configured
+      const remoteDomainMapping = await hyperlaneModule.domainToChainId(remoteDomainId);
+      if (remoteDomainMapping === 0) {
+        console.log(`Setting domain mapping for chain ${remoteChainId} -> domain ${remoteDomainId}...`);
+        const tx = await hyperlaneModule.setDomainMapping(remoteDomainId, remoteChainId);
+        await tx.wait();
+        details.push(`Domain mapping: ${remoteChainId} <-> ${remoteDomainId}`);
+        configured = true;
+      }
+      
+      // Set trusted sender (the remote HyperlaneModule address)
+      const remoteSender = otherDeployment.protocolContracts?.hyperlaneModule;
+      if (!remoteSender) {
+        console.log(`⚠️  Skipping chain ${chainId} - HyperlaneModule not deployed`);
         continue;
       }
       
-      // For Hyperlane, the remote sender is the LookCoin contract itself
-      const remoteSender = otherDeployment.contracts.LookCoin.proxy;
+      const currentTrustedSender = await hyperlaneModule.trustedSenders(remoteDomainId);
+      const expectedTrustedSender = ethers.zeroPadValue(remoteSender, 32);
       
-      // Set supported domain
-      const isDomainSupported = await lookCoin.supportedHyperlaneDomains(remoteDomainId);
-      if (!isDomainSupported) {
-        console.log(`Setting Hyperlane domain ${remoteDomainId} as supported...`);
-        const tx = await lookCoin.setSupportedHyperlaneDomain(remoteDomainId, true);
+      if (currentTrustedSender !== expectedTrustedSender) {
+        console.log(`Setting trusted sender for domain ${remoteDomainId}: ${remoteSender}...`);
+        const tx = await hyperlaneModule.setTrustedSender(remoteDomainId, remoteSender);
         await tx.wait();
-        details.push(`Domain ${remoteDomainId}: ${remoteSender}`);
+        details.push(`Trusted sender: ${remoteDomainId} -> ${remoteSender}`);
         configured = true;
       }
     }
 
-    // Configure mailbox and gas paymaster if not already set
-    const currentMailbox = await lookCoin.hyperlaneMailbox();
-    if (currentMailbox === ethers.ZeroAddress && chainConfig.hyperlane?.mailbox) {
-      console.log("Setting Hyperlane mailbox...");
-      const tx = await lookCoin.setHyperlaneMailbox(chainConfig.hyperlane.mailbox);
-      await tx.wait();
-      details.push(`Mailbox: ${chainConfig.hyperlane.mailbox}`);
-      configured = true;
-    }
-
-    const currentGasPaymaster = await lookCoin.hyperlaneGasPaymaster();
-    if (currentGasPaymaster === ethers.ZeroAddress && chainConfig.hyperlane?.gasPaymaster) {
-      console.log("Setting Hyperlane gas paymaster...");
-      const tx = await lookCoin.setHyperlaneGasPaymaster(chainConfig.hyperlane.gasPaymaster);
-      await tx.wait();
-      details.push(`Gas Paymaster: ${chainConfig.hyperlane.gasPaymaster}`);
-      configured = true;
-    }
+    // Note: Mailbox and gas paymaster are configured during HyperlaneModule deployment
 
     return {
       protocol: "Hyperlane",

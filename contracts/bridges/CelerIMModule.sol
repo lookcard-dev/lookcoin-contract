@@ -69,11 +69,6 @@ contract CelerIMModule is
   bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
-  // Chain ID constants
-  uint64 public constant BSC_CHAINID = 56;
-  uint64 public constant OPTIMISM_CHAINID = 10;
-  uint64 public constant SAPPHIRE_CHAINID = 23295;
-
   // State variables
   /// @dev LookCoin contract interface for minting tokens
   ILookCoin public lookCoin;
@@ -99,6 +94,10 @@ contract CelerIMModule is
   uint256 public maxFee;
   /// @dev Address that collects bridge fees
   address public feeCollector;
+
+  // New storage variables (added for upgrade compatibility)
+  /// @dev Mapping of supported chains (configured via setSupportedChain)
+  mapping(uint64 => bool) public supportedChains;
 
   // Events
   /// @notice Emitted when tokens are locked for cross-chain transfer
@@ -152,6 +151,11 @@ contract CelerIMModule is
   /// @param newMessageBus New MessageBus contract address
   event MessageBusUpdated(address indexed newMessageBus);
 
+  /// @notice Emitted when a chain's support status is updated
+  /// @param chainId Chain ID that was updated
+  /// @param supported Whether the chain is now supported
+  event SupportedChainUpdated(uint64 indexed chainId, bool supported);
+
   /// @notice Emitted when a transfer fails and cannot be refunded (burn-and-mint)
   /// @param transferId Unique transfer identifier
   /// @param sender Original sender address
@@ -192,7 +196,8 @@ contract CelerIMModule is
     maxFee = 1000 * 10 ** 18; // 1000 LOOK (assuming 18 decimals)
     feeCollector = _admin;
 
-    // Rate limit configuration removed for now
+    // Note: Supported chains are now configured via setSupportedChain() after deployment
+    // This allows for flexible chain support without hardcoded values
   }
 
   /**
@@ -219,10 +224,7 @@ contract CelerIMModule is
     require(_recipient != address(0), "CelerIM: invalid recipient");
     require(_amount > 0, "CelerIM: invalid amount");
     require(remoteModules[_dstChainId] != address(0), "CelerIM: unsupported chain");
-    require(
-      _dstChainId == BSC_CHAINID || _dstChainId == OPTIMISM_CHAINID || _dstChainId == SAPPHIRE_CHAINID,
-      "CelerIM: invalid destination chain"
-    );
+    require(supportedChains[_dstChainId], "CelerIM: unsupported destination chain");
 
     // Calculate fee
     uint256 fee = calculateFee(_amount);
@@ -523,18 +525,27 @@ contract CelerIMModule is
 
   /**
    * @dev Set remote module address for a chain
-   * @param _chainId Chain ID (BSC: 56, Optimism: 10, Sapphire: 23295)
+   * @param _chainId Chain ID for the remote chain
    * @param _module Module address on the remote chain
    * @notice Registers trusted remote module for cross-chain communication
    * @dev Only supported chains are allowed to prevent misconfiguration
    */
   function setRemoteModule(uint64 _chainId, address _module) external onlyRole(ADMIN_ROLE) {
-    require(
-      _chainId == BSC_CHAINID || _chainId == OPTIMISM_CHAINID || _chainId == SAPPHIRE_CHAINID,
-      "CelerIM: unsupported chain"
-    );
+    require(supportedChains[_chainId], "CelerIM: unsupported chain");
     remoteModules[_chainId] = _module;
     emit RemoteModuleSet(_chainId, _module);
+  }
+
+  /**
+   * @dev Add or remove a supported chain
+   * @param _chainId Chain ID to configure
+   * @param _supported Whether the chain is supported
+   * @notice Configures which chains this module can bridge to/from
+   * @dev Must be called after deployment to enable cross-chain operations
+   */
+  function setSupportedChain(uint64 _chainId, bool _supported) external onlyRole(ADMIN_ROLE) {
+    supportedChains[_chainId] = _supported;
+    emit SupportedChainUpdated(_chainId, _supported);
   }
 
   /**

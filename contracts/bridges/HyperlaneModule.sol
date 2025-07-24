@@ -65,11 +65,8 @@ contract HyperlaneModule is
     // Initialize default gas amount
     requiredGasAmount = 200000;
 
-    // Initialize Akashic domain mapping
-    domainToChainId[9070] = 9070; // Akashic
-    chainIdToDomain[9070] = 9070;
-    domainToChainId[56] = 56; // BSC
-    chainIdToDomain[56] = 56;
+    // Note: Domain mappings are now configured via setDomainMapping() after deployment
+    // This allows for flexible chain support without hardcoded values
   }
 
   function bridgeToken(

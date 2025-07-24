@@ -257,9 +257,14 @@ export class DeploymentOrchestrator {
     // Grant BRIDGE_ROLE to the module so it can burn/mint
     const lookCoin = await ethers.getContractAt("LookCoin", lookCoinAddress);
     const BRIDGE_ROLE = await lookCoin.BRIDGE_ROLE();
-    const tx = await lookCoin.grantRole(BRIDGE_ROLE, layerZeroModuleAddress);
-    await tx.wait();
-    console.log("✅ Granted BRIDGE_ROLE to LayerZeroModule");
+    const hasRole = await lookCoin.hasRole(BRIDGE_ROLE, layerZeroModuleAddress);
+    if (!hasRole) {
+      const tx = await lookCoin.grantRole(BRIDGE_ROLE, layerZeroModuleAddress);
+      await tx.wait();
+      console.log("✅ Granted BRIDGE_ROLE to LayerZeroModule");
+    } else {
+      console.log("✓ LayerZeroModule already has BRIDGE_ROLE");
+    }
 
     return layerZeroModuleAddress;
   }
@@ -300,9 +305,14 @@ export class DeploymentOrchestrator {
     // Grant BRIDGE_ROLE to the module so it can burn/mint
     const lookCoin = await ethers.getContractAt("LookCoin", lookCoinAddress);
     const BRIDGE_ROLE = await lookCoin.BRIDGE_ROLE();
-    const tx = await lookCoin.grantRole(BRIDGE_ROLE, hyperlaneModuleAddress);
-    await tx.wait();
-    console.log("✅ Granted BRIDGE_ROLE to HyperlaneModule");
+    const hasRole = await lookCoin.hasRole(BRIDGE_ROLE, hyperlaneModuleAddress);
+    if (!hasRole) {
+      const tx = await lookCoin.grantRole(BRIDGE_ROLE, hyperlaneModuleAddress);
+      await tx.wait();
+      console.log("✅ Granted BRIDGE_ROLE to HyperlaneModule");
+    } else {
+      console.log("✓ HyperlaneModule already has BRIDGE_ROLE");
+    }
 
     return hyperlaneModuleAddress;
   }

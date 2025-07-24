@@ -2,12 +2,11 @@
   "network": "bsctestnet",
   "chainId": 97,
   "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
-  "timestamp": "2025-07-24T11:43:30.772Z",
-  "deploymentMode": "standard",
+  "timestamp": "2025-07-24T12:05:09.780Z",
+  "deploymentMode": "multi-protocol",
   "protocolsDeployed": [
     "layerZero",
-    "celer",
-    "hyperlane"
+    "celer"
   ],
   "contracts": {
     "LookCoin": {
@@ -20,7 +19,7 @@
     },
     "CelerIMModule": {
       "proxy": "0x03E823BE92A2526083681075430b1fd6D486D046",
-      "implementation": "0xf0C4c6548E6d734D0CDfc51B219B25973Bd3Fa66"
+      "implementation": "0x01f8970386163e16D57191da85dCb8c43d24efe2"
     }
   },
   "config": {
@@ -31,13 +30,12 @@
   "implementationHashes": {
     "LookCoin": "0xce28ba2b247174fb8cac282d316152daddf56796a534703bfd619012ebbbedf2",
     "SupplyOracle": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
-    "CelerIMModule": "0x80de82a732caf2ac089fc5f751503bc4a56d5b20f6423db9335247b1c48e48a5"
+    "CelerIMModule": "0xefc292208ede616ee62527e07708925ea60a9bfe42d7e1d7dd40082cc7d365fe"
   },
-  "lastDeployed": "2025-07-24T11:43:30.772Z",
+  "lastDeployed": "2025-07-24T12:05:09.780Z",
   "protocolContracts": {
     "layerZeroModule": "0x69e6AF742E4a3E4d8494FDA6F181E263fB77f741",
-    "celerIMModule": "0x03E823BE92A2526083681075430b1fd6D486D046",
-    "hyperlaneModule": "0x7C5e6ECE7BBb198fc59Abd98891305eE858aA2e9"
+    "celerIMModule": "0x03E823BE92A2526083681075430b1fd6D486D046"
   },
   "infrastructureContracts": {
     "crossChainRouter": "0x062e72413720Fd97310E7A787284b39af9d4Ea18",
