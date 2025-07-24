@@ -257,7 +257,7 @@ contract CrossChainRouter is
     lookCoin.approve(moduleAddress, amount);
 
     // Execute bridge through protocol module
-    try ILookBridgeModule(moduleAddress).bridgeOut{value: msg.value}(chainId, to, amount, data) returns (
+    try ILookBridgeModule(moduleAddress).bridgeToken{value: msg.value}(chainId, to, amount, data) returns (
       bytes32 moduleTransferId
     ) {
       // Update transfer with module's transfer ID

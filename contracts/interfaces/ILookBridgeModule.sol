@@ -32,14 +32,14 @@ interface ILookBridgeModule {
   }
 
   /**
-   * @dev Bridge tokens out to another chain
+   * @dev Bridge tokens to another chain
    * @param destinationChain Destination chain ID
    * @param recipient Recipient address on destination chain
    * @param amount Amount to bridge
    * @param params Protocol-specific parameters
    * @return transferId Unique transfer identifier
    */
-  function bridgeOut(
+  function bridgeToken(
     uint256 destinationChain,
     address recipient,
     uint256 amount,

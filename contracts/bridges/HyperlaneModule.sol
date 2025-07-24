@@ -39,7 +39,7 @@ contract HyperlaneModule is
 
   // ISM (Interchain Security Module) configuration
   address public interchainSecurityModule;
-  uint256 public requiredGasAmount = 200000;
+  uint256 public requiredGasAmount;
 
   uint256[50] private __gap;
 
@@ -62,6 +62,9 @@ contract HyperlaneModule is
     _grantRole(BRIDGE_ADMIN_ROLE, _admin);
     _grantRole(OPERATOR_ROLE, _admin);
 
+    // Initialize default gas amount
+    requiredGasAmount = 200000;
+
     // Initialize Akashic domain mapping
     domainToChainId[9070] = 9070; // Akashic
     chainIdToDomain[9070] = 9070;
@@ -69,7 +72,7 @@ contract HyperlaneModule is
     chainIdToDomain[56] = 56;
   }
 
-  function bridgeOut(
+  function bridgeToken(
     uint256 destinationChain,
     address recipient,
     uint256 amount,

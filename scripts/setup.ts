@@ -45,7 +45,20 @@ async function main() {
   if (deployment.protocolContracts) {
     // Grant MINTER_ROLE to protocol modules that need it
     const minterRole = await lookCoin.MINTER_ROLE();
+    const bridgeRole = await lookCoin.BRIDGE_ROLE();
     
+    // LayerZeroModule needs BRIDGE_ROLE (for burn/mint)
+    if (deployment.protocolContracts.layerZeroModule) {
+      const hasBridgeRole = await lookCoin.hasRole(bridgeRole, deployment.protocolContracts.layerZeroModule);
+      if (!hasBridgeRole) {
+        console.log(`Granting BRIDGE_ROLE to LayerZeroModule at ${deployment.protocolContracts.layerZeroModule}...`);
+        const tx = await lookCoin.grantRole(bridgeRole, deployment.protocolContracts.layerZeroModule);
+        await tx.wait();
+        console.log(`✅ BRIDGE_ROLE granted to LayerZeroModule`);
+      } else {
+        console.log(`✓ LayerZeroModule already has BRIDGE_ROLE`);
+      }
+    }
     
     // HyperlaneModule needs MINTER_ROLE (only if ready)
     if (deployment.protocolContracts.hyperlaneModule && isHyperlaneReady(chainConfig)) {
@@ -80,18 +93,29 @@ async function main() {
   }
 
 
-  // Check and grant BURNER_ROLE to LookCoin itself (for LayerZero burns)
+  // Check and grant BURNER_ROLE to LookCoin itself (for direct LayerZero OFT burns)
   const lookCoinAddress = deployment.contracts.LookCoin.proxy;
   const burnerRole = await lookCoin.BURNER_ROLE();
   const hasBurnerRole = await lookCoin.hasRole(burnerRole, lookCoinAddress);
 
   if (!hasBurnerRole) {
-    console.log(`Granting BURNER_ROLE to LookCoin at ${lookCoinAddress}...`);
+    console.log(`Granting BURNER_ROLE to LookCoin for direct OFT functionality...`);
     const tx = await lookCoin.grantRole(burnerRole, lookCoinAddress);
     await tx.wait();
-    console.log(`✅ BURNER_ROLE granted to LookCoin`);
+    console.log(`✅ BURNER_ROLE granted to LookCoin (enables direct LayerZero OFT)`)
   } else {
-    console.log(`✓ LookCoin already has BURNER_ROLE`);
+    console.log(`✓ LookCoin already has BURNER_ROLE (direct OFT enabled)`);
+  }
+
+  // Configure LayerZero endpoint if not already set (for direct OFT)
+  const currentEndpoint = await lookCoin.lzEndpoint();
+  if (currentEndpoint === ethers.ZeroAddress && chainConfig.layerZero?.endpoint) {
+    console.log("Setting LayerZero endpoint on LookCoin for direct OFT...");
+    const tx = await lookCoin.setLayerZeroEndpoint(chainConfig.layerZero.endpoint);
+    await tx.wait();
+    console.log(`✅ LayerZero endpoint set for direct OFT functionality`);
+  } else if (currentEndpoint !== ethers.ZeroAddress) {
+    console.log(`✓ LayerZero endpoint already configured: ${currentEndpoint}`);
   }
 
   console.log("\n2. Registering bridges with SupplyOracle...");
@@ -158,6 +182,61 @@ async function main() {
     }
   }
 
+
+  // Configure CrossChainRouter if deployed
+  if (deployment.infrastructureContracts?.crossChainRouter) {
+    console.log("\n2.5. Configuring CrossChainRouter...");
+    const crossChainRouter = await ethers.getContractAt(
+      "CrossChainRouter", 
+      deployment.infrastructureContracts.crossChainRouter
+    );
+
+    // Register protocol modules
+    if (deployment.protocolContracts) {
+      // Register LayerZero module
+      if (deployment.protocolContracts.layerZeroModule) {
+        console.log("Registering LayerZero module...");
+        const tx1 = await crossChainRouter.registerProtocol(
+          0, // Protocol.LayerZero
+          deployment.protocolContracts.layerZeroModule
+        );
+        await tx1.wait();
+        console.log("✅ LayerZero module registered");
+      }
+
+      // Register Celer module
+      if (deployment.contracts.CelerIMModule) {
+        console.log("Registering Celer module...");
+        const tx2 = await crossChainRouter.registerProtocol(
+          1, // Protocol.Celer
+          deployment.contracts.CelerIMModule.proxy
+        );
+        await tx2.wait();
+        console.log("✅ Celer module registered");
+      }
+
+      // Register Hyperlane module if ready
+      if (deployment.protocolContracts.hyperlaneModule && isHyperlaneReady(chainConfig)) {
+        console.log("Registering Hyperlane module...");
+        const tx3 = await crossChainRouter.registerProtocol(
+          2, // Protocol.Hyperlane
+          deployment.protocolContracts.hyperlaneModule
+        );
+        await tx3.wait();
+        console.log("✅ Hyperlane module registered");
+      }
+    }
+
+    // Grant BRIDGE_ROLE to CrossChainRouter so it can call modules
+    const BRIDGE_ROLE = await lookCoin.BRIDGE_ROLE();
+    const hasRole = await lookCoin.hasRole(BRIDGE_ROLE, deployment.infrastructureContracts.crossChainRouter);
+    if (!hasRole) {
+      console.log("Granting BRIDGE_ROLE to CrossChainRouter...");
+      const tx = await lookCoin.grantRole(BRIDGE_ROLE, deployment.infrastructureContracts.crossChainRouter);
+      await tx.wait();
+      console.log("✅ BRIDGE_ROLE granted to CrossChainRouter");
+    }
+  }
 
   console.log("\n3. Configuration Summary:");
   console.log(`- Network: ${networkName} (Chain ID: ${chainId})`);

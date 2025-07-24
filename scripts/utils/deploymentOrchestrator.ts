@@ -49,11 +49,28 @@ export class DeploymentOrchestrator {
     const lookCoinAddress = await lookCoinContract.getAddress();
     console.log("✅ LookCoin deployed at:", lookCoinAddress);
 
+    // Determine supported chain IDs based on network tier
+    const chainId = config.chainConfig.chainId;
+    let supportedChainIds: number[];
+    
+    // Check if mainnet or testnet based on chain ID
+    if ([56, 8453, 10, 23295, 9070].includes(chainId)) {
+      // Mainnet chain IDs
+      supportedChainIds = [56, 8453, 10, 23295, 9070]; // BSC, Base, Optimism, Sapphire, Akashic
+    } else {
+      // Testnet chain IDs
+      supportedChainIds = [97, 84532, 11155420, 23295, 9071]; // BSC Testnet, Base Sepolia, Optimism Sepolia, Sapphire Testnet, Akashic Testnet
+    }
+
     // Deploy SupplyOracle
     const supplyOracleContract = await fetchDeployOrUpgradeProxy(
       hre,
       "SupplyOracle",
-      [config.deployer, ethers.parseEther("1000000000")] // 1 billion total supply
+      [
+        config.deployer, 
+        ethers.parseEther("1000000000"), // 1 billion total supply
+        supportedChainIds
+      ]
     );
     const supplyOracleAddress = await supplyOracleContract.getAddress();
     console.log("✅ SupplyOracle deployed at:", supplyOracleAddress);
@@ -217,27 +234,34 @@ export class DeploymentOrchestrator {
    * @returns LayerZero module address
    */
   private static async deployLayerZeroModule(config: DeploymentConfig): Promise<string> {
-    // For LayerZero, the LookCoin contract itself acts as the OFT
-    // No separate module deployment needed, but we track it in the deployment
     const lookCoinAddress = config.existingDeployment?.contracts?.LookCoin?.proxy;
     
     if (!lookCoinAddress) {
       console.log("⚠️  LookCoin address not found for LayerZero module");
       return "";
     }
-    
-    const lookCoin = await ethers.getContractAt("LookCoin", lookCoinAddress);
-    
-    // Set LayerZero endpoint if not already set
-    const currentEndpoint = await lookCoin.lzEndpoint();
-    if (currentEndpoint === ethers.ZeroAddress && config.chainConfig.layerZero.endpoint) {
-      console.log("🔧 Setting LayerZero endpoint on LookCoin...");
-      const tx = await lookCoin.setLayerZeroEndpoint(config.chainConfig.layerZero.endpoint);
-      await tx.wait();
-    }
 
-    // Return the LookCoin address as it serves as the LayerZero module
-    return lookCoinAddress;
+    // Deploy the LayerZeroModule
+    const layerZeroModuleContract = await fetchDeployOrUpgradeProxy(
+      hre,
+      "LayerZeroModule",
+      [
+        lookCoinAddress,
+        config.chainConfig.layerZero.endpoint,
+        config.deployer
+      ]
+    );
+    const layerZeroModuleAddress = await layerZeroModuleContract.getAddress();
+    console.log("✅ LayerZeroModule deployed at:", layerZeroModuleAddress);
+
+    // Grant BRIDGE_ROLE to the module so it can burn/mint
+    const lookCoin = await ethers.getContractAt("LookCoin", lookCoinAddress);
+    const BRIDGE_ROLE = await lookCoin.BRIDGE_ROLE();
+    const tx = await lookCoin.grantRole(BRIDGE_ROLE, layerZeroModuleAddress);
+    await tx.wait();
+    console.log("✅ Granted BRIDGE_ROLE to LayerZeroModule");
+
+    return layerZeroModuleAddress;
   }
 
   /**
@@ -246,34 +270,40 @@ export class DeploymentOrchestrator {
    * @returns Hyperlane module address
    */
   private static async deployHyperlaneModule(config: DeploymentConfig): Promise<string> {
-    // For Hyperlane, the LookCoin contract itself acts as the message recipient
-    // No separate module deployment needed, but we track it in the deployment
     const lookCoinAddress = config.existingDeployment?.contracts?.LookCoin?.proxy;
     
     if (!lookCoinAddress) {
       console.log("⚠️  LookCoin address not found for Hyperlane module");
       return "";
     }
-    
+
+    // Check if Hyperlane is properly configured
+    if (!config.chainConfig.hyperlane?.mailbox || !config.chainConfig.hyperlane?.gasPaymaster) {
+      console.log("⚠️  Hyperlane not fully configured (missing mailbox or gas paymaster)");
+      return "";
+    }
+
+    // Deploy the HyperlaneModule
+    const hyperlaneModuleContract = await fetchDeployOrUpgradeProxy(
+      hre,
+      "HyperlaneModule",
+      [
+        lookCoinAddress,
+        config.chainConfig.hyperlane.mailbox,
+        config.chainConfig.hyperlane.gasPaymaster,
+        config.deployer
+      ]
+    );
+    const hyperlaneModuleAddress = await hyperlaneModuleContract.getAddress();
+    console.log("✅ HyperlaneModule deployed at:", hyperlaneModuleAddress);
+
+    // Grant BRIDGE_ROLE to the module so it can burn/mint
     const lookCoin = await ethers.getContractAt("LookCoin", lookCoinAddress);
-    
-    // Set Hyperlane mailbox if not already set
-    const currentMailbox = await lookCoin.hyperlaneMailbox();
-    if (currentMailbox === ethers.ZeroAddress && config.chainConfig.hyperlane?.mailbox) {
-      console.log("🔧 Setting Hyperlane mailbox on LookCoin...");
-      const tx = await lookCoin.setHyperlaneMailbox(config.chainConfig.hyperlane.mailbox);
-      await tx.wait();
-    }
+    const BRIDGE_ROLE = await lookCoin.BRIDGE_ROLE();
+    const tx = await lookCoin.grantRole(BRIDGE_ROLE, hyperlaneModuleAddress);
+    await tx.wait();
+    console.log("✅ Granted BRIDGE_ROLE to HyperlaneModule");
 
-    // Set Hyperlane gas paymaster if not already set
-    const currentGasPaymaster = await lookCoin.hyperlaneGasPaymaster();
-    if (currentGasPaymaster === ethers.ZeroAddress && config.chainConfig.hyperlane?.gasPaymaster) {
-      console.log("🔧 Setting Hyperlane gas paymaster on LookCoin...");
-      const tx = await lookCoin.setHyperlaneGasPaymaster(config.chainConfig.hyperlane.gasPaymaster);
-      await tx.wait();
-    }
-
-    // Return the LookCoin address as it serves as the Hyperlane module
-    return lookCoinAddress;
+    return hyperlaneModuleAddress;
   }
 }

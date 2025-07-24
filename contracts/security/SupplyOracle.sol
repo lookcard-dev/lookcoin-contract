@@ -20,13 +20,6 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
 
-    // Chain identifiers
-    uint16 public constant CHAIN_BSC = 56;
-    uint16 public constant CHAIN_BASE = 8453;
-    uint16 public constant CHAIN_OPTIMISM = 10;
-    uint16 public constant CHAIN_SAPPHIRE = 23295;
-    uint16 public constant CHAIN_AKASHIC = 999;
-
     // Supply data structure
     struct ChainSupply {
         uint256 totalSupply;
@@ -37,9 +30,9 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
     }
 
     // State variables
-    mapping(uint16 => ChainSupply) public chainSupplies;
-    mapping(uint16 => address[]) public bridgeContracts;
-    uint16[] public supportedChains;
+    mapping(uint32 => ChainSupply) public chainSupplies;
+    mapping(uint32 => address[]) public bridgeContracts;
+    uint32[] public supportedChains;
     
     // Reconciliation parameters
     uint256 public reconciliationInterval;
@@ -58,7 +51,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
     
     // Events
     event SupplyUpdated(
-        uint16 indexed chainId,
+        uint32 indexed chainId,
         uint256 totalSupply,
         uint256 lockedSupply,
         uint256 circulatingSupply
@@ -78,10 +71,12 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
      * @dev Initialize the supply oracle
      * @param _admin Admin address
      * @param _totalSupply Total expected supply across all chains
+     * @param _supportedChains Array of supported chain IDs
      */
     function initialize(
         address _admin,
-        uint256 _totalSupply
+        uint256 _totalSupply,
+        uint32[] memory _supportedChains
     ) public initializer {
         __AccessControl_init();
         __Pausable_init();
@@ -99,12 +94,18 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
         toleranceThreshold = 1000 * 10**18; // 1000 tokens
         requiredSignatures = 3;
         
-        // Initialize supported chains
-        supportedChains.push(CHAIN_BSC);
-        supportedChains.push(CHAIN_BASE);
-        supportedChains.push(CHAIN_OPTIMISM);
-        supportedChains.push(CHAIN_SAPPHIRE);
-        supportedChains.push(CHAIN_AKASHIC);
+        // Initialize supported chains from provided array
+        require(_supportedChains.length > 0, "SupplyOracle: no chains provided");
+        require(_supportedChains.length <= 10, "SupplyOracle: too many chains");
+        
+        for (uint i = 0; i < _supportedChains.length; i++) {
+            require(_supportedChains[i] > 0, "SupplyOracle: invalid chain ID");
+            // Check for duplicates
+            for (uint j = 0; j < i; j++) {
+                require(_supportedChains[i] != _supportedChains[j], "SupplyOracle: duplicate chain ID");
+            }
+            supportedChains.push(_supportedChains[i]);
+        }
     }
 
     /**
@@ -115,7 +116,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
      * @param _nonce Update nonce for multi-sig
      */
     function updateSupply(
-        uint16 _chainId,
+        uint32 _chainId,
         uint256 _totalSupply,
         uint256 _lockedSupply,
         uint256 _nonce
@@ -139,7 +140,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
      * @dev Execute supply update after multi-sig validation
      */
     function _executeSupplyUpdate(
-        uint16 _chainId,
+        uint32 _chainId,
         uint256 _totalSupply,
         uint256 _lockedSupply
     ) internal {
@@ -243,6 +244,13 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
     }
 
     /**
+     * @dev Get all supported chain IDs
+     */
+    function getSupportedChains() external view returns (uint32[] memory) {
+        return supportedChains;
+    }
+
+    /**
      * @dev Get global supply summary
      */
     function getGlobalSupply() external view returns (
@@ -273,7 +281,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
      * @param _chainId Chain identifier
      * @param _bridge Bridge contract address
      */
-    function registerBridge(uint16 _chainId, address _bridge) 
+    function registerBridge(uint32 _chainId, address _bridge) 
         external 
         onlyRole(DEFAULT_ADMIN_ROLE) 
     {

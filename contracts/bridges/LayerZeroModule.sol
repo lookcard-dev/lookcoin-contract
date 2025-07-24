@@ -66,7 +66,7 @@ contract LayerZeroModule is
   
   // Gas and options configuration
   mapping(uint32 => bytes) public defaultOptions; // Default LayerZero options per destination
-  uint256 public defaultGasLimit = 200000;
+  uint256 public defaultGasLimit;
 
   uint256[50] private __gap;
 
@@ -87,6 +87,9 @@ contract LayerZeroModule is
     _grantRole(BRIDGE_ADMIN_ROLE, _admin);
     _grantRole(OPERATOR_ROLE, _admin);
 
+    // Initialize default gas limit
+    defaultGasLimit = 200000;
+
     // Initialize common endpoint mappings (V2 endpoint IDs)
     eidToChainId[30101] = 1; // Ethereum
     chainIdToEid[1] = 30101;
@@ -100,7 +103,7 @@ contract LayerZeroModule is
     chainIdToEid[8453] = 30184;
   }
 
-  function bridgeOut(
+  function bridgeToken(
     uint256 destinationChain,
     address recipient,
     uint256 amount,

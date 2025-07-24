@@ -60,7 +60,9 @@
     "deploy:router": "hardhat run scripts/deploy-router.ts",
     "deploy:hyperlane": "hardhat run scripts/deploy-hyperlane.ts",
     "deploy:debug": "DEBUG_DEPLOYMENT=true hardhat run scripts/deploy.ts",
-    "deploy:simple": "BSC_SIMPLE_MODE=true hardhat run scripts/deploy.ts"
+    "deploy:simple": "BSC_SIMPLE_MODE=true hardhat run scripts/deploy.ts",
+    "deploy:lookcoin-only": "hardhat run scripts/deploy-lookcoin-only.ts",
+    "configure:lookcoin-only": "hardhat run scripts/configure-lookcoin-only.ts"
   },
   "keywords": [],
   "author": "",

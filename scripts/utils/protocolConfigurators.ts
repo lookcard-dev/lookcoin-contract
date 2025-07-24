@@ -27,6 +27,13 @@ export async function configureLayerZero(
     // const currentLzChainId = chainConfig.layerZero.lzChainId || deployment.chainId;
     let configured = false;
     const details: string[] = [];
+    
+    // Check if we have LayerZeroModule deployed
+    let layerZeroModule = null;
+    if (deployment.protocolContracts?.layerZeroModule) {
+      layerZeroModule = await ethers.getContractAt("LayerZeroModule", deployment.protocolContracts.layerZeroModule);
+      details.push(`LayerZeroModule at ${deployment.protocolContracts.layerZeroModule}`);
+    }
 
     for (const [chainId, otherDeployment] of Object.entries(otherDeployments)) {
       // Skip if the other deployment doesn't have LayerZero
@@ -49,6 +56,25 @@ export async function configureLayerZero(
         await tx.wait();
         details.push(`Chain ${remoteLzChainId}: ${remoteAddress}`);
         configured = true;
+      }
+      
+      // Also configure LayerZeroModule if deployed
+      if (layerZeroModule && otherDeployment.protocolContracts?.layerZeroModule) {
+        // Convert chain ID to LayerZero endpoint ID
+        const currentEid = await layerZeroModule.chainIdToEid(deployment.chainId);
+        const remoteEid = await layerZeroModule.chainIdToEid(Number(chainId));
+        
+        // Check if trusted remote is set for LayerZeroModule
+        const currentModuleTrustedRemote = await layerZeroModule.trustedRemotes(remoteEid);
+        const remoteModuleAddress = otherDeployment.protocolContracts.layerZeroModule;
+        
+        if (currentModuleTrustedRemote === ethers.ZeroHash) {
+          console.log(`Setting trusted remote for LayerZeroModule on chain ${remoteLzChainId}...`);
+          const tx = await layerZeroModule.setTrustedRemote(remoteEid, remoteModuleAddress);
+          await tx.wait();
+          details.push(`Module trusted remote ${remoteLzChainId}: ${remoteModuleAddress}`);
+          configured = true;
+        }
       }
     }
 

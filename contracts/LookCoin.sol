@@ -6,9 +6,6 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "@hyperlane-xyz/core/contracts/interfaces/IMessageRecipient.sol";
-import "@hyperlane-xyz/core/contracts/interfaces/IMailbox.sol";
-import "@hyperlane-xyz/core/contracts/interfaces/IInterchainGasPaymaster.sol";
 import "./interfaces/ICrossChainRouter.sol";
 
 // LayerZero interfaces
@@ -50,8 +47,9 @@ interface ILayerZeroReceiver {
 
 /**
  * @title LookCoin
- * @dev Native multi-protocol cross-chain token with LayerZero OFT V2 and Hyperlane support
+ * @dev Native cross-chain token with LayerZero OFT V2 support
  * @notice LookCoin (LOOK) is the primary payment method for LookCard's crypto-backed credit/debit card system
+ * @dev For multi-protocol bridging, use CrossChainRouter with dedicated protocol modules
  */
 contract LookCoin is
   ERC20Upgradeable,
@@ -59,8 +57,7 @@ contract LookCoin is
   AccessControlUpgradeable,
   PausableUpgradeable,
   ReentrancyGuardUpgradeable,
-  ILayerZeroReceiver,
-  IMessageRecipient
+  ILayerZeroReceiver
 {
   // Role definitions
   bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -83,6 +80,8 @@ contract LookCoin is
   uint public gasForDestinationLzReceive;
   /// @dev Mapping to track processed nonces per source chain
   mapping(uint16 => mapping(uint64 => bool)) public processedNonces;
+  /// @dev Enforced options for minimum gas on destination chains
+  mapping(uint16 => uint256) public enforcedOptions;
 
   // Supply tracking
   /// @dev Total amount of tokens minted across all operations
@@ -93,16 +92,10 @@ contract LookCoin is
   // Multi-protocol support
   /// @dev Cross-chain router for unified bridge operations
   ICrossChainRouter public crossChainRouter;
-  /// @dev Hyperlane mailbox address for message passing
-  address public hyperlaneMailbox;
-  /// @dev Hyperlane interchain gas paymaster
-  IInterchainGasPaymaster public hyperlaneGasPaymaster;
-  /// @dev Mapping of supported Hyperlane domains
-  mapping(uint32 => bool) public supportedHyperlaneDomains;
 
 
   // Storage gap for future upgrades
-  uint256[46] private __gap;
+  uint256[48] private __gap;
 
   // Events
   /// @notice Emitted when the contract is paused for emergency
@@ -189,6 +182,24 @@ contract LookCoin is
   }
 
   /**
+   * @dev Check if a destination chain is properly configured for bridging
+   * @param _dstChainId Destination chain ID to check
+   * @return isConfigured True if the chain is properly configured
+   */
+  function isChainConfigured(uint16 _dstChainId) public view returns (bool isConfigured) {
+    // Check if we have a CrossChainRouter
+    if (address(crossChainRouter) != address(0)) {
+      // Router will handle the check
+      return true;
+    }
+    
+    // For direct LayerZero, check if trusted remote is set
+    return trustedRemoteLookup[_dstChainId] != bytes32(0) && 
+           address(lzEndpoint) != address(0) &&
+           gasForDestinationLzReceive > 0;
+  }
+
+  /**
    * @dev Mint tokens to address. Only role-based minting supported
    * @param to Address to mint tokens to
    * @param amount Amount to mint
@@ -224,12 +235,80 @@ contract LookCoin is
   }
 
   /**
-   * @dev Bridge function for cross-chain transfers - delegates to CrossChainRouter
+   * @dev LayerZero OFT V2 send function for cross-chain transfers
    * @param _dstChainId Destination chain ID
    * @param _toAddress Recipient address on destination chain (encoded as bytes)
    * @param _amount Amount to transfer
-   * @notice This function is maintained for backward compatibility
-   * @dev Delegates to CrossChainRouter for protocol selection and execution
+   * @notice Primary function for OFT cross-chain transfers
+   * @dev Reverts if destination chain is not configured
+   */
+  function sendFrom(
+    address _from,
+    uint16 _dstChainId,
+    bytes calldata _toAddress,
+    uint256 _amount,
+    address payable _refundAddress,
+    address _zroPaymentAddress,
+    bytes calldata _adapterParams
+  ) public payable whenNotPaused nonReentrant {
+    require(_from == msg.sender || allowance(_from, msg.sender) >= _amount, "LookCoin: insufficient allowance");
+    require(_amount > 0, "LookCoin: invalid amount");
+    require(_toAddress.length > 0, "LookCoin: invalid recipient");
+    require(address(lzEndpoint) != address(0), "LookCoin: LayerZero not configured");
+    require(trustedRemoteLookup[_dstChainId] != bytes32(0), "LookCoin: destination chain not configured");
+    require(gasForDestinationLzReceive > 0, "LookCoin: gas for destination not set");
+
+    // If not sending from self, update allowance
+    if (_from != msg.sender) {
+      _spendAllowance(_from, msg.sender, _amount);
+    }
+
+    // Burn tokens on source chain
+    totalBurned += _amount;
+    _burn(_from, _amount);
+
+    // Encode OFT v2 payload
+    bytes memory payload = abi.encode(
+      PT_SEND, // Packet type for OFT transfer
+      _from, // Sender address
+      _toAddress, // Recipient address (bytes)
+      _amount // Amount to transfer
+    );
+
+    // Use provided adapter params or enforced options
+    bytes memory adapterParams = _adapterParams;
+    if (adapterParams.length == 0) {
+      // Use enforced options if set, otherwise use default gas
+      uint256 minGas = enforcedOptions[_dstChainId] > 0 ? enforcedOptions[_dstChainId] : gasForDestinationLzReceive;
+      adapterParams = abi.encodePacked(
+        uint16(1), // Version 1
+        minGas // Gas for destination execution
+      );
+    }
+
+    // Get the trusted remote address
+    bytes memory trustedRemote = abi.encodePacked(trustedRemoteLookup[_dstChainId], address(this));
+
+    // Send via LayerZero
+    lzEndpoint.send{value: msg.value}(
+      _dstChainId, // Destination chain ID
+      trustedRemote, // Remote contract address
+      payload, // Encoded payload
+      _refundAddress == address(0) ? payable(msg.sender) : _refundAddress, // Refund address
+      _zroPaymentAddress, // ZRO payment address
+      adapterParams // Adapter parameters
+    );
+
+    emit CrossChainTransferInitiated(_from, _dstChainId, _toAddress, _amount);
+  }
+
+
+  /**
+   * @dev Simplified bridge function for cross-chain transfers
+   * @param _dstChainId Destination chain ID
+   * @param _toAddress Recipient address on destination chain (encoded as bytes)
+   * @param _amount Amount to transfer
+   * @notice Convenience function that calls sendFrom with default parameters
    */
   function bridgeToken(
     uint16 _dstChainId,
@@ -260,9 +339,10 @@ contract LookCoin is
         _toAddress
       );
     } else {
-      // Fallback to direct LayerZero if router not configured
+      // Fallback to direct OFT send - inline the logic
       require(address(lzEndpoint) != address(0), "LookCoin: LayerZero not configured");
-      require(trustedRemoteLookup[_dstChainId] != bytes32(0), "LookCoin: destination not trusted");
+      require(trustedRemoteLookup[_dstChainId] != bytes32(0), "LookCoin: destination chain not configured");
+      require(gasForDestinationLzReceive > 0, "LookCoin: gas for destination not set");
 
       // Burn tokens on source chain
       totalBurned += _amount;
@@ -270,16 +350,17 @@ contract LookCoin is
 
       // Encode OFT v2 payload
       bytes memory payload = abi.encode(
-        PT_SEND, // Packet type for OFT transfer
-        msg.sender, // Sender address
-        _toAddress, // Recipient address (bytes)
-        _amount // Amount to transfer
+        PT_SEND,
+        msg.sender,
+        _toAddress,
+        _amount
       );
 
-      // Prepare adapter parameters for gas on destination
+      // Use default adapter params
+      uint256 minGas = enforcedOptions[_dstChainId] > 0 ? enforcedOptions[_dstChainId] : gasForDestinationLzReceive;
       bytes memory adapterParams = abi.encodePacked(
-        uint16(1), // Version 1
-        gasForDestinationLzReceive // Gas for destination execution
+        uint16(1),
+        minGas
       );
 
       // Get the trusted remote address
@@ -287,68 +368,18 @@ contract LookCoin is
 
       // Send via LayerZero
       lzEndpoint.send{value: msg.value}(
-        _dstChainId, // Destination chain ID
-        trustedRemote, // Remote contract address
-        payload, // Encoded payload
-        payable(msg.sender), // Refund address
-        address(0), // ZRO payment address (not used)
-        adapterParams // Adapter parameters
+        _dstChainId,
+        trustedRemote,
+        payload,
+        payable(msg.sender),
+        address(0),
+        adapterParams
       );
 
       emit CrossChainTransferInitiated(msg.sender, _dstChainId, _toAddress, _amount);
     }
   }
 
-  /**
-   * @dev Bridge tokens to another chain using Hyperlane
-   * @param destinationDomain Hyperlane domain ID of the destination chain
-   * @param recipient Recipient address on the destination chain
-   * @param amount Amount of tokens to bridge
-   */
-  function bridgeTokenHyperlane(
-    uint32 destinationDomain,
-    address recipient,
-    uint256 amount
-  ) external payable whenNotPaused nonReentrant {
-    require(hyperlaneMailbox != address(0), "LookCoin: Hyperlane not configured");
-    require(supportedHyperlaneDomains[destinationDomain], "LookCoin: unsupported domain");
-    require(recipient != address(0), "LookCoin: invalid recipient");
-    require(amount > 0, "LookCoin: amount must be greater than 0");
-
-    // Burn tokens from sender
-    _burn(msg.sender, amount);
-
-    // Encode the message
-    bytes memory messageBody = abi.encode(recipient, amount);
-
-    // Convert recipient address to bytes32 for Hyperlane
-    bytes32 recipientBytes32 = bytes32(uint256(uint160(recipient)));
-
-    // Dispatch the message via Hyperlane
-    bytes32 messageId = IMailbox(hyperlaneMailbox).dispatch(destinationDomain, recipientBytes32, messageBody);
-
-    // Pay for gas if gas paymaster is configured
-    if (address(hyperlaneGasPaymaster) != address(0) && msg.value > 0) {
-      // Quote gas payment (if needed)
-      uint256 gasAmount = 500000; // Default gas amount, can be made configurable
-
-      // Pay for gas
-      hyperlaneGasPaymaster.payForGas{value: msg.value}(
-        messageId,
-        destinationDomain,
-        gasAmount,
-        msg.sender // refund address
-      );
-    }
-
-    // Emit event using existing event structure
-    emit CrossChainTransferInitiated(
-      msg.sender,
-      uint16(destinationDomain), // Cast to uint16 for compatibility
-      abi.encodePacked(recipient),
-      amount
-    );
-  }
 
   /**
    * @dev LayerZero receiver function to handle incoming cross-chain transfers
@@ -477,6 +508,42 @@ contract LookCoin is
   }
 
   /**
+   * @dev Set trusted remote for a destination chain
+   * @param _dstChainId Destination chain ID
+   * @param _trustedRemote Trusted remote address (encoded as bytes)
+   * @notice Production requirement: Configure before enabling cross-chain transfers
+   */
+  function setTrustedRemote(uint16 _dstChainId, bytes calldata _trustedRemote) external onlyRole(PROTOCOL_ADMIN_ROLE) {
+    require(_trustedRemote.length == 20, "LookCoin: invalid remote address length");
+    bytes32 trustedRemoteBytes32;
+    assembly {
+      trustedRemoteBytes32 := calldataload(add(_trustedRemote.offset, 0))
+    }
+    trustedRemoteLookup[_dstChainId] = trustedRemoteBytes32;
+    emit PeerConnected(_dstChainId, trustedRemoteBytes32);
+  }
+
+  /**
+   * @dev Get trusted remote for a destination chain
+   * @param _dstChainId Destination chain ID
+   * @return Trusted remote address as bytes32
+   */
+  function getTrustedRemote(uint16 _dstChainId) external view returns (bytes32) {
+    return trustedRemoteLookup[_dstChainId];
+  }
+
+  /**
+   * @dev Set enforced options for a destination chain
+   * @param _dstChainId Destination chain ID
+   * @param _minGas Minimum gas required on destination
+   * @notice Production requirement: Set appropriate gas limits for each chain
+   */
+  function setEnforcedOptions(uint16 _dstChainId, uint256 _minGas) external onlyRole(PROTOCOL_ADMIN_ROLE) {
+    require(_minGas > 0 && _minGas < 10000000, "LookCoin: invalid gas limit");
+    enforcedOptions[_dstChainId] = _minGas;
+  }
+
+  /**
    * @dev Set the cross-chain router contract
    * @param _router Address of the CrossChainRouter contract
    */
@@ -485,32 +552,6 @@ contract LookCoin is
     crossChainRouter = ICrossChainRouter(_router);
   }
 
-  /**
-   * @dev Set Hyperlane mailbox for message passing
-   * @param _mailbox Address of Hyperlane mailbox
-   */
-  function setHyperlaneMailbox(address _mailbox) external onlyRole(PROTOCOL_ADMIN_ROLE) {
-    require(_mailbox != address(0), "LookCoin: invalid mailbox");
-    hyperlaneMailbox = _mailbox;
-  }
-
-  /**
-   * @dev Sets the Hyperlane gas paymaster address
-   * @param _gasPaymaster The address of the Hyperlane gas paymaster
-   */
-  function setHyperlaneGasPaymaster(address _gasPaymaster) external onlyRole(PROTOCOL_ADMIN_ROLE) {
-    require(_gasPaymaster != address(0), "LookCoin: invalid gas paymaster");
-    hyperlaneGasPaymaster = IInterchainGasPaymaster(_gasPaymaster);
-  }
-
-  /**
-   * @dev Sets whether a Hyperlane domain is supported
-   * @param domain The Hyperlane domain ID
-   * @param supported Whether the domain is supported
-   */
-  function setSupportedHyperlaneDomain(uint32 domain, bool supported) external onlyRole(PROTOCOL_ADMIN_ROLE) {
-    supportedHyperlaneDomains[domain] = supported;
-  }
 
 
 
@@ -520,22 +561,6 @@ contract LookCoin is
 
 
 
-  /**
-   * @dev Handle incoming Hyperlane messages
-   * @param _origin Origin domain ID
-   * @param _sender Sender address on origin chain
-   * @param _message Encoded message data
-   */
-  function handle(uint32 _origin, bytes32 _sender, bytes calldata _message) external payable override {
-    require(msg.sender == hyperlaneMailbox, "LookCoin: unauthorized mailbox");
-
-    // Decode the message
-    (address recipient, uint256 amount) = abi.decode(_message, (address, uint256));
-
-    // Mint tokens to recipient
-    totalMinted += amount;
-    _mint(recipient, amount);
-  }
 
   /**
    * @dev Pause all token operations. Only callable by PAUSER_ROLE

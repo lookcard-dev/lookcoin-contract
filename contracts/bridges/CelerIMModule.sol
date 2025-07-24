@@ -51,7 +51,7 @@ interface IMessageReceiverApp {
 
 /**
  * @title CelerIMModule
- * @dev Celer IM bridge module for LookCoin cross-chain transfers using lock-and-mint mechanism
+ * @dev Celer IM bridge module for LookCoin cross-chain transfers using burn-and-mint mechanism
  * @notice This contract handles cross-chain token transfers between BSC, Optimism, and Sapphire chains
  * @dev Security features include role-based access control, pausability, reentrancy protection, and transfer replay prevention
  */
@@ -108,7 +108,7 @@ contract CelerIMModule is
   /// @param amount Net amount being transferred (after fees)
   /// @param fee Fee amount collected
   /// @param transferId Unique transfer identifier
-  event CrossChainTransferLocked(
+  event CrossChainTransferInitiated(
     address indexed sender,
     uint64 indexed dstChainId,
     address indexed recipient,
@@ -152,6 +152,14 @@ contract CelerIMModule is
   /// @param newMessageBus New MessageBus contract address
   event MessageBusUpdated(address indexed newMessageBus);
 
+  /// @notice Emitted when a transfer fails and cannot be refunded (burn-and-mint)
+  /// @param transferId Unique transfer identifier
+  /// @param sender Original sender address
+  /// @param recipient Intended recipient address
+  /// @param amount Amount that was burned
+  /// @param reason Failure reason
+  event TransferFailed(bytes32 indexed transferId, address indexed sender, address indexed recipient, uint256 amount, string reason);
+
   /**
    * @dev Initialize the Celer IM module
    * @param _lookCoin LookCoin contract address for token operations
@@ -188,15 +196,15 @@ contract CelerIMModule is
   }
 
   /**
-   * @dev Lock LOOK tokens and initiate cross-chain transfer
+   * @dev Burn LOOK tokens and initiate cross-chain transfer
    * @param _dstChainId Destination chain ID (must be BSC, Optimism, or Sapphire)
    * @param _recipient Recipient address on destination chain
    * @param _amount Amount to transfer (before fees)
-   * @notice Locks tokens on source chain and sends message to mint on destination
+   * @notice Burns tokens on source chain and sends message to mint on destination
    * @dev Requires msg.value to cover Celer message fees
-   * @dev Emits CrossChainTransferLocked event
+   * @dev Emits CrossChainTransferInitiated event
    */
-  function lockAndBridge(
+  function bridge(
     uint64 _dstChainId,
     address _recipient,
     uint256 _amount
@@ -220,13 +228,10 @@ contract CelerIMModule is
     uint256 fee = calculateFee(_amount);
     uint256 netAmount = _amount - fee;
 
-    // Lock tokens
-    IERC20(address(lookCoin)).safeTransferFrom(msg.sender, address(this), _amount);
+    // Burn tokens (including fee)
+    lookCoin.burn(msg.sender, _amount);
 
-    // Transfer fee to collector
-    if (fee > 0) {
-      IERC20(address(lookCoin)).safeTransfer(feeCollector, fee);
-    }
+    // Note: Fee collection happens on destination chain during minting
 
     // Generate unique transfer ID
     bytes32 transferId = keccak256(abi.encodePacked(msg.sender, _recipient, _amount, block.timestamp, block.number));
@@ -253,7 +258,7 @@ contract CelerIMModule is
       payable(msg.sender).transfer(msg.value - messageFee);
     }
 
-    emit CrossChainTransferLocked(msg.sender, _dstChainId, _recipient, netAmount, fee, transferId);
+    emit CrossChainTransferInitiated(msg.sender, _dstChainId, _recipient, netAmount, fee, transferId);
   }
 
   /**
@@ -264,13 +269,13 @@ contract CelerIMModule is
    * @param params Additional parameters (unused for Celer)
    * @return transferId Unique transfer identifier
    */
-  function bridgeOut(
+  function bridgeToken(
     uint256 destinationChain,
     address recipient,
     uint256 amount,
     bytes calldata params
   ) external payable override whenNotPaused nonReentrant returns (bytes32 transferId) {
-    // Call existing lockAndBridge functionality
+    // Call existing bridge functionality
     uint64 dstChainId = uint64(destinationChain);
 
     // Calculate fee
@@ -294,7 +299,7 @@ contract CelerIMModule is
     });
 
     // Execute the bridge operation
-    this.lockAndBridge{value: msg.value}(dstChainId, recipient, amount);
+    this.bridge{value: msg.value}(dstChainId, recipient, amount);
 
     emit TransferInitiated(transferId, msg.sender, destinationChain, amount, "Celer");
   }
@@ -391,8 +396,11 @@ contract CelerIMModule is
    * @param token Token address (0 for native)
    * @param to Recipient address
    * @param amount Amount to withdraw
+   * @notice Only for native tokens or accidentally sent tokens, not for LookCoin (which is burned)
    */
   function emergencyWithdraw(address token, address to, uint256 amount) external override onlyRole(ADMIN_ROLE) {
+    require(token != address(lookCoin), "CelerIM: cannot withdraw LookCoin");
+    
     if (token == address(0)) {
       payable(to).transfer(amount);
     } else {
@@ -462,13 +470,13 @@ contract CelerIMModule is
 
   /**
    * @dev Handle message execution failure with refund
-   * @param _token Token address for refund
-   * @param _amount Refund amount
+   * @param _token Token address for refund (unused)
+   * @param _amount Refund amount (unused)
    * @param _message Original message to decode sender information
    * @param _executor Executor address (unused)
    * @notice Called by MessageBus when cross-chain transfer fails
-   * @dev Refunds locked tokens to original sender
-   * @return ExecutionStatus indicating refund success
+   * @dev Since we use burn-and-mint, tokens cannot be refunded (they're already burned)
+   * @return ExecutionStatus indicating acknowledgment
    */
   function executeMessageWithTransferRefund(
     address _token,
@@ -478,13 +486,12 @@ contract CelerIMModule is
   ) external payable override returns (ExecutionStatus) {
     require(msg.sender == address(messageBus), "CelerIM: unauthorized caller");
 
-    // Decode original message to get sender
-    (address originalSender, , , ) = abi.decode(_message, (address, address, uint256, bytes32));
+    // Decode original message to log the failure
+    (address originalSender, address recipient, uint256 burnedAmount, bytes32 transferId) = abi.decode(_message, (address, address, uint256, bytes32));
 
-    // Refund tokens to original sender
-    if (_token == address(lookCoin) && _amount > 0) {
-      IERC20(_token).safeTransfer(originalSender, _amount);
-    }
+    // Since tokens were burned, we cannot refund. Log the failure.
+    // In production, you might want to implement a recovery mechanism
+    emit TransferFailed(transferId, originalSender, recipient, burnedAmount, "Cannot refund burned tokens");
 
     return ExecutionStatus.Success;
   }

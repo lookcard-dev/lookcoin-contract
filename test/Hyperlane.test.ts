@@ -229,7 +229,7 @@ describe("Hyperlane Test", function () {
       const initialBalance = await lookCoin.balanceOf(addr1.address);
 
       await expect(
-        hyperlaneModule.connect(addr1).bridgeOut(AKASHIC_DOMAIN, addr2.address, amount, { value: gasFee })
+        hyperlaneModule.connect(addr1).bridgeToken(AKASHIC_DOMAIN, addr2.address, amount, { value: gasFee })
       )
         .to.emit(hyperlaneModule, "BridgeTransferInitiated")
         .withArgs(addr1.address, AKASHIC_DOMAIN, addr2.address, amount);
@@ -294,7 +294,7 @@ describe("Hyperlane Test", function () {
       await lookCoin.connect(addr1).approve(await hyperlaneModule.getAddress(), exceedAmount);
 
       await expect(
-        hyperlaneModule.connect(addr1).bridgeOut(AKASHIC_DOMAIN, addr2.address, exceedAmount)
+        hyperlaneModule.connect(addr1).bridgeToken(AKASHIC_DOMAIN, addr2.address, exceedAmount)
       ).to.be.revertedWith("HyperlaneModule: exceeds transaction limit");
     });
   });
@@ -390,7 +390,7 @@ describe("Hyperlane Test", function () {
       const invalidDomain = 999999;
       
       await expect(
-        hyperlaneModule.connect(addr1).bridgeOut(invalidDomain, addr2.address, ethers.parseEther("100"))
+        hyperlaneModule.connect(addr1).bridgeToken(invalidDomain, addr2.address, ethers.parseEther("100"))
       ).to.be.revertedWith("HyperlaneModule: unsupported domain");
     });
 
@@ -435,7 +435,7 @@ describe("Hyperlane Test", function () {
 
       // Try to bridge while paused
       await expect(
-        hyperlaneModule.connect(addr1).bridgeOut(AKASHIC_DOMAIN, addr2.address, ethers.parseEther("100"))
+        hyperlaneModule.connect(addr1).bridgeToken(AKASHIC_DOMAIN, addr2.address, ethers.parseEther("100"))
       ).to.be.revertedWithCustomError(hyperlaneModule, "EnforcedPause");
 
       await hyperlaneModule.unpause();
@@ -470,7 +470,7 @@ describe("Hyperlane Test", function () {
       await lookCoin.connect(addr1).approve(await hyperlaneModule.getAddress(), amount);
       
       await expect(
-        hyperlaneModule.connect(addr1).bridgeOut(AKASHIC_DOMAIN, addr2.address, amount, { value: ethers.parseEther("0.01") })
+        hyperlaneModule.connect(addr1).bridgeToken(AKASHIC_DOMAIN, addr2.address, amount, { value: ethers.parseEther("0.01") })
       ).to.emit(hyperlaneModule, "BridgeTransferInitiated");
     });
 

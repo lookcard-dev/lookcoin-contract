@@ -75,11 +75,33 @@ graph TB
 
 ### Hyperlane Integration (Protocol ID: 2)
 
-- **Supported Chains**: Available across multiple chains for enhanced interoperability
+- **Supported Chains**: BSC, Base, Optimism, Akashic (all self-hosted)
 - **Mechanism**: Burn-and-mint with mailbox system
 - **Security**: Modular security via Interchain Security Modules (ISM)
-- **Messaging**: Hyperlane mailbox for message passing
+- **Messaging**: Self-hosted Hyperlane mailbox for message passing
 - **Module**: HyperlaneModule implementing ILookBridgeModule
+
+#### Self-Hosted Hyperlane Infrastructure
+
+LookCard operates its own complete Hyperlane infrastructure across all supported chains:
+
+- **Custom Mailboxes**: LookCard-deployed mailbox contracts on each chain
+- **Self-Operated Relayers**: Dedicated relayer infrastructure for all routes
+- **Custom Warp Routes**: Tailored warp route configuration for LOOK token
+- **Controlled Validators**: LookCard-managed validator set for enhanced security
+- **Custom ISM**: Optimized Interchain Security Module configuration
+- **Self-Hosted Gas Paymasters**: Independent gas payment system
+
+#### Current Status
+
+- **Phase 1 (Current)**: Using public Hyperlane infrastructure as temporary solution
+- **Phase 2 (Planned)**: Migration to fully self-hosted infrastructure
+- **Benefits of Self-Hosting**:
+  - Enhanced performance and reliability
+  - Full control over security parameters
+  - Optimized gas costs and fee structure
+  - No dependency on third-party relayers
+  - Custom features specific to LookCard ecosystem
 
 ```mermaid
 graph TB
@@ -88,6 +110,7 @@ graph TB
         BASE[Base<br/>LOOK Token]
         OPT[Optimism<br/>LOOK Token]
         SAPPHIRE[Oasis Sapphire<br/>LOOK Token]
+        AKASHIC[Akashic<br/>LOOK Token]
     end
 
     subgraph "Protocol Usage"
@@ -101,12 +124,79 @@ graph TB
         
         BSC <--> |Hyperlane| BASE
         BSC <--> |Hyperlane| OPT
+        BSC <--> |Hyperlane| AKASHIC
+        BASE <--> |Hyperlane| AKASHIC
+        OPT <--> |Hyperlane| AKASHIC
     end
 
     style BSC fill:#f9d71c
     style BASE fill:#0052cc
     style OPT fill:#ff0420
     style SAPPHIRE fill:#0ca789
+    style AKASHIC fill:#7c3aed
+```
+
+## Dual-Path Architecture
+
+LookCoin implements a unique dual-path architecture for LayerZero, providing maximum flexibility:
+
+### Path 1: Direct OFT (LayerZero Only)
+```mermaid
+graph LR
+    User --> |sendFrom| LookCoin
+    LookCoin --> |native OFT| LayerZero_Endpoint
+    LayerZero_Endpoint --> |message| Remote_Chain
+```
+
+**Characteristics:**
+- Direct integration in LookCoin contract
+- Most gas-efficient for LayerZero
+- Uses `sendFrom()` function
+- Bypasses router overhead
+- Ideal for programmatic integrations
+
+### Path 2: Module-Based (All Protocols)
+```mermaid
+graph LR
+    User --> |bridgeToken| CrossChainRouter
+    CrossChainRouter --> |protocol selection| Module{Module}
+    Module --> |LayerZero| LayerZeroModule
+    Module --> |Celer| CelerIMModule  
+    Module --> |Hyperlane| HyperlaneModule
+    LayerZeroModule --> Remote1[Remote Chain]
+    CelerIMModule --> Remote2[Remote Chain]
+    HyperlaneModule --> Remote3[Remote Chain]
+```
+
+**Characteristics:**
+- Unified interface for all protocols
+- Protocol abstraction layer
+- Automatic route optimization
+- Consistent error handling
+- Future protocol extensibility
+
+### Implementation Details
+
+```solidity
+// Path 1: Direct OFT call
+lookCoin.sendFrom(
+    from,
+    dstChainId,
+    toAddress,
+    amount,
+    refundAddress,
+    zroPaymentAddress,
+    adapterParams
+);
+
+// Path 2: Router call
+crossChainRouter.bridgeToken(
+    destinationChain,
+    recipient,
+    amount,
+    protocol, // LayerZero, Celer, or Hyperlane
+    params
+);
 ```
 
 ## Chain Deployment Matrix
@@ -117,6 +207,7 @@ graph TB
 | Base           | LayerZero, Hyperlane                      | 8453       | 0, 2         | Planned |
 | Optimism       | LayerZero, Celer IM, Hyperlane           | 10         | 0, 1, 2      | Planned |
 | Oasis Sapphire | Celer IM                                  | 23295      | 1            | Planned |
+| Akashic        | Hyperlane (self-hosted)                   | 9070       | 2            | Planned |
 
 ### Protocol Selection Matrix
 
@@ -126,6 +217,7 @@ graph TB
 | BSC → Optimism      | LayerZero        | Celer IM, Hyperlane   | Speed vs. cost     |
 | Base → Optimism     | LayerZero        | Hyperlane             | Fast finality      |
 | * → Sapphire        | Celer IM         | -                     | Only option        |
+| * → Akashic         | Hyperlane        | -                     | Self-hosted only   |
 
 ## Cross-Chain Flow Diagrams
 
@@ -145,7 +237,7 @@ sequenceDiagram
     FM-->>Router: Return fee estimate
     Router->>SM: validateTransfer(protocol, amount)
     SM-->>Router: Approve/Reject
-    Router->>Module: bridgeOut(dest, recipient, amount)
+    Router->>Module: bridgeToken(dest, recipient, amount)
     Module->>Module: Protocol-specific operations
     Module->>Dest: Cross-chain message
     Dest->>Dest: Mint/unlock tokens
@@ -199,7 +291,7 @@ sequenceDiagram
     Note over Source,Dest: Modular security verification
 ```
 
-### Celer IM Lock-and-Mint Flow
+### Celer IM Burn-and-Mint Flow
 
 ```mermaid
 sequenceDiagram
@@ -210,7 +302,7 @@ sequenceDiagram
     participant DestChain as Destination Chain<br/>(e.g., Optimism)
 
     User->>SourceChain: Initiate transfer
-    SourceChain->>SourceChain: Lock LOOK tokens
+    SourceChain->>SourceChain: Burn LOOK tokens
     SourceChain->>MessageBus: Send cross-chain message
     MessageBus->>SGN: Request validation
     SGN->>SGN: Multi-signature validation
@@ -219,10 +311,10 @@ sequenceDiagram
     DestChain->>DestChain: Mint LOOK tokens
     DestChain->>User: Credit tokens
 
-    Note over SourceChain,DestChain: Locked tokens = Minted tokens
+    Note over SourceChain,DestChain: All protocols now use burn-and-mint for consistency
 ```
 
-Note: The same Celer IM lock-and-mint flow applies to transfers involving Oasis Sapphire as source or destination chain.
+Note: Celer IM was updated to use burn-and-mint (instead of lock-and-mint) to maintain consistency across all protocols and eliminate token custody risks.
 
 ### Supply Reconciliation with Multi-Protocol Support
 
@@ -269,13 +361,13 @@ contract CrossChainRouter {
         bytes calldata params
     ) external payable {
         ILookBridgeModule module = protocolModules[protocol];
-        module.bridgeOut(destinationChain, recipient, amount, params);
+        module.bridgeToken(destinationChain, recipient, amount, params);
     }
 }
 
 // Unified bridge interface
 interface ILookBridgeModule {
-    function bridgeOut(
+    function bridgeToken(
         uint256 destinationChain,
         address recipient,
         uint256 amount,
@@ -326,8 +418,8 @@ interface ILookBridgeModule {
 **CelerIMModule**:
 - MessageBus integration
 - SGN validation
-- Lock/unlock mechanics
-- Fee parameter management
+- Burn/mint mechanics (updated from lock/unlock)
+- Fee parameter management (0.5%, min 10, max 1000 LOOK)
 
 **HyperlaneModule**:
 - Mailbox integration
@@ -546,7 +638,7 @@ The role separation follows the principle of least privilege:
 // User bridges from BSC to Optimism (protocol selection)
 1. User calls CrossChainRouter.bridgeToken()
 2. Router selects optimal protocol (LayerZero vs Celer)
-3. Router calls selected module.bridgeOut()
+3. Router calls selected module.bridgeToken()
 4. Module executes protocol-specific operations
 5. Destination receives and processes message
 6. SecurityManager validates and tracks transfer
@@ -867,7 +959,7 @@ contract HyperlaneModule is ILookBridgeModule {
 3. **Router Selects Protocol Module**
    ```solidity
    ILookBridgeModule module = protocolModules[protocol];
-   module.bridgeOut(chainId, recipient, amount, params);
+   module.bridgeToken(chainId, recipient, amount, params);
    ```
 
 4. **Module Executes Protocol-Specific Logic**

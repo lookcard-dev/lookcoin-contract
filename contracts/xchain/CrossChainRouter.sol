@@ -163,7 +163,7 @@ contract CrossChainRouter is
         address module = protocolModules[protocol];
         require(module != address(0), "Protocol module not registered");
 
-        transferId = ILookBridgeModule(module).bridgeOut{value: msg.value}(
+        transferId = ILookBridgeModule(module).bridgeToken{value: msg.value}(
             destinationChain,
             recipient,
             amount,
@@ -242,6 +242,35 @@ contract CrossChainRouter is
 
     function unpause() external onlyRole(ROUTER_ADMIN_ROLE) {
         _unpause();
+    }
+
+    /**
+     * @dev Check if a destination chain is properly configured for a specific protocol
+     * @param destinationChain The destination chain ID
+     * @param protocol The protocol to check
+     * @return isConfigured True if the chain is properly configured for the protocol
+     */
+    function isChainConfigured(uint256 destinationChain, Protocol protocol) 
+        external 
+        view 
+        returns (bool isConfigured) 
+    {
+        // Check if protocol is active
+        if (!protocolActive[protocol]) {
+            return false;
+        }
+        
+        // Check if protocol is supported on destination chain
+        if (!chainProtocolSupport[destinationChain][protocol]) {
+            return false;
+        }
+        
+        // Check if protocol module is registered
+        if (protocolModules[protocol] == address(0)) {
+            return false;
+        }
+        
+        return true;
     }
 
     function _getSecurityLevel(Protocol protocol) private pure returns (uint8) {

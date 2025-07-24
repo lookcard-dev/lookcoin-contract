@@ -16,6 +16,13 @@
 
 LookCoin uses a unified three-phase deployment process that automatically detects and handles different protocol configurations. The system supports both standard (single-protocol) and multi-protocol deployments without requiring separate scripts.
 
+### Key Architecture Features
+
+- **Dual-Path Support**: LayerZero offers both direct OFT calls (`sendFrom`) and router-based calls (`bridgeToken`)
+- **Unified Token Mechanics**: All protocols (LayerZero, Celer, Hyperlane) use burn-and-mint for consistency
+- **Multi-Protocol Router**: CrossChainRouter provides a unified interface for all bridge protocols
+- **Automatic Protocol Selection**: The system can automatically choose the optimal protocol based on destination and cost
+
 ### Benefits of the Unified Approach
 - **Automatic Protocol Detection**: The system automatically detects which protocols are supported on your network
 - **Intelligent Deployment Mode**: Automatically chooses between standard and multi-protocol deployment
@@ -98,6 +105,14 @@ Deployment mode: multi-protocol
   - ProtocolRegistry: Tracks available protocols
   - SecurityManager: Handles protocol-specific security
 - Automatically selected when 2+ protocols are detected
+
+#### Simple Mode (Development Optimization)
+- Available for any chain with multiple protocols
+- Skips infrastructure contracts even when multiple protocols are detected
+- Deploys only core contracts: LookCoin, SupplyOracle, and protocol modules
+- Perfect for single-chain development and testing
+- Enable with `--simple-mode` flag or `SIMPLE_MODE=true` environment variable
+- You can still use direct protocol calls (e.g., LayerZero's `sendFrom`)
 
 ### Deployment Output
 
@@ -318,12 +333,13 @@ No manual migration required!
   - Use alternative RPC providers
   - Deployment script retries 3 times automatically
 
-#### "BSC Multi-Protocol Overhead"
+#### "Multi-Protocol Overhead"
 - **Cause**: Infrastructure contracts deployed when not needed for single-chain operation
 - **Solution**:
-  - Use simple mode: `npm run deploy:bsc-testnet -- --simple-mode`
-  - Set environment: `BSC_SIMPLE_MODE=true npm run deploy:bsc-testnet`
+  - Use simple mode: `npm run deploy:<network> -- --simple-mode`
+  - Set environment: `SIMPLE_MODE=true npm run deploy:<network>`
   - Force standard mode: `FORCE_STANDARD_MODE=true npm run deploy:<network>`
+  - BSC legacy support: `BSC_SIMPLE_MODE=true` still works for backward compatibility
 
 ### Error Recovery
 
@@ -367,11 +383,11 @@ npm run deploy:<network> -- --dry-run
 # Skip proxy upgrades
 npm run deploy:<network> -- --skip-upgrade
 
-# Force simple mode (BSC optimization)
+# Force simple mode (skip infrastructure contracts)
 npm run deploy:<network> -- --simple-mode
 
 # Combine multiple options
-npm run deploy:bsc-testnet -- --debug --skip-upgrade --simple-mode
+npm run deploy:<network> -- --debug --skip-upgrade --simple-mode
 ```
 
 ## Cross-Tier Configuration
@@ -422,7 +438,8 @@ Do you want to continue? (yes/no):
 | `npm run deploy:base-sepolia` | Deploy to Base Sepolia |
 | `npm run deploy:optimism-sepolia` | Deploy to Optimism Sepolia |
 | `npm run deploy:sapphire-mainnet` | Deploy to Oasis Sapphire |
-| `npm run deploy:akashic-mainnet` | Deploy to Akashic |
+| `npm run deploy:akashic-mainnet` | Deploy to Akashic Mainnet |
+| `npm run deploy:akashic-testnet` | Deploy to Akashic Testnet |
 
 ### Setup Commands
 
@@ -454,6 +471,9 @@ Do you want to continue? (yes/no):
 | `CROSS_TIER_OK` | Allow cross-tier config | `0` |
 | `CI` | Skip interactive prompts | `false` |
 | `GOVERNANCE_VAULT` | Override governance address | Chain config |
+| `SIMPLE_MODE` | Skip infrastructure contracts | `false` |
+| `BSC_SIMPLE_MODE` | Legacy: Skip infrastructure (BSC) | `false` |
+| `FORCE_STANDARD_MODE` | Force full deployment | `false` |
 
 ## Best Practices
 
@@ -528,17 +548,20 @@ cp .env.example .env
 
 ## Supported Networks
 
-| Network                    | Chain ID | Network Name     | LayerZero | Celer IM | Hyperlane | RPC Endpoint                                    |
-| -------------------------- | -------- | ---------------- | --------- | -------- | --------- | ----------------------------------------------- |
-| **BSC Mainnet**            | 56       | bsc-mainnet      |           |          |     | https://bsc-dataseed.binance.org/               |
-| **BSC Testnet**            | 97       | bsc-testnet      |           |          |     | https://data-seed-prebsc-1-s1.binance.org:8545/ |
-| **Base Mainnet**           | 8453     | base-mainnet     |           |          |     | https://mainnet.base.org                        |
-| **Base Sepolia**           | 84532    | base-sepolia     |           |          |     | https://sepolia.base.org                        |
-| **Optimism Mainnet**       | 10       | op-mainnet       |           |          |     | https://mainnet.optimism.io                     |
-| **Optimism Sepolia**       | 11155420 | op-sepolia       |           |          |     | https://sepolia.optimism.io                     |
-| **Oasis Sapphire**         | 23295    | sapphire         |           |          |     | https://sapphire.oasis.io                       |
-| **Oasis Sapphire Testnet** | 23295    | sapphire-testnet |           |          |     | https://testnet.sapphire.oasis.io               |
+| Network                    | Chain ID | Network Name     | LayerZero       | Celer IM | Hyperlane | RPC Endpoint                                    |
+| -------------------------- | -------- | ---------------- | --------------- | -------- | --------- | ----------------------------------------------- |
+| **BSC Mainnet**            | 56       | bsc-mainnet      | ✓ (dual)        | ✓        | Planned   | https://bsc-dataseed.binance.org/               |
+| **BSC Testnet**            | 97       | bsc-testnet      | ✓ (dual)        | ✓        | Planned   | https://data-seed-prebsc-1-s1.binance.org:8545/ |
+| **Base Mainnet**           | 8453     | base-mainnet     | ✓ (dual)        | ✗        | Planned   | https://mainnet.base.org                        |
+| **Base Sepolia**           | 84532    | base-sepolia     | ✓ (dual)        | ✗        | Planned   | https://sepolia.base.org                        |
+| **Optimism Mainnet**       | 10       | op-mainnet       | ✓ (dual)        | ✓        | Planned   | https://mainnet.optimism.io                     |
+| **Optimism Sepolia**       | 11155420 | op-sepolia       | ✓ (dual)        | ✓        | Planned   | https://sepolia.optimism.io                     |
+| **Oasis Sapphire**         | 23295    | sapphire         | ✗               | ✓        | ✗         | https://sapphire.oasis.io                       |
+| **Oasis Sapphire Testnet** | 23295    | sapphire-testnet | ✗               | ✓        | ✗         | https://testnet.sapphire.oasis.io               |
+| **Akashic Mainnet**        | 9070     | akashic-mainnet  | ✗               | ✗        | Planned   | https://rpc-mainnet.akashicrecords.io           |
+| **Akashic Testnet**        | 9071     | akashic-testnet  | ✗               | ✗        | Planned   | https://rpc-testnet.akashicrecords.io           |
 
+**Note**: Hyperlane infrastructure is planned but not yet deployed. LookCard will deploy and operate a complete self-hosted Hyperlane stack when ready.
 ### LayerZero Endpoints
 
 - BSC Mainnet: `0x1a44076050125825900e736c501f859c50fE728c`
@@ -558,6 +581,25 @@ cp .env.example .env
 - Optimism Sepolia: Not supported on testnet
 - Oasis Sapphire: `0x9Bb46D5100d2Db4608112026951c9C965b233f4D`
 - Oasis Sapphire Testnet: `0x9Bb46D5100d2Db4608112026951c9C965b233f4D`
+
+### Hyperlane Infrastructure (Planned - Not Yet Deployed)
+
+**⚠️ Note**: Hyperlane infrastructure is planned but not yet deployed. All addresses below are placeholders for future self-hosted deployment.
+
+**Planned Self-Hosted Mailboxes**:
+- BSC Mainnet: To be deployed
+- BSC Testnet: To be deployed  
+- Base Mainnet: To be deployed
+- Base Sepolia: To be deployed
+- Optimism Mainnet: To be deployed
+- Optimism Sepolia: To be deployed
+- Akashic Mainnet: To be deployed
+- Akashic Testnet: To be deployed
+
+**Planned Self-Hosted Gas Paymasters**:
+- All networks: To be deployed as part of complete self-hosted infrastructure
+
+**Deployment Timeline**: Infrastructure setup is pending. Updates will be provided when deployment begins.
 
 ## Deployment File Naming Convention
 
@@ -664,6 +706,9 @@ npm run deploy:op-sepolia
 # Oasis Sapphire Testnet (Chain ID: 23295)
 npm run deploy:sapphire-testnet
 
+# Akashic Testnet (Chain ID: 9071)
+npm run deploy:akashic-testnet
+
 ```
 
 ### Mainnet Deployments
@@ -680,6 +725,9 @@ npm run deploy:op-mainnet
 
 # Oasis Sapphire (Chain ID: 23295)
 npm run deploy:sapphire
+
+# Akashic Mainnet (Chain ID: 9070)
+npm run deploy:akashic
 
 ```
 
@@ -757,15 +805,38 @@ The configuration script (`scripts/configure.ts`) performs:
 - Registers remote module addresses on each Celer-enabled chain
 - Sets message fees (typically 0.001 ETH equivalent)
 - Configures chain ID mappings (BSC: 56, Optimism: 10, Sapphire: 23295)
-- Bridge fee structure: 0.1% (10 basis points), minimum 1 LOOK, maximum 100 LOOK
+- Bridge fee structure: 0.5% (50 basis points), minimum 10 LOOK, maximum 1000 LOOK
 
-### 3. Hyperlane Configuration
+### 3. Hyperlane Configuration (Planned - Not Yet Implemented)
 
-- Configures mailbox addresses for message passing
-- Sets up trusted senders from other Hyperlane-enabled chains
-- Configures domain mappings (BSC: 56, Base: 8453, Optimism: 10)
-- Sets up ISM (Interchain Security Module) parameters
-- Configures gas payment settings for cross-chain messages
+**Status**: Hyperlane infrastructure is planned but not yet deployed.
+
+**When Available**, the configuration will include:
+- Self-hosted mailbox addresses for message passing
+- Trusted senders from other LookCard-deployed Hyperlane chains
+- Domain mappings (BSC: 56, Base: 8453, Optimism: 10, Akashic: 9070)
+- Custom ISM (Interchain Security Module) parameters
+- Self-hosted gas payment settings for cross-chain messages
+
+#### Planned Self-Hosted Hyperlane Infrastructure
+
+LookCard plans to deploy a complete self-hosted Hyperlane infrastructure across all supported chains:
+
+**Planned Architecture**:
+- **Self-Hosted Mailboxes**: LookCard-deployed mailbox contracts on all chains
+- **Custom Relayers**: Dedicated relayer infrastructure for optimal performance
+- **Custom Warp Routes**: Tailored warp route configuration for LOOK token
+- **Controlled Security**: LookCard-managed validator set and ISM configuration
+- **Optimized Gas**: Self-hosted gas paymasters with predictable fee structure
+
+**Expected Benefits**:
+- Enhanced performance and reliability (faster settlement times)
+- Full control over security parameters and validator selection
+- Optimized gas costs and fee structure
+- No dependency on third-party relayer availability
+- Custom features specific to LookCard ecosystem requirements
+
+**Timeline**: Infrastructure deployment is pending. Updates will be provided when setup begins.
 
 ### 4. Supply Oracle Setup
 

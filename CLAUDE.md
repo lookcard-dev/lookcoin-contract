@@ -12,10 +12,17 @@ LookCoin Contract is the smart contract repository for LookCoin (LOOK), the omni
 
 ```
 contracts/
-├── LookCoin.sol              # Main ERC20 token contract (UUPS upgradeable)
+├── LookCoin.sol              # Main ERC20 token contract with LayerZero OFT V2 (UUPS upgradeable)
 ├── bridges/                  # Cross-chain bridge implementations
-│   ├── CelerIMModule.sol     # Celer Inter-chain Messaging (lock-and-mint)
+│   ├── LayerZeroModule.sol   # LayerZero V2 bridge module (burn-and-mint)
+│   ├── CelerIMModule.sol     # Celer Inter-chain Messaging (burn-and-mint)
+│   ├── HyperlaneModule.sol   # Hyperlane bridge module (burn-and-mint)
 │   └── IBCModule.sol         # IBC Protocol for Cosmos ecosystem
+├── xchain/                   # Cross-chain infrastructure
+│   ├── CrossChainRouter.sol  # Unified router for multi-protocol bridging
+│   ├── FeeManager.sol        # Protocol-specific fee management
+│   ├── SecurityManager.sol   # Rate limiting and security controls
+│   └── ProtocolRegistry.sol  # Protocol registration and tracking
 └── security/                 # Security infrastructure
     ├── RateLimiter.sol       # Rate limiting with sliding window algorithm
     └── SupplyOracle.sol      # Cross-chain supply monitoring and reconciliation
@@ -24,9 +31,12 @@ contracts/
 ### Key Technical Features
 
 - **Upgradeable Design**: UUPS proxy pattern with OpenZeppelin contracts
-- **Triple-Bridge Architecture**: LayerZero (burn-and-mint), Celer IM (lock-and-mint), IBC (Cosmos)
+- **Native OFT V2**: LookCoin implements LayerZero OFT V2 standard directly for optimal gas efficiency
+- **Multi-Bridge Architecture**: All protocols use burn-and-mint mechanism for unified liquidity
+- **Dual-Path Support**: LayerZero can be used directly via LookCoin or through CrossChainRouter
 - **Role-Based Access Control**: Granular permissions with AccessControl
-- **Rate Limiting**: 500K tokens per transaction, 3 transactions per hour per account
+- **Production Safety**: Validates remote addresses and reverts if destination chain not configured
+- **Enforced Gas Options**: Configurable minimum gas per destination chain
 - **Emergency Controls**: Pause capability with emergency recovery procedures
 - **Supply Reconciliation**: 15-minute monitoring cycles to detect cross-chain anomalies
 
@@ -69,7 +79,7 @@ LookCoin uses a three-stage deployment process:
 Creates contracts and deployment artifacts on a single network:
 
 ```bash
-# Deploy to specific networks
+# Deploy to specific networks (full infrastructure)
 npm run deploy:bsc-testnet
 npm run deploy:bsc-mainnet
 npm run deploy:base-sepolia
@@ -77,6 +87,10 @@ npm run deploy:base-mainnet
 npm run deploy:op-sepolia
 npm run deploy:op-mainnet
 npm run deploy:akashic-mainnet
+
+# Standalone LookCoin deployment (OFT only, no additional infrastructure)
+npm run deploy:lookcoin-only        # Deploy only LookCoin contract as OFT
+npm run configure:lookcoin-only     # Configure trusted remotes for standalone deployment
 ```
 
 #### Stage 2: Setup
@@ -150,9 +164,10 @@ npm run test:security
 
 ### Bridge Operations
 
-1. **LayerZero OFT V2**: Burn-and-mint mechanism for Base
-2. **Celer IM**: Lock-and-mint mechanism for Optimism
-3. **IBC Protocol**: Native Cosmos interoperability for Akashic
+1. **LayerZero OFT V2**: Native burn-and-mint with dual-path support (direct OFT or via CrossChainRouter)
+2. **Celer IM**: Burn-and-mint mechanism via CelerIMModule
+3. **Hyperlane**: Burn-and-mint mechanism via HyperlaneModule
+4. **IBC Protocol**: Native Cosmos interoperability for Akashic
 
 ## Security Patterns
 

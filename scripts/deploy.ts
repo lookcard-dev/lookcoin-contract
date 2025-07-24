@@ -57,8 +57,10 @@ async function main() {
   const skipUpgrade = args.includes("--skip-upgrade") || process.env.SKIP_UPGRADE_CHECK === "true";
   const simpleMode =
     args.includes("--simple-mode") ||
-    process.env.BSC_SIMPLE_MODE === "true" ||
-    process.env.FORCE_STANDARD_MODE === "true";
+    process.env.SIMPLE_MODE === "true" ||
+    process.env.BSC_SIMPLE_MODE === "true"; // Keep BSC_SIMPLE_MODE for backward compatibility
+  
+  const forceStandardMode = process.env.FORCE_STANDARD_MODE === "true";
 
   // Get governance vault from non-flag arguments or config
   const governanceVaultArg = args.find((arg) => !arg.startsWith("--"));
@@ -187,16 +189,16 @@ async function main() {
   console.log("Supported protocols:", protocolSupport.protocols);
 
   // Determine deployment mode with simple mode override
-  const deploymentMode = simpleMode ? "standard" : DeploymentOrchestrator.determineDeploymentMode(protocolSupport);
+  const deploymentMode = simpleMode && !forceStandardMode ? "standard" : DeploymentOrchestrator.determineDeploymentMode(protocolSupport);
 
-  // BSC optimization check
-  if ((!simpleMode && chainId === 56) || chainId === 97) {
-    // BSC mainnet or testnet
+  // Multi-protocol optimization check for all chains
+  if (!simpleMode && !forceStandardMode) {
     const isMultiProtocol = protocolSupport.protocols.length > 1;
     if (isMultiProtocol) {
-      console.log("\n🔍 BSC Multi-Protocol Deployment Detected");
+      console.log("\n🔍 Multi-Protocol Deployment Detected");
       console.log("   You can deploy in simple mode for faster single-chain development.");
-      console.log("   Use --simple-mode flag or set BSC_SIMPLE_MODE=true to skip infrastructure contracts.");
+      console.log("   Use --simple-mode flag or set SIMPLE_MODE=true to skip infrastructure contracts.");
+      console.log("   This will deploy only the core token and protocol modules without the router infrastructure.");
     }
   }
 
@@ -208,7 +210,7 @@ async function main() {
     deployer: deployer.address,
     deploymentName: networkName,
     existingDeployment,
-    forceStandardMode: simpleMode,
+    forceStandardMode: forceStandardMode,
   };
 
   if (isDryRun) {
@@ -262,13 +264,14 @@ async function main() {
   }
 
   // Deploy infrastructure for multi-protocol mode (unless in simple mode)
-  if (deploymentMode === "multi-protocol" && !simpleMode) {
+  if (deploymentMode === "multi-protocol" && !simpleMode && !forceStandardMode) {
     console.log("\n🏗️ Deploying infrastructure contracts...");
     const infraContracts = await DeploymentOrchestrator.deployInfrastructure(deploymentConfig);
     deployment.infrastructureContracts = infraContracts;
-  } else if (deploymentMode === "multi-protocol" && simpleMode) {
+  } else if (deploymentMode === "multi-protocol" && simpleMode && !forceStandardMode) {
     console.log("\n⚡ Skipping infrastructure contracts (simple mode enabled)");
-    console.log("   Infrastructure contracts are not required for single-chain operation.");
+    console.log("   Infrastructure contracts (Router, FeeManager, etc.) are not required for single-chain operation.");
+    console.log("   You can still use direct protocol calls without the unified router interface.");
   }
 
   // Set deployment mode
