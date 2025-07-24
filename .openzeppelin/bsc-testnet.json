@@ -175,6 +175,51 @@
       "address": "0xBb95A79F9d78fb12e534d38347238BCC085A2b19",
       "txHash": "0xbc3bd2d101d37d356e488a58ee6173d2621560c14e421a926a67d63446692961",
       "kind": "uups"
+    },
+    {
+      "address": "0xB8B7604628F37D611e82D22609ACE0Ca01A14e2D",
+      "txHash": "0x9abd5a10f614b2971e6d2e4f888c48ad8c530cae6a15f7f49b153a3a69e8a5b8",
+      "kind": "uups"
+    },
+    {
+      "address": "0xd6f310c307a6FF8163A94984163D541b66077004",
+      "txHash": "0xa44556fff208649d2c5e1f54ba3ea7016c7a75ca9cf8c3a9a7c521566333901e",
+      "kind": "uups"
+    },
+    {
+      "address": "0x69e6AF742E4a3E4d8494FDA6F181E263fB77f741",
+      "txHash": "0xaa12ca63ffb3ac0925754b0a442356891bfa54ed0d82984ff9c60844a0df6da3",
+      "kind": "uups"
+    },
+    {
+      "address": "0x03E823BE92A2526083681075430b1fd6D486D046",
+      "txHash": "0x02e6b7097d2cc071d4770cd09468a90d4dd5d1147598ff0c151e150b8ccd3470",
+      "kind": "uups"
+    },
+    {
+      "address": "0x7C5e6ECE7BBb198fc59Abd98891305eE858aA2e9",
+      "txHash": "0x8611cbf85183ba70d4fb42257f6e68fe37d5a3ddd2d876bab8b7aa86dc1c67ec",
+      "kind": "uups"
+    },
+    {
+      "address": "0x79b98fCecED2A468bB98FCB77c3b634af9C19978",
+      "txHash": "0xb67d4db1d10ea7c647e55eeca421887a10a82a096c86666a5a81f1597bab4537",
+      "kind": "uups"
+    },
+    {
+      "address": "0x04001c7bE59A7e0F3F7b981eC4D0cbE59e56B0E1",
+      "txHash": "0xb7c2ca7ce039385b49db628f9a1c5e2a49834e323535d850bb32433ce2655f57",
+      "kind": "uups"
+    },
+    {
+      "address": "0x97D543565Ab7CC09bd6643bFeD38Db56894BBAb8",
+      "txHash": "0xb455ac8c42e267ba1933ba049dfe55082f42d3440d89020f8be3c1ce00da6bbc",
+      "kind": "uups"
+    },
+    {
+      "address": "0x062e72413720Fd97310E7A787284b39af9d4Ea18",
+      "txHash": "0xff7b59edafbc427f7ac7d259f07c18fe3d8e0465af8fe24b6420e56d4c082037",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -4325,7 +4370,7 @@
             "label": "protocols",
             "offset": 0,
             "slot": "0",
-            "type": "t_mapping(t_enum(Protocol)5548,t_struct(ProtocolInfo)7937_storage)",
+            "type": "t_mapping(t_enum(Protocol)9297,t_struct(ProtocolInfo)13437_storage)",
             "contract": "ProtocolRegistry",
             "src": "contracts/xchain/ProtocolRegistry.sol:27"
           },
@@ -4333,7 +4378,7 @@
             "label": "chainSupport",
             "offset": 0,
             "slot": "1",
-            "type": "t_mapping(t_enum(Protocol)5548,t_mapping(t_uint256,t_struct(ChainSupport)7944_storage))",
+            "type": "t_mapping(t_enum(Protocol)9297,t_mapping(t_uint256,t_struct(ChainSupport)13444_storage))",
             "contract": "ProtocolRegistry",
             "src": "contracts/xchain/ProtocolRegistry.sol:28"
           },
@@ -4341,7 +4386,7 @@
             "label": "protocolConfigs",
             "offset": 0,
             "slot": "2",
-            "type": "t_mapping(t_enum(Protocol)5548,t_bytes_storage)",
+            "type": "t_mapping(t_enum(Protocol)9297,t_bytes_storage)",
             "contract": "ProtocolRegistry",
             "src": "contracts/xchain/ProtocolRegistry.sol:29"
           },
@@ -4435,7 +4480,7 @@
             "label": "bytes",
             "numberOfBytes": "32"
           },
-          "t_enum(Protocol)5548": {
+          "t_enum(Protocol)9297": {
             "label": "enum ICrossChainRouter.Protocol",
             "members": [
               "LayerZero",
@@ -4444,19 +4489,19 @@
             ],
             "numberOfBytes": "1"
           },
-          "t_mapping(t_enum(Protocol)5548,t_bytes_storage)": {
+          "t_mapping(t_enum(Protocol)9297,t_bytes_storage)": {
             "label": "mapping(enum ICrossChainRouter.Protocol => bytes)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_enum(Protocol)5548,t_mapping(t_uint256,t_struct(ChainSupport)7944_storage))": {
+          "t_mapping(t_enum(Protocol)9297,t_mapping(t_uint256,t_struct(ChainSupport)13444_storage))": {
             "label": "mapping(enum ICrossChainRouter.Protocol => mapping(uint256 => struct ProtocolRegistry.ChainSupport))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_enum(Protocol)5548,t_struct(ProtocolInfo)7937_storage)": {
+          "t_mapping(t_enum(Protocol)9297,t_struct(ProtocolInfo)13437_storage)": {
             "label": "mapping(enum ICrossChainRouter.Protocol => struct ProtocolRegistry.ProtocolInfo)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(ChainSupport)7944_storage)": {
+          "t_mapping(t_uint256,t_struct(ChainSupport)13444_storage)": {
             "label": "mapping(uint256 => struct ProtocolRegistry.ChainSupport)",
             "numberOfBytes": "32"
           },
@@ -4464,7 +4509,7 @@
             "label": "string",
             "numberOfBytes": "32"
           },
-          "t_struct(ChainSupport)7944_storage": {
+          "t_struct(ChainSupport)13444_storage": {
             "label": "struct ProtocolRegistry.ChainSupport",
             "members": [
               {
@@ -4488,7 +4533,7 @@
             ],
             "numberOfBytes": "96"
           },
-          "t_struct(ProtocolInfo)7937_storage": {
+          "t_struct(ProtocolInfo)13437_storage": {
             "label": "struct ProtocolRegistry.ProtocolInfo",
             "members": [
               {
@@ -4577,7 +4622,7 @@
             "label": "protocolModules",
             "offset": 0,
             "slot": "0",
-            "type": "t_mapping(t_enum(Protocol)5548,t_address)",
+            "type": "t_mapping(t_enum(Protocol)7138,t_address)",
             "contract": "FeeManager",
             "src": "contracts/xchain/FeeManager.sol:24"
           },
@@ -4585,7 +4630,7 @@
             "label": "feeCache",
             "offset": 0,
             "slot": "1",
-            "type": "t_mapping(t_uint256,t_mapping(t_enum(Protocol)5548,t_struct(FeeCache)7368_storage))",
+            "type": "t_mapping(t_uint256,t_mapping(t_enum(Protocol)7138,t_struct(FeeCache)8789_storage))",
             "contract": "FeeManager",
             "src": "contracts/xchain/FeeManager.sol:25"
           },
@@ -4593,7 +4638,7 @@
             "label": "chainGasPrices",
             "offset": 0,
             "slot": "2",
-            "type": "t_mapping(t_uint256,t_struct(ChainGasPrice)7373_storage)",
+            "type": "t_mapping(t_uint256,t_struct(ChainGasPrice)8794_storage)",
             "contract": "FeeManager",
             "src": "contracts/xchain/FeeManager.sol:26"
           },
@@ -4601,7 +4646,7 @@
             "label": "protocolMultipliers",
             "offset": 0,
             "slot": "3",
-            "type": "t_mapping(t_enum(Protocol)5548,t_uint256)",
+            "type": "t_mapping(t_enum(Protocol)7138,t_uint256)",
             "contract": "FeeManager",
             "src": "contracts/xchain/FeeManager.sol:31"
           },
@@ -4609,7 +4654,7 @@
             "label": "protocolBaseFees",
             "offset": 0,
             "slot": "4",
-            "type": "t_mapping(t_enum(Protocol)5548,t_uint256)",
+            "type": "t_mapping(t_enum(Protocol)7138,t_uint256)",
             "contract": "FeeManager",
             "src": "contracts/xchain/FeeManager.sol:32"
           },
@@ -4699,7 +4744,7 @@
             "label": "uint256[50]",
             "numberOfBytes": "1600"
           },
-          "t_enum(Protocol)5548": {
+          "t_enum(Protocol)7138": {
             "label": "enum ICrossChainRouter.Protocol",
             "members": [
               "LayerZero",
@@ -4708,27 +4753,27 @@
             ],
             "numberOfBytes": "1"
           },
-          "t_mapping(t_enum(Protocol)5548,t_address)": {
+          "t_mapping(t_enum(Protocol)7138,t_address)": {
             "label": "mapping(enum ICrossChainRouter.Protocol => address)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_enum(Protocol)5548,t_struct(FeeCache)7368_storage)": {
+          "t_mapping(t_enum(Protocol)7138,t_struct(FeeCache)8789_storage)": {
             "label": "mapping(enum ICrossChainRouter.Protocol => struct FeeManager.FeeCache)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_enum(Protocol)5548,t_uint256)": {
+          "t_mapping(t_enum(Protocol)7138,t_uint256)": {
             "label": "mapping(enum ICrossChainRouter.Protocol => uint256)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_mapping(t_enum(Protocol)5548,t_struct(FeeCache)7368_storage))": {
+          "t_mapping(t_uint256,t_mapping(t_enum(Protocol)7138,t_struct(FeeCache)8789_storage))": {
             "label": "mapping(uint256 => mapping(enum ICrossChainRouter.Protocol => struct FeeManager.FeeCache))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(ChainGasPrice)7373_storage)": {
+          "t_mapping(t_uint256,t_struct(ChainGasPrice)8794_storage)": {
             "label": "mapping(uint256 => struct FeeManager.ChainGasPrice)",
             "numberOfBytes": "32"
           },
-          "t_struct(ChainGasPrice)7373_storage": {
+          "t_struct(ChainGasPrice)8794_storage": {
             "label": "struct FeeManager.ChainGasPrice",
             "members": [
               {
@@ -4746,7 +4791,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(FeeCache)7368_storage": {
+          "t_struct(FeeCache)8789_storage": {
             "label": "struct FeeManager.FeeCache",
             "members": [
               {

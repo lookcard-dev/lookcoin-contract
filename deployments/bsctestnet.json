@@ -2,8 +2,8 @@
   "network": "bsctestnet",
   "chainId": 97,
   "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
-  "timestamp": "2025-07-24T11:29:05.687Z",
-  "deploymentMode": "multi-protocol",
+  "timestamp": "2025-07-24T11:43:30.772Z",
+  "deploymentMode": "standard",
   "protocolsDeployed": [
     "layerZero",
     "celer",
@@ -11,15 +11,15 @@
   ],
   "contracts": {
     "LookCoin": {
-      "proxy": "0x9a9c4f58F46A5BDEc923634579a98Cb1c3c94fE4",
+      "proxy": "0xB8B7604628F37D611e82D22609ACE0Ca01A14e2D",
       "implementation": "0x1FAdB06eb9552F60b86eA564119ABc2fC8c42b3f"
     },
     "SupplyOracle": {
-      "proxy": "0xF1fFe5f27e5955df3d8ce07c348E04F02b44ca52",
+      "proxy": "0xd6f310c307a6FF8163A94984163D541b66077004",
       "implementation": "0x6E54Fc6936c01D1c53f7E3A9C69922D74085134F"
     },
     "CelerIMModule": {
-      "proxy": "0x5b3B31aBeA5cf7296CA57f6005411f23F20b496B",
+      "proxy": "0x03E823BE92A2526083681075430b1fd6D486D046",
       "implementation": "0xf0C4c6548E6d734D0CDfc51B219B25973Bd3Fa66"
     }
   },
@@ -33,16 +33,16 @@
     "SupplyOracle": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
     "CelerIMModule": "0x80de82a732caf2ac089fc5f751503bc4a56d5b20f6423db9335247b1c48e48a5"
   },
-  "lastDeployed": "2025-07-24T11:29:05.687Z",
+  "lastDeployed": "2025-07-24T11:43:30.772Z",
   "protocolContracts": {
-    "layerZeroModule": "0x27603D3F53385cEE91a7CcCb0612Db670Ed5f3dF",
-    "celerIMModule": "0x5b3B31aBeA5cf7296CA57f6005411f23F20b496B",
-    "hyperlaneModule": "0xbef5c2Ed56aa88e75591E0603bA6B2269eDbB328"
+    "layerZeroModule": "0x69e6AF742E4a3E4d8494FDA6F181E263fB77f741",
+    "celerIMModule": "0x03E823BE92A2526083681075430b1fd6D486D046",
+    "hyperlaneModule": "0x7C5e6ECE7BBb198fc59Abd98891305eE858aA2e9"
   },
   "infrastructureContracts": {
-    "crossChainRouter": "0xBb95A79F9d78fb12e534d38347238BCC085A2b19",
-    "feeManager": "0xba5bC30B1A78ac61880a2311aEeE4f91aa3f2896",
-    "securityManager": "0x673dfB3c8c4d4B2157a47d382569a19D1513f10A",
-    "protocolRegistry": "0x054e9dC816e5bdE872115E1a8456eC571708c540"
+    "crossChainRouter": "0x062e72413720Fd97310E7A787284b39af9d4Ea18",
+    "feeManager": "0x04001c7bE59A7e0F3F7b981eC4D0cbE59e56B0E1",
+    "securityManager": "0x97D543565Ab7CC09bd6643bFeD38Db56894BBAb8",
+    "protocolRegistry": "0x79b98fCecED2A468bB98FCB77c3b634af9C19978"
   }
 }

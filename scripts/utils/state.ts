@@ -95,11 +95,16 @@ export async function fetchDeployOrUpgradeProxy<T extends Contract>(
 
   console.log(`⌛️ Processing ${contractName}...`);
 
-  // Get the contract factory
+  // Get the contract factory and deployed bytecode
   const factory = await ethers.getContractFactory(contractName);
-  const factoryBytecodeHash = getBytecodeHash(factory.bytecode);
+  
+  // For upgradeable contracts, compare deployed (runtime) bytecode, not creation bytecode
+  const artifact = await hre.artifacts.readArtifact(contractName);
+  const bytecodeToCompare = artifact.deployedBytecode || factory.bytecode;
+  const factoryBytecodeHash = getBytecodeHash(bytecodeToCompare);
 
   if (isDebug) {
+    console.log(`[DEBUG] ${contractName} using ${artifact.deployedBytecode ? 'deployed' : 'creation'} bytecode for comparison`);
     console.log(`[DEBUG] ${contractName} factory bytecode hash: ${factoryBytecodeHash}`);
   }
 
