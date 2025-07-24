@@ -1,7 +1,13 @@
 import hre from "hardhat";
 import { ethers, upgrades } from "hardhat";
 import { getChainConfig, getNetworkName } from "../hardhat.config";
-import { loadDeployment, saveDeployment, getBytecodeHash, Deployment, validateDeploymentFormat } from "./utils/deployment";
+import {
+  loadDeployment,
+  saveDeployment,
+  getBytecodeHash,
+  Deployment,
+  validateDeploymentFormat,
+} from "./utils/deployment";
 import { ProtocolDetector } from "./utils/protocolDetector";
 import { DeploymentOrchestrator, DeploymentConfig } from "./utils/deploymentOrchestrator";
 import fs from "fs";
@@ -10,7 +16,7 @@ import path from "path";
 // Deployment state management
 interface DeploymentStep {
   name: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  status: "pending" | "in_progress" | "completed" | "failed";
   contractAddress?: string;
   transactionHash?: string;
   error?: string;
@@ -32,79 +38,50 @@ function saveDeploymentState(state: DeploymentState) {
   if (!fs.existsSync(stateDir)) {
     fs.mkdirSync(stateDir, { recursive: true });
   }
-  
+
   const statePath = path.join(stateDir, `${state.network}-${Date.now()}.json`);
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
-  
+
   // Also save as latest
   const latestPath = path.join(stateDir, `${state.network}-latest.json`);
   fs.writeFileSync(latestPath, JSON.stringify(state, null, 2));
-  
+
   return statePath;
 }
 
-// // Load latest deployment state
-// function loadDeploymentState(network: string): DeploymentState | null {
-//   const latestPath = path.join(__dirname, `../deployments/.state/${network}-latest.json`);
-//   if (fs.existsSync(latestPath)) {
-//     return JSON.parse(fs.readFileSync(latestPath, 'utf8'));
-//   }
-//   return null;
-// }
-
-// // Wait for transaction with timeout
-// async function waitForTransaction(hash: string, confirmations = 2, timeoutMs = 300000) {
-//   const provider = ethers.provider;
-//   const startTime = Date.now();
-  
-//   while (Date.now() - startTime < timeoutMs) {
-//     try {
-//       const receipt = await provider.waitForTransaction(hash, confirmations);
-//       if (receipt && receipt.status === 1) {
-//         return receipt;
-//       } else if (receipt && receipt.status === 0) {
-//         throw new Error("Transaction failed");
-//       }
-//     } catch (error) {
-//       if (Date.now() - startTime >= timeoutMs) {
-//         throw new Error(`Transaction timeout after ${timeoutMs}ms`);
-//       }
-//       // Continue waiting
-//       await new Promise(resolve => setTimeout(resolve, 5000));
-//     }
-//   }
-  
-//   throw new Error(`Transaction timeout after ${timeoutMs}ms`);
-// }
-
-// // Retry logic with exponential backoff
-// async function retryWithBackoff<T>(
-//   fn: () => Promise<T>,
-//   maxRetries = 3,
-//   initialDelay = 1000
-// ): Promise<T> {
-//   let lastError: any;
-  
-//   for (let i = 0; i < maxRetries; i++) {
-//     try {
-//       return await fn();
-//     } catch (error) {
-//       lastError = error;
-//       console.log(`Attempt ${i + 1} failed: ${error}`);
-      
-//       if (i < maxRetries - 1) {
-//         const delay = initialDelay * Math.pow(2, i);
-//         console.log(`Retrying in ${delay}ms...`);
-//         await new Promise(resolve => setTimeout(resolve, delay));
-//       }
-//     }
-//   }
-  
-//   throw lastError;
-// }
-
 async function main() {
+  // Parse command line options
+  const args = process.argv.slice(2);
+  const isDebug = args.includes("--debug") || process.env.DEBUG_DEPLOYMENT === "true";
+  const isDryRun = args.includes("--dry-run");
+  const skipUpgrade = args.includes("--skip-upgrade") || process.env.SKIP_UPGRADE_CHECK === "true";
+  const simpleMode =
+    args.includes("--simple-mode") ||
+    process.env.BSC_SIMPLE_MODE === "true" ||
+    process.env.FORCE_STANDARD_MODE === "true";
+
+  // Get governance vault from non-flag arguments or config
+  const governanceVaultArg = args.find((arg) => !arg.startsWith("--"));
+
+  if (isDebug) {
+    console.log("[DEBUG] Command line options:");
+    console.log("[DEBUG]   - Debug mode:", isDebug);
+    console.log("[DEBUG]   - Dry run:", isDryRun);
+    console.log("[DEBUG]   - Skip upgrade:", skipUpgrade);
+    console.log("[DEBUG]   - Simple mode:", simpleMode);
+  }
+
   console.log("Starting LookCoin deployment with enhanced safety features...");
+
+  if (isDryRun) {
+    console.log("🔍 DRY RUN MODE - No actual deployment will occur");
+  }
+  if (skipUpgrade) {
+    console.log("⚠️  SKIP UPGRADE MODE - Proxy upgrades will be skipped");
+  }
+  if (simpleMode) {
+    console.log("🚀 SIMPLE MODE - Infrastructure contracts will be skipped");
+  }
 
   const [deployer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
@@ -112,14 +89,29 @@ async function main() {
 
   console.log(`Deploying on chain ${chainId} with account: ${deployer.address}`);
   console.log(`Account balance: ${ethers.formatEther(await ethers.provider.getBalance(deployer.address))} ETH`);
-  
-  // Check network connectivity
-  try {
-    const blockNumber = await ethers.provider.getBlockNumber();
-    console.log(`Connected to network at block ${blockNumber}`);
-  } catch (error) {
-    console.error("❌ Network connectivity check failed:", error);
-    throw new Error("Cannot connect to network");
+
+  // Check network connectivity with retry
+  let blockNumber: number;
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      blockNumber = await ethers.provider.getBlockNumber();
+      console.log(`Connected to network at block ${blockNumber}`);
+      break;
+    } catch (error) {
+      retries--;
+      if (retries === 0) {
+        console.error("❌ Network connectivity check failed after 3 attempts:", error);
+        console.error("\n💡 Troubleshooting tips:");
+        console.error("   1. Check your internet connection");
+        console.error("   2. Verify RPC URL in .env or hardhat.config.ts");
+        console.error("   3. Ensure the network is not experiencing issues");
+        console.error("   4. Try using a different RPC provider");
+        throw new Error("Cannot connect to network after multiple attempts");
+      }
+      console.warn(`⚠️  Network connection failed, retrying... (${retries} attempts left)`);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
   }
 
   // Get network name and centralized configuration
@@ -127,8 +119,13 @@ async function main() {
   const chainConfig = getChainConfig(networkName.toLowerCase().replace(/\s+/g, ""));
 
   // Get governance vault from centralized config or CLI override
-  const governanceVault = process.argv[2] || chainConfig.governanceVault;
+  const governanceVault = governanceVaultArg || chainConfig.governanceVault;
   if (!governanceVault || governanceVault === "0x0000000000000000000000000000000000000000") {
+    console.error("❌ GOVERNANCE_VAULT address is required but not found!");
+    console.error("\n💡 How to fix:");
+    console.error("   1. Set GOVERNANCE_VAULT in .env file");
+    console.error("   2. Pass as command line argument: npm run deploy:network 0xYourVaultAddress");
+    console.error("   3. Update hardhat.config.ts with your vault address");
     throw new Error("GOVERNANCE_VAULT address is required. Set in hardhat.config.ts or pass as argument.");
   }
 
@@ -151,14 +148,14 @@ async function main() {
     deployer: deployer.address,
     startTime: new Date().toISOString(),
     steps: [
-      { name: "ProtocolDetection", status: 'pending' },
-      { name: "CoreContracts", status: 'pending' },
-      { name: "ProtocolModules", status: 'pending' },
-      { name: "Infrastructure", status: 'pending' }
+      { name: "ProtocolDetection", status: "pending" },
+      { name: "CoreContracts", status: "pending" },
+      { name: "ProtocolModules", status: "pending" },
+      { name: "Infrastructure", status: "pending" },
     ],
-    checkpoint: existingDeployment
+    checkpoint: existingDeployment,
   };
-  
+
   // Save initial state
   const stateFile = saveDeploymentState(deploymentState);
   console.log(`\n📁 Deployment state saved to: ${stateFile}`);
@@ -188,23 +185,43 @@ async function main() {
   console.log("\n🔍 Detecting supported protocols...");
   const protocolSupport = ProtocolDetector.detectSupportedProtocols(chainConfig);
   console.log("Supported protocols:", protocolSupport.protocols);
-  
-  // Determine deployment mode
-  const deploymentMode = DeploymentOrchestrator.determineDeploymentMode(protocolSupport);
+
+  // Determine deployment mode with simple mode override
+  const deploymentMode = simpleMode ? "standard" : DeploymentOrchestrator.determineDeploymentMode(protocolSupport);
+
+  // BSC optimization check
+  if ((!simpleMode && chainId === 56) || chainId === 97) {
+    // BSC mainnet or testnet
+    const isMultiProtocol = protocolSupport.protocols.length > 1;
+    if (isMultiProtocol) {
+      console.log("\n🔍 BSC Multi-Protocol Deployment Detected");
+      console.log("   You can deploy in simple mode for faster single-chain development.");
+      console.log("   Use --simple-mode flag or set BSC_SIMPLE_MODE=true to skip infrastructure contracts.");
+    }
+  }
+
   console.log(`Deployment mode: ${deploymentMode}`);
-  
+
   // Prepare deployment configuration
-  let deploymentConfig: DeploymentConfig = {
+  const deploymentConfig: DeploymentConfig = {
     chainConfig,
     deployer: deployer.address,
     deploymentName: networkName,
-    existingDeployment
+    existingDeployment,
+    forceStandardMode: simpleMode,
   };
-  
+
+  if (isDryRun) {
+    console.log("\n🔍 DRY RUN - Deployment configuration:");
+    console.log(JSON.stringify(deploymentConfig, null, 2));
+    console.log("\n✅ Dry run complete. No contracts were deployed.");
+    process.exit(0);
+  }
+
   // Deploy core contracts
   console.log("\n🚀 Deploying core contracts...");
   const coreContracts = await DeploymentOrchestrator.deployCore(deploymentConfig);
-  
+
   // Update deployment object with core contracts
   deployment.contracts.LookCoin = {
     proxy: coreContracts.lookCoin,
@@ -214,22 +231,22 @@ async function main() {
     proxy: coreContracts.supplyOracle,
     implementation: await upgrades.erc1967.getImplementationAddress(coreContracts.supplyOracle),
   };
-  
+
   // Update deployment config with the newly deployed contracts
   deploymentConfig.existingDeployment = deployment;
-  
+
   // Deploy protocol modules
   const protocolContracts = await DeploymentOrchestrator.deployProtocols(deploymentConfig, coreContracts.lookCoin);
-  
+
   // Update deployment object with protocol contracts
   deployment.protocolContracts = {};
   deployment.protocolsDeployed = [];
-  
+
   if (protocolContracts.layerZeroModule) {
     deployment.protocolContracts.layerZeroModule = protocolContracts.layerZeroModule;
     deployment.protocolsDeployed.push("layerZero");
   }
-  
+
   if (protocolContracts.celerIMModule) {
     deployment.contracts.CelerIMModule = {
       proxy: protocolContracts.celerIMModule,
@@ -238,39 +255,36 @@ async function main() {
     deployment.protocolContracts.celerIMModule = protocolContracts.celerIMModule;
     deployment.protocolsDeployed.push("celer");
   }
-  
-  
-  if (protocolContracts.xerc20Module) {
-    deployment.protocolContracts.xerc20Module = protocolContracts.xerc20Module;
-    deployment.protocolsDeployed.push("xerc20");
-  }
-  
+
   if (protocolContracts.hyperlaneModule) {
     deployment.protocolContracts.hyperlaneModule = protocolContracts.hyperlaneModule;
     deployment.protocolsDeployed.push("hyperlane");
   }
-  
-  // Deploy infrastructure for multi-protocol mode
-  if (deploymentMode === "multi-protocol") {
+
+  // Deploy infrastructure for multi-protocol mode (unless in simple mode)
+  if (deploymentMode === "multi-protocol" && !simpleMode) {
+    console.log("\n🏗️ Deploying infrastructure contracts...");
     const infraContracts = await DeploymentOrchestrator.deployInfrastructure(deploymentConfig);
     deployment.infrastructureContracts = infraContracts;
+  } else if (deploymentMode === "multi-protocol" && simpleMode) {
+    console.log("\n⚡ Skipping infrastructure contracts (simple mode enabled)");
+    console.log("   Infrastructure contracts are not required for single-chain operation.");
   }
-  
+
   // Set deployment mode
   deployment.deploymentMode = deploymentMode;
-  
+
   // Update implementation hashes
   const lookCoinArtifact = await hre.artifacts.readArtifact("LookCoin");
   deployment.implementationHashes!.LookCoin = getBytecodeHash(lookCoinArtifact.deployedBytecode);
-  
+
   const supplyOracleArtifact = await hre.artifacts.readArtifact("SupplyOracle");
   deployment.implementationHashes!.SupplyOracle = getBytecodeHash(supplyOracleArtifact.deployedBytecode);
-  
+
   if (deployment.contracts.CelerIMModule) {
     const celerArtifact = await hre.artifacts.readArtifact("CelerIMModule");
     deployment.implementationHashes!.CelerIMModule = getBytecodeHash(celerArtifact.deployedBytecode);
   }
-  
 
   // Update deployment timestamp
   deployment.timestamp = new Date().toISOString();
@@ -289,14 +303,14 @@ async function main() {
   console.log("\nCore Contracts:");
   console.log(`  - LookCoin: ${deployment.contracts.LookCoin.proxy}`);
   console.log(`  - SupplyOracle: ${deployment.contracts.SupplyOracle.proxy}`);
-  
+
   if (deployment.protocolContracts && Object.keys(deployment.protocolContracts).length > 0) {
     console.log("\nProtocol Modules:");
     for (const [name, address] of Object.entries(deployment.protocolContracts)) {
       console.log(`  - ${name}: ${address}`);
     }
   }
-  
+
   if (deployment.infrastructureContracts && Object.keys(deployment.infrastructureContracts).length > 0) {
     console.log("\nInfrastructure Contracts:");
     for (const [name, address] of Object.entries(deployment.infrastructureContracts)) {
@@ -314,9 +328,11 @@ async function main() {
   console.log(`   npm run setup:${networkName.toLowerCase().replace(/\s+/g, "-")}`);
 
   // Check if cross-chain configuration is available
-  const hasOtherDeployments = fs.existsSync(path.join(__dirname, "../deployments")) && 
-    fs.readdirSync(path.join(__dirname, "../deployments"))
-      .filter(f => f.endsWith(".json") && !f.includes(networkName.toLowerCase())).length > 0;
+  const hasOtherDeployments =
+    fs.existsSync(path.join(__dirname, "../deployments")) &&
+    fs
+      .readdirSync(path.join(__dirname, "../deployments"))
+      .filter((f) => f.endsWith(".json") && !f.includes(networkName.toLowerCase())).length > 0;
 
   if (hasOtherDeployments) {
     console.log(`\n2. Run configure script to set up cross-chain connections:`);
@@ -340,9 +356,9 @@ async function main() {
 
   console.log("\n3. Verify contracts on block explorer:");
   console.log("   npm run verify");
-  
+
   console.log("\n4. Monitor deployment health and set up alerts");
-  
+
   if (deployment.deploymentMode === "multi-protocol") {
     console.log("\n⚡ Multi-Protocol Mode Detected!");
     console.log("Additional configuration may be required for protocol-specific settings.");

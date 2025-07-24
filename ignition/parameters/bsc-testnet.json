@@ -7,7 +7,7 @@
     "dvns": "0x6EDCE65403992e310A62460808c4b910D972f10f,0xF2c9222C9f9Ea1Ac79B998cEB32D1c273c86E1ce",
     "requiredDVNs": 1,
     "optionalDVNs": 1,
-    "dvnThreshold": 50
+    "dvnThreshold": 50,
   },
   "CelerModule": {
     "messageBus": "0x7e4e4c7c5790f5A0cc901BD64ABe0Fa9E44f8930",
@@ -46,12 +46,10 @@
     "governanceVault": "0x0000000000000000000000000000000000000000",
     "layerZeroModule": "0x0000000000000000000000000000000000000000",
     "celerModule": "0x0000000000000000000000000000000000000000",
-    "xerc20Module": "0x0000000000000000000000000000000000000000",
     "hyperlaneModule": "0x0000000000000000000000000000000000000000",
     "protocols": {
       "layerZero": true,
       "celer": true,
-      "xerc20": false,
       "hyperlane": true
     },
     "chainId": 97
@@ -60,7 +58,6 @@
     "governanceVault": "0x0000000000000000000000000000000000000000",
     "layerZeroModule": "0x0000000000000000000000000000000000000000",
     "celerModule": "0x0000000000000000000000000000000000000000",
-    "xerc20Module": "0x0000000000000000000000000000000000000000",
     "hyperlaneModule": "0x0000000000000000000000000000000000000000",
     "chainGasPrices": {
       "1": "30000000000",
@@ -99,22 +96,13 @@
     "ism": "0x0000000000000000000000000000000000000000",
     "requiredGasAmount": 200000
   },
-  "XERC20Module": {
-    "lookCoin": "0x0000000000000000000000000000000000000000",
-    "governanceVault": "0x0000000000000000000000000000000000000000",
-    "bridgeRegistrations": {},
-    "moduleMintingLimit": "10000000000000000000000000",
-    "moduleBurningLimit": "10000000000000000000000000"
-  },
   "ProtocolRegistryModule": {
     "governanceVault": "0x0000000000000000000000000000000000000000",
     "layerZeroModule": "0x0000000000000000000000000000000000000000",
     "celerModule": "0x0000000000000000000000000000000000000000",
-    "xerc20Module": "0x0000000000000000000000000000000000000000",
     "hyperlaneModule": "0x0000000000000000000000000000000000000000",
     "layerZeroChains": [97, 11155111, 84532],
     "celerChains": [97, 11155420],
-    "xerc20Chains": [],
     "hyperlaneChains": [97, 56, 9070]
   },
   "SecurityManagerModule": {
@@ -132,11 +120,6 @@
         "cooldownPeriod": 600
       },
       "2": {
-        "dailyLimit": "200000000000000000000000000",
-        "transactionLimit": "20000000000000000000000000",
-        "cooldownPeriod": 300
-      },
-      "3": {
         "dailyLimit": "100000000000000000000000000",
         "transactionLimit": "10000000000000000000000000",
         "cooldownPeriod": 900

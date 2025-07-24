@@ -30,14 +30,14 @@ describe("ProtocolDetector", () => {
         protocols: {
           layerZero: { enabled: true },
           celer: { enabled: true },
-          xerc20: { enabled: true }
+          hyperlane: { enabled: true }
         }
       } as ChainConfig;
 
       const result = detector.detectSupportedProtocols(chainConfig);
       
       expect(result.protocols).to.have.lengthOf(3);
-      expect(result.protocols).to.include.members(["layerZero", "celer", "xerc20"]);
+      expect(result.protocols).to.include.members(["layerZero", "celer", "hyperlane"]);
     });
 
     it("should fallback to endpoint detection for legacy configs", () => {
@@ -236,12 +236,12 @@ describe("ProtocolDetector", () => {
         protocols: {
           layerZero: { enabled: true },
           celer: { enabled: true },
-          xerc20: { enabled: true }
+          hyperlane: { enabled: true }
         }
       } as ChainConfig;
 
       const summary = detector.getProtocolSummary(chainConfig);
-      expect(summary).to.equal("Multi-protocol mode: layerZero, celer, xerc20");
+      expect(summary).to.equal("Multi-protocol mode: layerZero, celer, hyperlane");
     });
 
     it("should return no protocols message", () => {

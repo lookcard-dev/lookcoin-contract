@@ -100,29 +100,47 @@ Akashic      |     -     |   -   |   -    |    ✓
 
 ### Core Contracts
 
-#### LookCoinCrossChain Contract
+#### LookCoin Contract (Delegation Pattern Architecture)
+
+**Important Note:** The implementation uses a **delegation pattern** instead of direct inheritance from all protocol interfaces. This architectural decision was made to:
+
+1. **Maintain upgrade safety** - Adding new parent contracts post-deployment would break storage layout compatibility
+2. **Provide flexibility** - Protocol modules can be updated independently without affecting the core token
+3. **Ensure security** - Each protocol is isolated in its own module with specific access controls
 
 ```solidity
-contract LookCoinCrossChain is
+contract LookCoin is
     ERC20Upgradeable,
-    OFTUpgradeable,
-    IMessageReceiverApp,
-    XERC20,
-    IMessageRecipient,
     AccessControlUpgradeable,
     PausableUpgradeable,
-    UUPSUpgradeable
+    ReentrancyGuardUpgradeable,
+    UUPSUpgradeable,
+    ILayerZeroReceiver,  // Direct integration for LayerZero OFT
+    IXERC20,            // Direct integration for xERC20 compatibility
+    IMessageRecipient    // Direct integration for Hyperlane
 {
-    // Core token functionality with cross-chain capabilities
+    // Core token with delegation to CrossChainRouter for unified operations
+    ICrossChainRouter public crossChainRouter;
+    
+    // Protocol-specific modules are accessed through the router
+    // rather than direct inheritance
 }
 ```
 
+**Delegation Architecture:**
+
+- **Direct Integrations**: LayerZero, xERC20, and Hyperlane are integrated directly for backward compatibility
+- **Modular Protocols**: Celer IM and future protocols are implemented as separate modules
+- **Unified Interface**: CrossChainRouter provides a single entry point for all cross-chain operations
+- **Protocol Registry**: Manages available protocols and their configurations
+
 **Key Responsibilities:**
 
-- Inherit from all required cross-chain interfaces
-- Manage token supply across chains
-- Coordinate between different bridge protocols
-- Handle upgrades and governance
+- Maintain core ERC20 functionality with cross-chain awareness
+- Delegate complex cross-chain operations to CrossChainRouter
+- Provide direct protocol support where required for compatibility
+- Manage token supply tracking across all protocols
+- Handle upgrades safely without storage layout changes
 
 #### CrossChainRouter Contract
 
@@ -180,105 +198,145 @@ interface IFeeManager {
 }
 ```
 
-### Protocol-Specific Implementations
+### Protocol Module Architecture
 
-#### LayerZero OFT V2 Integration
+**Note:** Due to upgrade safety requirements, protocol modules are implemented as **separate contracts** rather than abstract base contracts. This allows for:
+- Independent deployment and upgrade of each protocol
+- Storage layout safety in the main LookCoin contract
+- Better security isolation between protocols
+- Flexible addition of new protocols without affecting existing ones
+
+#### LayerZero Integration (Direct in LookCoin)
 
 ```solidity
-abstract contract LayerZeroModule is OFTUpgradeable {
-    mapping(uint32 => bytes32) public trustedRemotes;
-    mapping(uint32 => uint256) public chainIdToEid;
-
-    function _lzSend(
-        uint32 _dstEid,
-        bytes memory _message,
-        bytes memory _options,
-        MessagingFee memory _fee,
-        address _refundAddress
-    ) internal override {
-        // Custom implementation for LookCoin
-    }
-
-    function _lzReceive(
-        Origin calldata _origin,
-        bytes32 _guid,
-        bytes calldata _message,
-        address _executor,
-        bytes calldata _extraData
-    ) internal override {
+// LayerZero is integrated directly in the LookCoin contract for backward compatibility
+// The contract implements ILayerZeroReceiver interface
+contract LookCoin is ILayerZeroReceiver {
+    ILayerZeroEndpoint public lzEndpoint;
+    mapping(uint16 => bytes32) public trustedRemoteLookup;
+    
+    function lzReceive(
+        uint16 _srcChainId,
+        bytes calldata _srcAddress,
+        uint64 _nonce,
+        bytes calldata _payload
+    ) external override {
         // Handle incoming LayerZero messages
     }
+    
+    // LayerZero operations are also available through CrossChainRouter
 }
 ```
 
-#### Celer IM Integration
+#### Celer IM Module (Separate Contract)
 
 ```solidity
-abstract contract CelerModule is IMessageReceiverApp {
+contract CelerIMModule is IMessageReceiverApp, AccessControlUpgradeable {
     IMessageBus public messageBus;
-    mapping(uint64 => address) public siblingContracts;
-
+    IERC20 public lookCoin;
+    mapping(uint64 => address) public remoteModules;
+    
+    // Only callable by authorized bridges or router
+    function bridgeOut(
+        uint64 _dstChainId,
+        address _receiver,
+        uint256 _amount
+    ) external payable {
+        // Burns tokens from sender via LookCoin
+        lookCoin.burn(msg.sender, _amount);
+        // Send message via Celer
+    }
+    
     function executeMessage(
         address _sender,
         uint64 _srcChainId,
         bytes calldata _message,
         address _executor
     ) external payable override returns (ExecutionStatus) {
-        // Handle Celer cross-chain messages
-    }
-
-    function sendViaCeler(
-        uint64 _dstChainId,
-        address _receiver,
-        uint256 _amount
-    ) external payable {
-        // Send tokens via Celer
+        // Verify and mint tokens via LookCoin
+        lookCoin.mint(recipient, amount);
     }
 }
 ```
 
-#### xERC20 Integration
+#### xERC20 Module (Separate Contract + Direct Integration)
 
 ```solidity
-abstract contract XERC20Module is XERC20 {
-    mapping(address => BridgeParameters) public bridges;
-
-    struct BridgeParameters {
-        uint256 mintingLimit;
-        uint256 burningLimit;
-        uint256 mintingCurrentLimit;
-        uint256 burningCurrentLimit;
-        uint256 rateLimitPerSecond;
-        uint256 lastUpdated;
+// xERC20 interface is implemented directly in LookCoin for compatibility
+contract LookCoin is IXERC20 {
+    mapping(address => bool) public authorizedBridges;
+    bool public xERC20Enabled; // Can be toggled for safety
+    
+    // Standard xERC20 functions with delegation to authorized bridges
+    function mint(address to, uint256 amount) external {
+        require(xERC20Enabled && authorizedBridges[msg.sender], "Unauthorized");
+        _mint(to, amount);
     }
+}
 
-    function mint(address _user, uint256 _amount) public override {
-        // Implement xERC20 minting with rate limits
-    }
-
-    function burn(address _user, uint256 _amount) public override {
-        // Implement xERC20 burning with rate limits
+// Separate XERC20Module for OP Stack specific functionality
+contract XERC20Module is AccessControlUpgradeable {
+    ILookCoin public lookCoin;
+    mapping(uint256 => bool) public supportedChains; // OP Stack chains
+    RateLimiter public rateLimiter;
+    
+    function bridgeOut(
+        uint256 destinationChain,
+        address recipient,
+        uint256 amount
+    ) external {
+        require(supportedChains[destinationChain], "Unsupported chain");
+        rateLimiter.checkLimit(msg.sender, amount);
+        lookCoin.burn(msg.sender, amount);
+        // Emit event for OP Stack indexer
     }
 }
 ```
 
-#### Hyperlane Integration
+#### Hyperlane Module (Separate Contract)
 
 ```solidity
-abstract contract HyperlaneModule is IMessageRecipient {
-    IMailbox public mailbox;
-    mapping(uint32 => bytes32) public trustedSenders;
-
+// Hyperlane is integrated directly in LookCoin for message receipt
+contract LookCoin is IMessageRecipient {
+    address public hyperlaneMailbox;
+    
     function handle(
         uint32 _origin,
         bytes32 _sender,
         bytes calldata _message
     ) external override {
-        // Handle Hyperlane messages
+        require(msg.sender == hyperlaneMailbox, "Unauthorized");
+        // Mint tokens based on message
     }
+}
 
-    function sendViaHyperlane(
-        uint32 _destination,
+// Separate HyperlaneModule for enhanced functionality
+contract HyperlaneModule is AccessControlUpgradeable {
+    IMailbox public mailbox;
+    IInterchainGasPaymaster public gasPaymaster;
+    ILookCoin public lookCoin;
+    mapping(uint32 => bool) public supportedDomains;
+    
+    function bridgeOut(
+        uint32 destinationDomain,
+        address recipient,
+        uint256 amount
+    ) external payable {
+        require(supportedDomains[destinationDomain], "Unsupported domain");
+        lookCoin.burn(msg.sender, amount);
+        
+        bytes32 messageId = mailbox.dispatch(
+            destinationDomain,
+            bytes32(uint256(uint160(recipient))),
+            abi.encode(recipient, amount)
+        );
+        
+        if (msg.value > 0) {
+            gasPaymaster.payForGas{value: msg.value}(messageId, destinationDomain, gasAmount, msg.sender);
+        }
+    }
+}
+```
         address _recipient,
         uint256 _amount
     ) external payable {

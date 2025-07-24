@@ -7,7 +7,7 @@
     "dvns": "",
     "requiredDVNs": 0,
     "optionalDVNs": 0,
-    "dvnThreshold": 0
+    "dvnThreshold": 0,
   },
   "CelerModule": {
     "messageBus": "0x0000000000000000000000000000000000000000",
@@ -28,12 +28,10 @@
     "governanceVault": "0x0000000000000000000000000000000000000000",
     "layerZeroModule": "0x0000000000000000000000000000000000000000",
     "celerModule": "0x0000000000000000000000000000000000000000",
-    "xerc20Module": "0x0000000000000000000000000000000000000000",
     "hyperlaneModule": "0x0000000000000000000000000000000000000000",
     "protocols": {
       "layerZero": true,
       "celer": false,
-      "xerc20": true,
       "hyperlane": true
     },
     "chainId": 84532
@@ -42,7 +40,6 @@
     "governanceVault": "0x0000000000000000000000000000000000000000",
     "layerZeroModule": "0x0000000000000000000000000000000000000000",
     "celerModule": "0x0000000000000000000000000000000000000000",
-    "xerc20Module": "0x0000000000000000000000000000000000000000",
     "hyperlaneModule": "0x0000000000000000000000000000000000000000",
     "chainGasPrices": {
       "1": "30000000000",
@@ -81,28 +78,13 @@
     "ism": "0x0000000000000000000000000000000000000000",
     "requiredGasAmount": 200000
   },
-  "XERC20Module": {
-    "lookCoin": "0x0000000000000000000000000000000000000000",
-    "governanceVault": "0x0000000000000000000000000000000000000000",
-    "bridgeRegistrations": {
-      "84532": {
-        "bridge": "0x4200000000000000000000000000000000000010",
-        "mintingLimit": "1000000000000000000000000",
-        "burningLimit": "1000000000000000000000000"
-      }
-    },
-    "moduleMintingLimit": "10000000000000000000000000",
-    "moduleBurningLimit": "10000000000000000000000000"
-  },
   "ProtocolRegistryModule": {
     "governanceVault": "0x0000000000000000000000000000000000000000",
     "layerZeroModule": "0x0000000000000000000000000000000000000000",
     "celerModule": "0x0000000000000000000000000000000000000000",
-    "xerc20Module": "0x0000000000000000000000000000000000000000",
     "hyperlaneModule": "0x0000000000000000000000000000000000000000",
     "layerZeroChains": [84532, 97, 11155111],
     "celerChains": [],
-    "xerc20Chains": [84532, 10],
     "hyperlaneChains": [84532, 97, 56]
   },
   "SecurityManagerModule": {

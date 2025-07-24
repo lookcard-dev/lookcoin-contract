@@ -132,14 +132,15 @@ export function detectCrossTierDeployments(
       });
     }
 
-    if (deployment.contracts.IBCModule) {
-      mismatches.push({
-        chainId,
-        network: deployment.network,
-        tier: deploymentTier,
-        contractType: "IBCModule",
-      });
-    }
+    // IBCModule removed from codebase
+    // if (deployment.contracts.IBCModule) {
+    //   mismatches.push({
+    //     chainId,
+    //     network: deployment.network,
+    //     tier: deploymentTier,
+    //     contractType: "IBCModule",
+    //   });
+    // }
   }
 
   return {

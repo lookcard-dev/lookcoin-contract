@@ -58,20 +58,27 @@
     "docs:validate": "echo 'Documentation completeness check'",
     "deploy:resume": "hardhat run scripts/deploy.ts --resume",
     "deploy:router": "hardhat run scripts/deploy-router.ts",
-    "deploy:hyperlane": "hardhat run scripts/deploy-hyperlane.ts"
+    "deploy:hyperlane": "hardhat run scripts/deploy-hyperlane.ts",
+    "deploy:debug": "DEBUG_DEPLOYMENT=true hardhat run scripts/deploy.ts",
+    "deploy:simple": "BSC_SIMPLE_MODE=true hardhat run scripts/deploy.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@ethereum-sourcify/bytecode-utils": "1.2.8",
-    "@hyperlane-xyz/core": "^9.0.0",
-    "@hyperlane-xyz/sdk": "^15.0.0",
+    "@hyperlane-xyz/core": "^9.0.2",
+    "@hyperlane-xyz/sdk": "^16.0.0",
+    "@layerzerolabs/lz-evm-messagelib-v2": "^3.0.115",
+    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.115",
+    "@layerzerolabs/oft-evm": "^3.2.0",
     "@openzeppelin/contracts": "^5.0.2",
     "@openzeppelin/contracts-upgradeable": "^5.0.2",
     "level": "^10.0.0"
   },
   "devDependencies": {
+    "@layerzerolabs/oapp-evm-upgradeable": "^0.1.2",
+    "@layerzerolabs/oft-evm-upgradeable": "^3.1.0",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.9",
     "@nomicfoundation/hardhat-ignition": "^0.15.0",
@@ -87,19 +94,33 @@
     "@types/minimatch": "^5.0.0",
     "@types/mocha": "^10.0.1",
     "@types/node": ">=18.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
     "chai": "^4.2.0",
     "dotenv": "^16.0.0",
+    "eslint": "^8.0.0",
     "ethers": "^6.15.0",
     "hardhat": "^2.25.0",
     "hardhat-contract-sizer": "^2.10.0",
     "hardhat-gas-reporter": "^2.3.0",
+    "prettier": "^3.0.0",
     "solidity-coverage": "^0.8.0",
     "ts-node": "^10.9.2",
     "typechain": "^8.3.0",
-    "typescript": ">=4.5.0",
-    "eslint": "^8.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "prettier": "^3.0.0"
+    "typescript": ">=4.5.0"
+  },
+  "overrides": {
+    "@layerzerolabs/oft-evm": {
+      "ethers": "^6.15.0"
+    },
+    "@layerzerolabs/oft-evm-upgradeable": {
+      "ethers": "^6.15.0"
+    },
+    "@layerzerolabs/lz-evm-protocol-v2": {
+      "ethers": "^6.15.0"
+    },
+    "@layerzerolabs/lz-evm-messagelib-v2": {
+      "ethers": "^6.15.0"
+    }
   }
 }

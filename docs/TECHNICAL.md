@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-LookCoin (LOOK) is the native platform token of the LookCard ecosystem, designed as a native multi-protocol omnichain fungible token. The token implements a unified cross-chain architecture through the CrossChainRouter, supporting multiple bridge protocols: LayerZero's OFT V2 standard (BSC, Base, Optimism), Celer IM's cross-chain messaging (BSC, Optimism, Oasis Sapphire), SuperChain's xERC20 standard (Optimism ecosystem), and Hyperlane (replacing IBC for Akashic Chain connectivity). The architecture employs protocol abstraction through a modular design where each bridge protocol implements the ILookBridgeModule interface, enabling seamless protocol selection based on destination chain, cost optimization, speed requirements, or security preferences. The system maintains a unified global supply model with appropriate mechanics for each protocol (burn-and-mint for LayerZero, lock-and-mint for Celer IM, mint/burn authorization for xERC20, and burn-and-mint for Hyperlane), ensuring consistent token supply across all deployments while providing redundancy, optimal routing, and enhanced cross-chain capabilities.
+LookCoin (LOOK) is the native platform token of the LookCard ecosystem, designed as a native multi-protocol omnichain fungible token. The token implements a unified cross-chain architecture through the CrossChainRouter, supporting multiple bridge protocols: LayerZero's OFT V2 standard (BSC, Base, Optimism), Celer IM's cross-chain messaging (BSC, Optimism, Oasis Sapphire), and Hyperlane for cross-chain messaging. The architecture employs protocol abstraction through a modular design where each bridge protocol implements the ILookBridgeModule interface, enabling seamless protocol selection based on destination chain, cost optimization, speed requirements, or security preferences. The system maintains a unified global supply model with appropriate mechanics for each protocol (burn-and-mint for LayerZero and Hyperlane, lock-and-mint for Celer IM), ensuring consistent token supply across all deployments while providing redundancy, optimal routing, and enhanced cross-chain capabilities.
 
 ## Token Specification
 
@@ -18,7 +18,7 @@ LookCoin (LOOK) is the native platform token of the LookCard ecosystem, designed
 ### Technical Standards
 
 - **ERC-20 Compliance**: Full compatibility with standard token interfaces
-- **Multi-Protocol Support**: Native implementation of LayerZero OFT V2, xERC20, and Hyperlane standards
+- **Multi-Protocol Support**: Native implementation of LayerZero OFT V2 and Hyperlane standards
 - **Upgradeable Contracts**: UUPS proxy pattern for future enhancements
 - **Access Control**: Role-based permissions with granular controls
 - **Protocol Abstraction**: ILookBridgeModule interface for unified bridge operations
@@ -45,7 +45,6 @@ graph TB
     subgraph "Protocol Modules"
         LZ[LayerZeroModule]
         CM[CelerIMModule]
-        XM[XERC20Module]
         HM[HyperlaneModule]
     end
     
@@ -55,7 +54,6 @@ graph TB
     CCR --> PR
     CCR --> LZ
     CCR --> CM
-    CCR --> XM
     CCR --> HM
 ```
 
@@ -75,17 +73,9 @@ graph TB
 - **Messaging**: MessageBus for arbitrary cross-chain communication
 - **Module**: CelerIMModule implementing ILookBridgeModule
 
-### SuperChain xERC20 Integration (Protocol ID: 2)
+### Hyperlane Integration (Protocol ID: 2)
 
-- **Supported Chains**: Optimism ecosystem (Base, Optimism, etc.)
-- **Mechanism**: Mint/burn with bridge-specific rate limits
-- **Security**: Bridge authorization and rate limiting
-- **Standard**: xERC20 token standard for native cross-chain support
-- **Module**: XERC20Module implementing ILookBridgeModule
-
-### Hyperlane Integration (Protocol ID: 3)
-
-- **Target Chain**: Akashic Chain (replacing IBC)
+- **Supported Chains**: Available across multiple chains for enhanced interoperability
 - **Mechanism**: Burn-and-mint with mailbox system
 - **Security**: Modular security via Interchain Security Modules (ISM)
 - **Messaging**: Hyperlane mailbox for message passing
@@ -98,7 +88,6 @@ graph TB
         BASE[Base<br/>LOOK Token]
         OPT[Optimism<br/>LOOK Token]
         SAPPHIRE[Oasis Sapphire<br/>LOOK Token]
-        AKASHIC[Akashic Chain<br/>LOOK Token]
     end
 
     subgraph "Protocol Usage"
@@ -106,40 +95,36 @@ graph TB
         BSC <--> |LayerZero OFT V2| OPT
         BASE <--> |LayerZero OFT V2| OPT
         
-        BASE <--> |xERC20| OPT
-        
         BSC <-.-> |Celer IM| OPT
         BSC <-.-> |Celer IM| SAPPHIRE
         OPT <-.-> |Celer IM| SAPPHIRE
         
-        BSC <--> |Hyperlane| AKASHIC
+        BSC <--> |Hyperlane| BASE
+        BSC <--> |Hyperlane| OPT
     end
 
     style BSC fill:#f9d71c
     style BASE fill:#0052cc
     style OPT fill:#ff0420
     style SAPPHIRE fill:#0ca789
-    style AKASHIC fill:#00d4ff
 ```
 
 ## Chain Deployment Matrix
 
 | Chain Name     | Supported Protocols                        | Network ID | Protocol IDs | Status  |
 | -------------- | ------------------------------------------ | ---------- | ------------ | ------- |
-| BSC            | LayerZero, Celer IM, Hyperlane           | 56         | 0, 1, 3      | Planned |
-| Base           | LayerZero, xERC20                         | 8453       | 0, 2         | Planned |
-| Optimism       | LayerZero, Celer IM, xERC20               | 10         | 0, 1, 2      | Planned |
+| BSC            | LayerZero, Celer IM, Hyperlane           | 56         | 0, 1, 2      | Planned |
+| Base           | LayerZero, Hyperlane                      | 8453       | 0, 2         | Planned |
+| Optimism       | LayerZero, Celer IM, Hyperlane           | 10         | 0, 1, 2      | Planned |
 | Oasis Sapphire | Celer IM                                  | 23295      | 1            | Planned |
-| Akashic Chain  | Hyperlane                                 | 9070       | 3            | Planned |
 
 ### Protocol Selection Matrix
 
 | Source → Destination | Optimal Protocol | Alternative Protocols | Selection Criteria |
 | -------------------- | ---------------- | --------------------- | ------------------ |
-| BSC → Base          | LayerZero        | -                     | Direct support     |
-| BSC → Optimism      | LayerZero        | Celer IM              | Speed vs. cost     |
-| Base → Optimism     | xERC20           | LayerZero             | Native SuperChain  |
-| BSC → Akashic       | Hyperlane        | -                     | Only option        |
+| BSC → Base          | LayerZero        | Hyperlane             | Direct support     |
+| BSC → Optimism      | LayerZero        | Celer IM, Hyperlane   | Speed vs. cost     |
+| Base → Optimism     | LayerZero        | Hyperlane             | Fast finality      |
 | * → Sapphire        | Celer IM         | -                     | Only option        |
 
 ## Cross-Chain Flow Diagrams
@@ -190,49 +175,28 @@ sequenceDiagram
     Note over SourceChain,DestChain: Total supply remains constant
 ```
 
-### xERC20 Native Bridge Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Source as Source Chain<br/>(e.g., Base)
-    participant Bridge as SuperChain<br/>Bridge
-    participant Module as XERC20Module
-    participant Dest as Destination Chain<br/>(e.g., Optimism)
-
-    User->>Source: Initiate transfer
-    Source->>Module: Check rate limits
-    Module->>Module: Verify bridge authorization
-    Source->>Bridge: Lock xERC20 tokens
-    Bridge->>Bridge: Validate transfer
-    Bridge->>Dest: Relay message
-    Dest->>Module: Mint with rate limits
-    Dest->>User: Credit tokens
-
-    Note over Source,Dest: Native xERC20 mint/burn limits enforced
-```
 
 ### Hyperlane Burn-and-Mint Flow
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant BSC as BSC<br/>HyperlaneModule
+    participant Source as Source Chain<br/>HyperlaneModule
     participant Mailbox as Hyperlane<br/>Mailbox
     participant ISM as Interchain<br/>Security Module
-    participant Akashic as Akashic Chain
+    participant Dest as Destination Chain
 
-    User->>BSC: Initiate transfer
-    BSC->>BSC: Burn LOOK tokens
-    BSC->>Mailbox: Dispatch message
+    User->>Source: Initiate transfer
+    Source->>Source: Burn LOOK tokens
+    Source->>Mailbox: Dispatch message
     Mailbox->>Mailbox: Pay gas fees
     Mailbox->>ISM: Route message
     ISM->>ISM: Verify security
-    ISM->>Akashic: Deliver message
-    Akashic->>Akashic: Mint LOOK tokens
-    Akashic->>User: Credit tokens
+    ISM->>Dest: Deliver message
+    Dest->>Dest: Mint LOOK tokens
+    Dest->>User: Credit tokens
 
-    Note over BSC,Akashic: Modular security verification
+    Note over Source,Dest: Modular security verification
 ```
 
 ### Celer IM Lock-and-Mint Flow
@@ -274,7 +238,7 @@ sequenceDiagram
         Oracle->>Router: Query active protocols
         Router->>Modules: Get supply per protocol
         Modules-->>Oracle: Return protocol balances
-        Oracle->>Oracle: Calculate global supply
+        Oracle->>Oracle: Calculate global supply (LayerZero, Celer, Hyperlane)
         Oracle->>SM: Report metrics
         alt Supply anomaly detected
             SM->>SM: Check anomaly thresholds
@@ -328,9 +292,9 @@ interface ILookBridgeModule {
 
 #### Key Components
 
-- **Token Core**: Multi-standard ERC-20 with LayerZero OFT V2, xERC20, and Hyperlane support
+- **Token Core**: Multi-standard ERC-20 with LayerZero OFT V2 and Hyperlane support
 - **CrossChainRouter**: Central hub for protocol selection and routing
-- **Protocol Modules**: Modular bridge implementations (LayerZero, Celer, xERC20, Hyperlane)
+- **Protocol Modules**: Modular bridge implementations (LayerZero, Celer, Hyperlane)
 - **Infrastructure**: FeeManager, SecurityManager, ProtocolRegistry
 - **Access Control**: Unified role-based permissions across all contracts
 
@@ -340,11 +304,9 @@ interface ILookBridgeModule {
 
 - ERC-20 with multi-protocol extensions
 - LayerZero OFT V2 native implementation
-- xERC20 mint/burn authorization
 - Hyperlane message handling
 - Unified mint/burn access control
 - CrossChainRouter integration
-
 #### CrossChainRouter Module
 
 - Protocol selection logic
@@ -366,12 +328,6 @@ interface ILookBridgeModule {
 - SGN validation
 - Lock/unlock mechanics
 - Fee parameter management
-
-**XERC20Module**:
-- Bridge authorization
-- Rate limit enforcement
-- Mint/burn limit management
-- SuperChain bridge integration
 
 **HyperlaneModule**:
 - Mailbox integration
@@ -430,11 +386,6 @@ DVN Configuration:
 - **Slashing Conditions**: Penalties for malicious behavior or downtime
 - **Liquidity Security**: Real-time pool monitoring
 
-**xERC20 Security**:
-- **Rate Limiting**: Per-bridge mint/burn limits
-- **Authorization**: Explicit bridge whitelisting
-- **Time Windows**: Rolling 24-hour limit enforcement
-- **Emergency Controls**: Immediate bridge suspension
 
 **Hyperlane Security**:
 - **ISM Types**: Multisig, Aggregation, Routing ISMs
@@ -483,9 +434,6 @@ The LookCoin ecosystem implements granular role-based access control using OpenZ
 | **CelerIMModule.sol**      |                      |                                               |                                 |                  |              |
 |                            | `DEFAULT_ADMIN_ROLE` | `grantRole()`, `revokeRole()`                 | Grant/revoke all roles          | MPC Vault        | No           |
 |                            | `OPERATOR_ROLE`      | `setRemoteModule()`, `setFeeParameters()`     | Configure Celer IM             | MPC Vault        | Yes          |
-| **XERC20Module.sol**       |                      |                                               |                                 |                  |              |
-|                            | `DEFAULT_ADMIN_ROLE` | `grantRole()`, `revokeRole()`                 | Grant/revoke all roles          | MPC Vault        | No           |
-|                            | `OPERATOR_ROLE`      | `registerBridge()`, `updateBridgeLimits()`    | Manage bridge limits           | MPC Vault        | Yes          |
 | **HyperlaneModule.sol**    |                      |                                               |                                 |                  |              |
 |                            | `DEFAULT_ADMIN_ROLE` | `grantRole()`, `revokeRole()`                 | Grant/revoke all roles          | MPC Vault        | No           |
 |                            | `OPERATOR_ROLE`      | `setTrustedSender()`, `setGasConfig()`        | Configure Hyperlane            | MPC Vault        | Yes          |
@@ -518,10 +466,9 @@ graph TD
 
 The multi-protocol system implements carefully orchestrated role dependencies:
 
-1. **Protocol Module Permissions**: All protocol modules (LayerZero, Celer, XERC20, Hyperlane) require appropriate roles on the LookCoin contract:
+1. **Protocol Module Permissions**: All protocol modules (LayerZero, Celer, Hyperlane) require appropriate roles on the LookCoin contract:
    - LayerZero & Hyperlane modules: `MINTER_ROLE` and `BURNER_ROLE` for burn-and-mint
    - CelerIMModule: `MINTER_ROLE` for lock-and-mint
-   - XERC20Module: `BRIDGE_ROLE` for authorized minting
 
 2. **Router Integration**: The CrossChainRouter requires registration in LookCoin via `setCrossChainRouter()` to enable protocol routing.
 
@@ -548,14 +495,13 @@ The role assignment follows a three-stage pattern designed for security and oper
   - Assigns roles to protocol modules based on their requirements:
     - LayerZero/Hyperlane: `MINTER_ROLE` and `BURNER_ROLE`
     - CelerIM: `MINTER_ROLE`
-    - XERC20: `BRIDGE_ROLE` and bridge authorization
   - Registers CrossChainRouter with LookCoin
   - Configures local protocol parameters
   - Sets up infrastructure contracts (FeeManager, SecurityManager)
 
 **Stage 3: Configure (Cross-Chain Configuration)**
 
-- **Script**: `scripts/configure-multi-protocol.ts`
+- **Script**: `scripts/configure.ts`
 - **Purpose**: Establishes cross-chain connections across all protocols
 - **Operations**:
   - Registers all protocol modules with CrossChainRouter
@@ -563,7 +509,6 @@ The role assignment follows a three-stage pattern designed for security and oper
   - Configures cross-chain trusted endpoints:
     - LayerZero trusted remotes
     - Celer remote modules
-    - XERC20 bridge registrations
     - Hyperlane trusted senders
   - Updates ProtocolRegistry with supported chains per protocol
   - Configures FeeManager with protocol modules
@@ -590,8 +535,8 @@ The role separation follows the principle of least privilege:
 ```solidity
 // MPC vault initiates emergency pause
 1. Call LookCoin.pause() with PAUSER_ROLE
-2. Call IBCModule.pause() with ADMIN_ROLE
-3. Call CelerIMModule.pause() with ADMIN_ROLE
+2. Call CelerIMModule.pause() with ADMIN_ROLE
+3. Call SecurityManager.pauseProtocol() for specific protocols
 4. Oracle detects pause and halts monitoring
 ```
 
@@ -721,8 +666,8 @@ graph LR
 async function reconcileSupply() {
   const protocolSupplies = {};
   
-  // Get supply per protocol
-  for (const protocol of ['LayerZero', 'Celer', 'XERC20', 'Hyperlane']) {
+  // Get supply per protocol (excluding disabled protocols)
+  for (const protocol of ['LayerZero', 'Celer', 'Hyperlane']) {
     protocolSupplies[protocol] = await getProtocolSupply(protocol);
   }
   
@@ -815,7 +760,7 @@ async function reconcileSupply() {
 
 #### Decentralization Path
 
-1. **Stage 1**: MPCVault MPC multisig (current)
+1. **Stage 1**: MPC vault wallet (current)
 2. **Stage 2**: Token holder voting rights
 3. **Stage 3**: Full DAO governance
 4. **Stage 4**: Autonomous protocol
@@ -827,6 +772,159 @@ async function reconcileSupply() {
 - Parameter adjustment voting
 - Treasury management
 
+## Protocol Implementation Details
+
+### Delegation Pattern Architecture
+
+The LookCoin system implements a sophisticated delegation pattern that separates core token functionality from protocol-specific logic. This architecture was chosen over traditional inheritance to maintain upgrade safety and provide flexibility for future protocol additions.
+
+#### Why Delegation Instead of Inheritance?
+
+1. **Storage Layout Safety**: Adding new parent contracts post-deployment would break the storage layout for UUPS upgradeable contracts
+2. **Modular Updates**: Protocol modules can be upgraded independently without touching the core token
+3. **Security Isolation**: Each protocol runs in its own security context with specific access controls
+4. **Flexible Integration**: New protocols can be added without modifying existing code
+
+#### Architecture Overview
+
+```
+LookCoin Contract (Core Token)
+├── Direct Integrations (for backward compatibility)
+│   ├── LayerZero OFT V2 (ILayerZeroReceiver)
+│   └── Hyperlane (IMessageRecipient)
+│
+└── Delegated Operations (via CrossChainRouter)
+    ├── LayerZeroModule (enhanced LayerZero features)
+    ├── CelerIMModule (Celer IM protocol)
+    └── HyperlaneModule (enhanced Hyperlane features)
+```
+
+### Direct Protocol Integrations
+
+These protocols are integrated directly into the LookCoin contract for backward compatibility and gas efficiency:
+
+#### LayerZero OFT V2
+- **Interface**: `ILayerZeroReceiver`
+- **Functions**: `lzReceive()`, `bridgeToken()`
+- **Storage**: `trustedRemoteLookup`, `processedNonces`
+- **Purpose**: Maintains compatibility with existing LayerZero deployments
+
+#### Hyperlane
+- **Interface**: `IMessageRecipient`
+- **Functions**: `handle()`, `bridgeTokenHyperlane()`
+- **Storage**: `hyperlaneMailbox`, `supportedHyperlaneDomains`
+- **Purpose**: Direct message receipt from Hyperlane mailbox
+
+### Modular Protocol Implementations
+
+These protocols are implemented as separate contracts that interact with LookCoin through defined interfaces:
+
+#### CelerIMModule
+```solidity
+contract CelerIMModule is ILookBridgeModule, IMessageReceiverApp {
+    // Completely separate contract
+    // Holds MINTER_ROLE on LookCoin
+    // Implements Celer's IMessageReceiverApp
+    // Manages its own remote module registry
+}
+```
+
+**Key Features**:
+- Lock-and-mint mechanism for cross-chain transfers
+- SGN (State Guardian Network) validation
+- Independent fee calculation
+- Separate upgrade path from core token
+
+#### HyperlaneModule
+```solidity
+contract HyperlaneModule is ILookBridgeModule {
+    // Enhanced Hyperlane functionality
+    // Complements direct Hyperlane integration
+    // Manages gas payment and routing
+}
+```
+
+**Key Features**:
+- Advanced gas payment strategies
+- Multi-domain routing
+- ISM (Interchain Security Module) configuration
+- Transfer tracking and monitoring
+
+### Protocol Selection Flow
+
+1. **User Initiates Transfer**
+   ```solidity
+   lookCoin.bridgeToken(chainId, recipient, amount)
+   ```
+
+2. **LookCoin Delegates to Router**
+   ```solidity
+   crossChainRouter.bridgeToken{value: msg.value}(
+       chainId, recipient, amount, protocol, params
+   )
+   ```
+
+3. **Router Selects Protocol Module**
+   ```solidity
+   ILookBridgeModule module = protocolModules[protocol];
+   module.bridgeOut(chainId, recipient, amount, params);
+   ```
+
+4. **Module Executes Protocol-Specific Logic**
+   - LayerZero: Burns tokens and sends OFT message
+   - Celer: Locks tokens and sends IM message
+   - Hyperlane: Burns tokens and dispatches via mailbox
+
+### Access Control Integration
+
+Each protocol module requires specific roles on the LookCoin contract:
+
+| Module | Required Roles | Purpose |
+|--------|---------------|---------|
+| LayerZeroModule | MINTER_ROLE, BURNER_ROLE | Burn on send, mint on receive |
+| CelerIMModule | MINTER_ROLE | Mint on receive (tokens locked on source) |
+| HyperlaneModule | MINTER_ROLE, BURNER_ROLE | Burn on send, mint on receive |
+
+### Benefits of the Delegation Pattern
+
+1. **Upgrade Safety**: Core token storage layout never changes
+2. **Protocol Isolation**: Issues in one protocol don't affect others
+3. **Gas Optimization**: Direct calls for simple operations, delegation for complex ones
+4. **Future Flexibility**: New protocols can be added without modifying existing code
+5. **Granular Control**: Each protocol can be paused/upgraded independently
+
+### Migration Path for New Protocols
+
+Adding a new cross-chain protocol follows this pattern:
+
+1. **Create Protocol Module**
+   ```solidity
+   contract NewProtocolModule is ILookBridgeModule {
+       // Implement protocol-specific logic
+   }
+   ```
+
+2. **Deploy and Configure**
+   ```typescript
+   const module = await deployNewProtocolModule();
+   await lookCoin.grantRole(MINTER_ROLE, module.address);
+   ```
+
+3. **Register with Router**
+   ```solidity
+   await crossChainRouter.registerProtocol(
+       Protocol.NewProtocol,
+       module.address
+   );
+   ```
+
+4. **Update Infrastructure**
+   - Add to ProtocolRegistry
+   - Configure in FeeManager
+   - Update SecurityManager limits
+
+This architecture ensures that LookCoin can evolve with the cross-chain ecosystem while maintaining security, efficiency, and backward compatibility.
+
 ## References
 
 ### Technical Documentation
@@ -835,7 +933,6 @@ async function reconcileSupply() {
 - [LayerZero OFT V2 Standard](https://docs.layerzero.network/v2/developers/evm/oft/quickstart)
 - [Celer Network Documentation](https://docs.celer.network)
 - [Celer IM Integration Guide](https://docs.celer.network/developer/celer-im)
-- [xERC20 Token Standard](https://github.com/defi-wonderland/xERC20)
 - [Hyperlane Documentation](https://docs.hyperlane.xyz)
 - [Hyperlane Message Format](https://docs.hyperlane.xyz/docs/reference/messaging/message-format)
 - [OpenZeppelin Upgradeable Contracts](https://docs.openzeppelin.com/contracts/4.x/upgradeable)

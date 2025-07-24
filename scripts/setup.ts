@@ -1,6 +1,7 @@
 import { ethers } from "hardhat";
 import { getChainConfig, getNetworkName } from "../hardhat.config";
 import { loadDeployment, validateDeploymentFormat } from "./utils/deployment";
+import { isHyperlaneReady } from "./utils/protocolDetector";
 
 async function main() {
   console.log("Starting LookCoin post-deployment setup (local configuration only)...");
@@ -45,21 +46,9 @@ async function main() {
     // Grant MINTER_ROLE to protocol modules that need it
     const minterRole = await lookCoin.MINTER_ROLE();
     
-    // XERC20Module needs MINTER_ROLE
-    if (deployment.protocolContracts.xerc20Module) {
-      const hasMinterRole = await lookCoin.hasRole(minterRole, deployment.protocolContracts.xerc20Module);
-      if (!hasMinterRole) {
-        console.log(`Granting MINTER_ROLE to XERC20Module at ${deployment.protocolContracts.xerc20Module}...`);
-        const tx = await lookCoin.grantRole(minterRole, deployment.protocolContracts.xerc20Module);
-        await tx.wait();
-        console.log(`✅ MINTER_ROLE granted to XERC20Module`);
-      } else {
-        console.log(`✓ XERC20Module already has MINTER_ROLE`);
-      }
-    }
     
-    // HyperlaneModule needs MINTER_ROLE
-    if (deployment.protocolContracts.hyperlaneModule) {
+    // HyperlaneModule needs MINTER_ROLE (only if ready)
+    if (deployment.protocolContracts.hyperlaneModule && isHyperlaneReady(chainConfig)) {
       const hasMinterRole = await lookCoin.hasRole(minterRole, deployment.protocolContracts.hyperlaneModule);
       if (!hasMinterRole) {
         console.log(`Granting MINTER_ROLE to HyperlaneModule at ${deployment.protocolContracts.hyperlaneModule}...`);
@@ -69,6 +58,8 @@ async function main() {
       } else {
         console.log(`✓ HyperlaneModule already has MINTER_ROLE`);
       }
+    } else if (deployment.protocolContracts.hyperlaneModule) {
+      console.log(`⚠️  Skipping HyperlaneModule setup - Hyperlane not ready`);
     }
   }
 
@@ -134,12 +125,12 @@ async function main() {
   
   // Register protocol-specific bridges from new format
   if (deployment.protocolContracts) {
-    if (deployment.protocolContracts.xerc20Module) {
-      await registerBridgeIfNeeded(chainId, deployment.protocolContracts.xerc20Module, "XERC20Module");
-    }
     
-    if (deployment.protocolContracts.hyperlaneModule) {
-      await registerBridgeIfNeeded(chainId, deployment.protocolContracts.hyperlaneModule, "HyperlaneModule");
+    // Register Hyperlane bridge only if ready
+    if (deployment.protocolContracts.hyperlaneModule && isHyperlaneReady(chainConfig)) {
+      // Use Hyperlane domain ID instead of chain ID
+      const hyperlaneDomainId = chainConfig.hyperlane?.hyperlaneDomainId || chainId;
+      await registerBridgeIfNeeded(hyperlaneDomainId, deployment.protocolContracts.hyperlaneModule, "HyperlaneModule");
     }
   }
 
@@ -174,6 +165,14 @@ async function main() {
   console.log(`- Governance Vault: ${chainConfig.governanceVault}`);
   console.log(`- LookCoin: ${lookCoinAddress}`);
   console.log(`- SupplyOracle: ${deployment.contracts.SupplyOracle.proxy}`);
+  
+  // Show protocol status
+  if (isHyperlaneReady(chainConfig)) {
+    console.log(`- Hyperlane: Ready (Domain ID: ${chainConfig.hyperlane?.hyperlaneDomainId})`);
+  } else {
+    console.log(`- Hyperlane: Not ready (missing mailbox or gas paymaster)`);
+  }
+  console.log(`- XERC20: Deprecated`);
   
   // Display protocol modules
   if (deployment.protocolsDeployed && deployment.protocolsDeployed.length > 0) {

@@ -31,12 +31,6 @@ export default buildModule("SecurityManagerModule", (m) => {
       cooldownPeriod: 600, // 10 minutes
     },
     "2": {
-      // XERC20
-      dailyLimit: "200000000000000000000000000", // 200M tokens
-      transactionLimit: "20000000000000000000000000", // 20M tokens
-      cooldownPeriod: 300, // 5 minutes
-    },
-    "3": {
       // Hyperlane
       dailyLimit: "100000000000000000000000000", // 100M tokens
       transactionLimit: "10000000000000000000000000", // 10M tokens

@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import hre from "hardhat";
 import { ChainConfig } from "../../hardhat.config";
-import { ProtocolDetector, ProtocolSupport } from "./protocolDetector";
+import { ProtocolDetector, ProtocolSupport, isHyperlaneReady } from "./protocolDetector";
 import { fetchDeployOrUpgradeProxy } from "./state";
 import { Deployment } from "./deployment";
 
@@ -10,6 +10,7 @@ export interface DeploymentConfig {
   deployer: string;
   deploymentName: string;
   existingDeployment?: Deployment | null;
+  forceStandardMode?: boolean; // Add this parameter
 }
 
 export interface CoreContracts {
@@ -20,7 +21,6 @@ export interface CoreContracts {
 export interface ProtocolContracts {
   layerZeroModule?: string;
   celerIMModule?: string;
-  xerc20Module?: string;
   hyperlaneModule?: string;
 }
 
@@ -75,6 +75,14 @@ export class DeploymentOrchestrator {
     
     const protocolSupport = ProtocolDetector.detectSupportedProtocols(config.chainConfig);
     const contracts: ProtocolContracts = {};
+    
+    // Validation for required protocol configuration
+    if (protocolSupport.protocols.length === 0) {
+      console.error("❌ No protocols detected for deployment!");
+      console.error("   Please check your hardhat.config.ts to ensure at least one protocol is configured.");
+      console.error("   Required: LayerZero endpoint, Celer messageBus, or Hyperlane mailbox");
+      throw new Error("No protocols configured for deployment");
+    }
 
     // Deploy LayerZero module if supported
     if (protocolSupport.layerZero) {
@@ -98,49 +106,18 @@ export class DeploymentOrchestrator {
       console.log("✅ CelerIMModule deployed at:", contracts.celerIMModule);
     }
 
-    // Deploy XERC20 module if supported
-    if (protocolSupport.xerc20) {
-      // XERC20Module contract doesn't exist, skip deployment
-      console.log("⚠️  Skipping XERC20Module deployment - contract not found");
-      /*
-      console.log("🏭 Deploying XERC20 module...");
-      const xerc20ModuleContract = await fetchDeployOrUpgradeProxy(
-        hre,
-        "XERC20Module",
-        "contracts/bridges/XERC20Module.sol:XERC20Module",
-        [
-          config.existingDeployment?.contracts?.LookCoin?.proxy || "",
-          config.chainConfig.xerc20.bridge,
-          config.deployer
-        ],
-        config.deploymentName
-      );
-      contracts.xerc20Module = await xerc20ModuleContract.getAddress();
-      console.log("✅ XERC20Module deployed at:", contracts.xerc20Module);
-      */
-    }
 
     // Deploy Hyperlane module if supported
     if (protocolSupport.hyperlane) {
-      // HyperlaneModule contract doesn't exist, skip deployment
-      console.log("⚠️  Skipping HyperlaneModule deployment - contract not found");
-      /*
-      console.log("📮 Deploying Hyperlane module...");
-      const hyperlaneModuleContract = await fetchDeployOrUpgradeProxy(
-        hre,
-        "HyperlaneModule",
-        "contracts/bridges/HyperlaneModule.sol:HyperlaneModule",
-        [
-          config.existingDeployment?.contracts?.LookCoin?.proxy || "",
-          config.chainConfig.hyperlane.mailbox,
-          config.chainConfig.hyperlane.ism || ethers.ZeroAddress,
-          config.deployer
-        ],
-        config.deploymentName
-      );
-      contracts.hyperlaneModule = await hyperlaneModuleContract.getAddress();
-      console.log("✅ HyperlaneModule deployed at:", contracts.hyperlaneModule);
-      */
+      // Check if Hyperlane is ready
+      if (isHyperlaneReady(config.chainConfig)) {
+        console.log("📮 Deploying Hyperlane module...");
+        // Like LayerZero, Hyperlane uses the main LookCoin contract
+        contracts.hyperlaneModule = await this.deployHyperlaneModule(config);
+        console.log("✅ Hyperlane module configured");
+      } else {
+        console.log("⚠️  Skipping Hyperlane - mailbox or gas paymaster not configured");
+      }
     }
 
 
@@ -152,89 +129,85 @@ export class DeploymentOrchestrator {
    * @param config Deployment configuration
    * @returns Infrastructure contract addresses
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static async deployInfrastructure(config: DeploymentConfig): Promise<InfraContracts> {
     console.log("\n🏗️  Deploying multi-protocol infrastructure...");
+    
+    // Additional check to ensure we only deploy when actually needed
+    if (config.forceStandardMode) {
+      console.log("⚠️  Skipping infrastructure deployment - standard mode forced");
+      throw new Error("Infrastructure deployment called in standard mode - this should not happen");
+    }
 
-    // Deploy CrossChainRouter
-    // CrossChainRouter contract doesn't exist, skip deployment
-    console.log("⚠️  Skipping CrossChainRouter deployment - contract not found");
-    /*
-    const crossChainRouterContract = await fetchDeployOrUpgradeProxy(
-      hre,
-      "CrossChainRouter",
-      "contracts/infrastructure/CrossChainRouter.sol:CrossChainRouter",
-      [config.deployer],
-      config.deploymentName
-    );
-    const crossChainRouterAddress = await crossChainRouterContract.getAddress();
-    */
-    // console.log("✅ CrossChainRouter deployed at:", crossChainRouterAddress);
-
-    // Deploy FeeManager
-    // FeeManager contract doesn't exist, skip deployment
-    console.log("⚠️  Skipping FeeManager deployment - contract not found");
-    /*
-    const feeManagerContract = await fetchDeployOrUpgradeProxy(
-      hre,
-      "FeeManager",
-      "contracts/infrastructure/FeeManager.sol:FeeManager",
-      [
-        config.existingDeployment?.contracts?.LookCoin?.proxy || "",
-        config.deployer,
-        config.deployer
-      ],
-      config.deploymentName
-    );
-    const feeManagerAddress = await feeManagerContract.getAddress();
-    */
-    // console.log("✅ FeeManager deployed at:", feeManagerAddress);
-
-    // Deploy SecurityManager
-    // SecurityManager contract doesn't exist, skip deployment
-    console.log("⚠️  Skipping SecurityManager deployment - contract not found");
-    /*
-    const securityManagerContract = await fetchDeployOrUpgradeProxy(
-      hre,
-      "SecurityManager",
-      "contracts/infrastructure/SecurityManager.sol:SecurityManager",
-      [config.deployer],
-      config.deploymentName
-    );
-    const securityManagerAddress = await securityManagerContract.getAddress();
-    */
-    // console.log("✅ SecurityManager deployed at:", securityManagerAddress);
-
-    // Deploy ProtocolRegistry
-    // ProtocolRegistry contract doesn't exist, skip deployment
-    console.log("⚠️  Skipping ProtocolRegistry deployment - contract not found");
-    /*
+    // Deploy ProtocolRegistry first (no dependencies)
+    console.log("📋 Deploying ProtocolRegistry...");
     const protocolRegistryContract = await fetchDeployOrUpgradeProxy(
       hre,
       "ProtocolRegistry",
-      "contracts/infrastructure/ProtocolRegistry.sol:ProtocolRegistry",
-      [config.deployer],
-      config.deploymentName
+      [config.deployer]
     );
     const protocolRegistryAddress = await protocolRegistryContract.getAddress();
-    */
-    // console.log("✅ ProtocolRegistry deployed at:", protocolRegistryAddress);
+    console.log("✅ ProtocolRegistry deployed at:", protocolRegistryAddress);
 
-    // Return empty addresses for now as contracts don't exist
+    // Deploy FeeManager (only depends on admin)
+    console.log("💰 Deploying FeeManager...");
+    const feeManagerContract = await fetchDeployOrUpgradeProxy(
+      hre,
+      "FeeManager",
+      [config.deployer]
+    );
+    const feeManagerAddress = await feeManagerContract.getAddress();
+    console.log("✅ FeeManager deployed at:", feeManagerAddress);
+
+    // Deploy SecurityManager (depends on admin and global daily limit)
+    console.log("🔒 Deploying SecurityManager...");
+    const globalDailyLimit = ethers.parseEther("20000000"); // 20M tokens daily limit
+    const securityManagerContract = await fetchDeployOrUpgradeProxy(
+      hre,
+      "SecurityManager",
+      [config.deployer, globalDailyLimit]
+    );
+    const securityManagerAddress = await securityManagerContract.getAddress();
+    console.log("✅ SecurityManager deployed at:", securityManagerAddress);
+
+    // Deploy CrossChainRouter (depends on other contracts)
+    console.log("🌐 Deploying CrossChainRouter...");
+    const lookCoinAddress = config.existingDeployment?.contracts?.LookCoin?.proxy;
+    if (!lookCoinAddress) {
+      throw new Error("LookCoin address not found for CrossChainRouter deployment");
+    }
+    
+    const crossChainRouterContract = await fetchDeployOrUpgradeProxy(
+      hre,
+      "contracts/xchain/CrossChainRouter.sol:CrossChainRouter",
+      [
+        lookCoinAddress,
+        feeManagerAddress,
+        securityManagerAddress,
+        config.deployer
+      ]
+    );
+    const crossChainRouterAddress = await crossChainRouterContract.getAddress();
+    console.log("✅ CrossChainRouter deployed at:", crossChainRouterAddress);
+
     return {
-      crossChainRouter: "",
-      feeManager: "",
-      securityManager: "",
-      protocolRegistry: ""
+      crossChainRouter: crossChainRouterAddress,
+      feeManager: feeManagerAddress,
+      securityManager: securityManagerAddress,
+      protocolRegistry: protocolRegistryAddress
     };
   }
 
   /**
    * Determines deployment mode based on protocol support
    * @param protocolSupport The detected protocol support
+   * @param forceStandard Optional force standard mode even for multi-protocol chains
    * @returns "standard" or "multi-protocol"
    */
-  static determineDeploymentMode(protocolSupport: ProtocolSupport): "standard" | "multi-protocol" {
+  static determineDeploymentMode(protocolSupport: ProtocolSupport, forceStandard?: boolean): "standard" | "multi-protocol" {
+    if (forceStandard) {
+      console.log("📍 Forcing standard deployment mode");
+      return "standard";
+    }
     return protocolSupport.protocols.length > 1 ? "multi-protocol" : "standard";
   }
 
@@ -264,6 +237,43 @@ export class DeploymentOrchestrator {
     }
 
     // Return the LookCoin address as it serves as the LayerZero module
+    return lookCoinAddress;
+  }
+
+  /**
+   * Private helper to deploy Hyperlane module with special handling
+   * @param config Deployment configuration
+   * @returns Hyperlane module address
+   */
+  private static async deployHyperlaneModule(config: DeploymentConfig): Promise<string> {
+    // For Hyperlane, the LookCoin contract itself acts as the message recipient
+    // No separate module deployment needed, but we track it in the deployment
+    const lookCoinAddress = config.existingDeployment?.contracts?.LookCoin?.proxy;
+    
+    if (!lookCoinAddress) {
+      console.log("⚠️  LookCoin address not found for Hyperlane module");
+      return "";
+    }
+    
+    const lookCoin = await ethers.getContractAt("LookCoin", lookCoinAddress);
+    
+    // Set Hyperlane mailbox if not already set
+    const currentMailbox = await lookCoin.hyperlaneMailbox();
+    if (currentMailbox === ethers.ZeroAddress && config.chainConfig.hyperlane?.mailbox) {
+      console.log("🔧 Setting Hyperlane mailbox on LookCoin...");
+      const tx = await lookCoin.setHyperlaneMailbox(config.chainConfig.hyperlane.mailbox);
+      await tx.wait();
+    }
+
+    // Set Hyperlane gas paymaster if not already set
+    const currentGasPaymaster = await lookCoin.hyperlaneGasPaymaster();
+    if (currentGasPaymaster === ethers.ZeroAddress && config.chainConfig.hyperlane?.gasPaymaster) {
+      console.log("🔧 Setting Hyperlane gas paymaster on LookCoin...");
+      const tx = await lookCoin.setHyperlaneGasPaymaster(config.chainConfig.hyperlane.gasPaymaster);
+      await tx.wait();
+    }
+
+    // Return the LookCoin address as it serves as the Hyperlane module
     return lookCoinAddress;
   }
 }

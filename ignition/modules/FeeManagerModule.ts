@@ -18,7 +18,6 @@ export default buildModule("FeeManagerModule", (m) => {
   // Set up initial fee parameters if provided
   const layerZeroModule = m.getParameter("layerZeroModule");
   const celerModule = m.getParameter("celerModule");
-  const xerc20Module = m.getParameter("xerc20Module");
   const hyperlaneModule = m.getParameter("hyperlaneModule");
 
   // Update protocol modules
@@ -30,12 +29,9 @@ export default buildModule("FeeManagerModule", (m) => {
     m.call(feeManager, "updateProtocolModule", [1, celerModule]);
   }
 
-  if (xerc20Module && xerc20Module !== "0x0000000000000000000000000000000000000000") {
-    m.call(feeManager, "updateProtocolModule", [2, xerc20Module]);
-  }
 
   if (hyperlaneModule && hyperlaneModule !== "0x0000000000000000000000000000000000000000") {
-    m.call(feeManager, "updateProtocolModule", [3, hyperlaneModule]);
+    m.call(feeManager, "updateProtocolModule", [2, hyperlaneModule]);
   }
 
   // Set initial gas prices if provided

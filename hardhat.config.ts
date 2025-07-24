@@ -76,19 +76,6 @@ const HYPERLANE_GAS_PAYMASTER = {
   akashic: "0x0000000000000000000000000000000000000000",
 };
 
-// xERC20 Bridge Addresses (SuperChain)
-const XERC20_BRIDGES = {
-  bsc: "0x0000000000000000000000000000000000000000", // Not SuperChain
-  bscTestnet: "0x0000000000000000000000000000000000000000", // Not SuperChain
-  base: "0x4200000000000000000000000000000000000010", // L2 Standard Bridge
-  baseSepolia: "0x4200000000000000000000000000000000000010", // L2 Standard Bridge
-  optimism: "0x4200000000000000000000000000000000000010", // L2 Standard Bridge
-  opSepolia: "0x4200000000000000000000000000000000000010", // L2 Standard Bridge
-  sapphire: "0x0000000000000000000000000000000000000000", // Not SuperChain
-  sapphireTestnet: "0x0000000000000000000000000000000000000000", // Not SuperChain
-  akashic: "0x0000000000000000000000000000000000000000", // Not SuperChain
-};
-
 // DVN (Decentralized Verifier Network) Addresses for LayerZero
 const LZ_DVN = {
   bsc: [
@@ -116,7 +103,6 @@ const config: HardhatUserConfig = {
         enabled: true,
         runs: 9999,
       },
-      evmVersion: "paris",
     },
   },
   networks: {
@@ -184,27 +170,23 @@ const config: HardhatUserConfig = {
     alphaSort: false,
     runOnCompile: !!process.env.CONTRACT_SIZER,
     disambiguatePaths: false,
-    only: ["LookCoin", "LayerZeroModule", "CelerIMModule", "SupplyOracle", "MPCMultisig"],
-  },
-  gasReporter: {
-    enabled: !!process.env.REPORT_GAS,
-    currency: "USD",
-    gasPrice: 5, // BSC gas price in gwei
-    token: "BNB",
-    coinmarketcap: process.env.COINMARKETCAP_API_KEY,
-    excludeContracts: ["Mock*"],
+    only: [
+      "LookCoin",
+      "CelerIMModule",
+      "SupplyOracle",
+      "RateLimiter",
+      "CrossChainRouter",
+      "FeeManager",
+      "SecurityManager",
+      "ProtocolRegistry",
+    ],
   },
   etherscan: {
-    apiKey: {
-      bsc: process.env.BSCSCAN_API_KEY || "",
-      bscTestnet: process.env.BSCSCAN_API_KEY || "",
-      base: process.env.BASESCAN_API_KEY || "",
-      baseSepolia: process.env.BASESCAN_API_KEY || "",
-      optimisticEthereum: process.env.OPTIMISM_API_KEY || "",
-      optimisticSepolia: process.env.OPTIMISM_API_KEY || "",
-      sapphire: process.env.SAPPHIRE_API_KEY || "",
-      sapphireTestnet: process.env.SAPPHIRE_API_KEY || "",
-    },
+    enabled: true,
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+  sourcify: {
+    enabled: true,
   },
 };
 
@@ -327,6 +309,18 @@ const LZ_CHAIN_IDS = {
   opSepolia: 40232,
 };
 
+// Hyperlane Domain IDs (NOT the same as chain IDs)
+const HYPERLANE_DOMAIN_IDS = {
+  bsc: 56,
+  bscTestnet: 97,
+  base: 8453,
+  baseSepolia: 84532,
+  optimism: 10,
+  opSepolia: 11155420,
+  sapphire: 0, // Not supported by Hyperlane
+  akashic: 0, // Not supported by Hyperlane
+};
+
 // Comprehensive chain configuration
 export interface ChainConfig {
   chainId: number;
@@ -358,7 +352,6 @@ export interface ChainConfig {
       layerZero?: { selector: string; module: string };
       celer?: { selector: string; module: string };
       hyperlane?: { selector: string; module: string };
-      xerc20?: { selector: string; module: string };
     };
     updateInterval: number;
     tolerance: number;
@@ -371,16 +364,14 @@ export interface ChainConfig {
     validatorSet: string[];
     ism: string; // Interchain Security Module
   };
-  xerc20: {
-    bridge: string;
-    mintingLimit: string;
-    burningLimit: string;
-  };
   protocols: {
     layerZero: boolean;
     celer: boolean;
-    xerc20: boolean;
     hyperlane: boolean;
+  };
+  rateLimiter: {
+    perAccountLimit: string;
+    maxTransactionsPerAccount: number;
   };
 }
 
@@ -415,20 +406,18 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.bsc,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.bsc,
-      hyperlaneDomainId: 56,
+      hyperlaneDomainId: HYPERLANE_DOMAIN_IDS.bsc,
       validatorSet: [],
       ism: "0x0000000000000000000000000000000000000000",
-    },
-    xerc20: {
-      bridge: XERC20_BRIDGES.bsc,
-      mintingLimit: "0",
-      burningLimit: "0",
     },
     protocols: {
       layerZero: true,
       celer: true,
-      xerc20: false, // BSC is not part of SuperChain
       hyperlane: true,
+    },
+    rateLimiter: {
+      perAccountLimit: "500000000000000000000000", // 500K tokens
+      maxTransactionsPerAccount: 3,
     },
   },
   bsctestnet: {
@@ -460,20 +449,18 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.bscTestnet,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.bscTestnet,
-      hyperlaneDomainId: 97,
+      hyperlaneDomainId: HYPERLANE_DOMAIN_IDS.bscTestnet,
       validatorSet: [],
       ism: "0x0000000000000000000000000000000000000000",
-    },
-    xerc20: {
-      bridge: XERC20_BRIDGES.bscTestnet,
-      mintingLimit: "0",
-      burningLimit: "0",
     },
     protocols: {
       layerZero: true,
       celer: true,
-      xerc20: false,
       hyperlane: true,
+    },
+    rateLimiter: {
+      perAccountLimit: "500000000000000000000000", // 500K tokens
+      maxTransactionsPerAccount: 3,
     },
   },
   basemainnet: {
@@ -510,20 +497,18 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.base,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.base,
-      hyperlaneDomainId: 8453,
+      hyperlaneDomainId: HYPERLANE_DOMAIN_IDS.base,
       validatorSet: [],
       ism: "0x0000000000000000000000000000000000000000",
-    },
-    xerc20: {
-      bridge: XERC20_BRIDGES.base,
-      mintingLimit: "0",
-      burningLimit: "0",
     },
     protocols: {
       layerZero: true,
       celer: false, // Not supported by Celer
-      xerc20: true, // Part of SuperChain
       hyperlane: true,
+    },
+    rateLimiter: {
+      perAccountLimit: "500000000000000000000000", // 500K tokens
+      maxTransactionsPerAccount: 3,
     },
   },
   basesepolia: {
@@ -560,20 +545,18 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.baseSepolia,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.baseSepolia,
-      hyperlaneDomainId: 84532,
+      hyperlaneDomainId: HYPERLANE_DOMAIN_IDS.baseSepolia,
       validatorSet: [],
       ism: "0x0000000000000000000000000000000000000000",
-    },
-    xerc20: {
-      bridge: XERC20_BRIDGES.baseSepolia,
-      mintingLimit: "0",
-      burningLimit: "0",
     },
     protocols: {
       layerZero: true,
       celer: false,
-      xerc20: true,
       hyperlane: true,
+    },
+    rateLimiter: {
+      perAccountLimit: "500000000000000000000000", // 500K tokens
+      maxTransactionsPerAccount: 3,
     },
   },
   optimismmainnet: {
@@ -605,20 +588,18 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.optimism,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.optimism,
-      hyperlaneDomainId: 10,
+      hyperlaneDomainId: HYPERLANE_DOMAIN_IDS.optimism,
       validatorSet: [],
       ism: "0x0000000000000000000000000000000000000000",
-    },
-    xerc20: {
-      bridge: XERC20_BRIDGES.optimism,
-      mintingLimit: "0",
-      burningLimit: "0",
     },
     protocols: {
       layerZero: true,
       celer: true,
-      xerc20: true, // Part of SuperChain
       hyperlane: true,
+    },
+    rateLimiter: {
+      perAccountLimit: "500000000000000000000000", // 500K tokens
+      maxTransactionsPerAccount: 3,
     },
   },
   optimismsepolia: {
@@ -650,20 +631,18 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.opSepolia,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.opSepolia,
-      hyperlaneDomainId: 11155420,
+      hyperlaneDomainId: HYPERLANE_DOMAIN_IDS.opSepolia,
       validatorSet: [],
       ism: "0x0000000000000000000000000000000000000000",
-    },
-    xerc20: {
-      bridge: XERC20_BRIDGES.opSepolia,
-      mintingLimit: "0",
-      burningLimit: "0",
     },
     protocols: {
       layerZero: true,
       celer: true,
-      xerc20: true,
       hyperlane: true,
+    },
+    rateLimiter: {
+      perAccountLimit: "500000000000000000000000", // 500K tokens
+      maxTransactionsPerAccount: 3,
     },
   },
   sapphiremainnet: {
@@ -699,16 +678,14 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       validatorSet: [],
       ism: "0x0000000000000000000000000000000000000000",
     },
-    xerc20: {
-      bridge: XERC20_BRIDGES.sapphire,
-      mintingLimit: "0",
-      burningLimit: "0",
-    },
     protocols: {
       layerZero: false, // Not supported by LayerZero
       celer: true,
-      xerc20: false, // Not part of SuperChain
       hyperlane: false, // Not supported by Hyperlane
+    },
+    rateLimiter: {
+      perAccountLimit: "500000000000000000000000", // 500K tokens
+      maxTransactionsPerAccount: 3,
     },
   },
   sapphiretestnet: {
@@ -744,16 +721,14 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       validatorSet: [],
       ism: "0x0000000000000000000000000000000000000000",
     },
-    xerc20: {
-      bridge: XERC20_BRIDGES.sapphireTestnet,
-      mintingLimit: "0",
-      burningLimit: "0",
-    },
     protocols: {
       layerZero: false,
       celer: true,
-      xerc20: false,
       hyperlane: false,
+    },
+    rateLimiter: {
+      perAccountLimit: "500000000000000000000000", // 500K tokens
+      maxTransactionsPerAccount: 3,
     },
   },
   akashicmainnet: {
@@ -794,16 +769,14 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       validatorSet: [],
       ism: "0x0000000000000000000000000000000000000000",
     },
-    xerc20: {
-      bridge: XERC20_BRIDGES.akashic,
-      mintingLimit: "0",
-      burningLimit: "0",
-    },
     protocols: {
       layerZero: false, // Not supported by LayerZero
       celer: false, // Not supported by Celer
-      xerc20: false, // Not part of SuperChain
       hyperlane: false, // Custom deployment needed
+    },
+    rateLimiter: {
+      perAccountLimit: "500000000000000000000000", // 500K tokens
+      maxTransactionsPerAccount: 3,
     },
   },
   hardhat: {
@@ -844,16 +817,14 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       validatorSet: [],
       ism: "0x0000000000000000000000000000000000000000",
     },
-    xerc20: {
-      bridge: "0x0000000000000000000000000000000000000000",
-      mintingLimit: "0",
-      burningLimit: "0",
-    },
     protocols: {
       layerZero: false,
       celer: false,
-      xerc20: false,
       hyperlane: false,
+    },
+    rateLimiter: {
+      perAccountLimit: "500000000000000000000000", // 500K tokens
+      maxTransactionsPerAccount: 3,
     },
   },
 };
@@ -865,6 +836,14 @@ export function getChainConfig(network: string): ChainConfig {
     throw new Error(`Configuration not found for network: ${network}`);
   }
   return config;
+}
+
+// Helper function to check if Hyperlane is ready for a chain
+export function isHyperlaneReady(chainConfig: ChainConfig): boolean {
+  return (
+    chainConfig.hyperlane.mailbox !== "0x0000000000000000000000000000000000000000" &&
+    chainConfig.hyperlane.gasPaymaster !== "0x0000000000000000000000000000000000000000"
+  );
 }
 
 // Helper function to generate Ignition parameters from centralized config
@@ -898,18 +877,11 @@ export function generateIgnitionParams(network: string): Record<string, unknown>
       validatorSet: chainConfig.hyperlane?.validatorSet || [],
       ism: chainConfig.hyperlane?.ism || "0x0000000000000000000000000000000000000000",
     },
-    // XERC20 module parameters
-    XERC20Module: {
-      bridge: chainConfig.xerc20?.bridge || "0x0000000000000000000000000000000000000000",
-      mintingLimit: chainConfig.xerc20?.mintingLimit || "0",
-      burningLimit: chainConfig.xerc20?.burningLimit || "0",
-    },
     // Router module parameters
     CrossChainRouter: {
       protocols: chainConfig.protocols || {
         layerZero: false,
         celer: false,
-        xerc20: false,
         hyperlane: false,
       },
     },

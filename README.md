@@ -352,6 +352,7 @@ Akashic: https://rpc.akashic.city
 ### Technical Documentation
 
 - [TECHNICAL.md](docs/TECHNICAL.md) - Detailed technical specifications
+- [TIMELINE.md](docs/TIMELINE.md) - Deployment timeline and milestones
 - [USER_FLOW.md](docs/USER_FLOW.md) - User guide for cross-chain bridging operations
 - [CLAUDE.md](CLAUDE.md) - AI assistant guidance
 

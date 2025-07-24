@@ -40,6 +40,7 @@ The centralized configuration system supports LookCoin's three-stage deployment 
 - Combines centralized config parameters with actual deployed contract addresses
 - Establishes LayerZero trusted remotes using addresses from deployment artifacts
 - Sets up Celer IM remote modules using both centralized config and deployed contract addresses
+- Configures Hyperlane trusted senders and domain mappings
 - Implements network tier validation to prevent mainnet/testnet mixing
 
 ### Technical Dependencies
@@ -65,14 +66,17 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     name: "BSC Mainnet",
     totalSupply: "10000000000000000000000000000", // 10 billion tokens
     governanceVault: "0x...", // MPC vault address
-    layerZero: {
+    layerZero: true, // Protocol enablement flag
+    celerIM: true,   // Protocol enablement flag
+    hyperlane: true, // Protocol enablement flag
+    layerZeroConfig: {
       /* LayerZero specific config */
     },
-    celer: {
+    celerConfig: {
       /* Celer IM specific config */
     },
-    ibc: {
-      /* IBC specific config */
+    hyperlaneConfig: {
+      /* Hyperlane specific config */
     },
     oracle: {
       /* Supply oracle config */
@@ -110,15 +114,15 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
      - Maximum fee: 100 LOOK
    - Fee collector addresses
 
-3. **IBC Configuration**
-   - Chain ID: 9070 (Akashic)
-   - Channel ID: channel-0
-   - Port ID: transfer
-   - Validator sets:
-     - Minimum validators: 21
-     - Threshold: 14 (2/3 majority)
-   - Unbonding period: 14 days
-   - Packet timeout: 1 hour
+3. **Hyperlane Configuration**
+   - Mailbox addresses (network-specific)
+   - Gas paymaster addresses
+   - Domain IDs:
+     - BSC: 56
+     - Base: 8453
+     - Optimism: 10
+   - ISM (Interchain Security Module) configuration
+   - Supported domains mapping
 
 4. **Oracle Configuration**
    - Bridge registrations per network
@@ -132,13 +136,12 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
 
 ### Bridge Support Matrix
 
-| Network  | LayerZero | Celer IM | IBC |
-| -------- | --------- | -------- | --- |
-| BSC      | ✓         | ✓        | ✗   |
-| Base     | ✓         | ✗        | ✗   |
-| Optimism | ✓         | ✓        | ✗   |
-| Sapphire | ✗         | ✓        | ✗   |
-| Akashic  | ✗         | ✗        | ✓   |
+| Network  | LayerZero | Celer IM | Hyperlane |
+| -------- | --------- | -------- | --------- |
+| BSC      | ✓         | ✓        | ✓         |
+| Base     | ✓         | ✗        | ✓         |
+| Optimism | ✓         | ✓        | ✓         |
+| Sapphire | ✗         | ✓        | ✗         |
 
 ## Usage
 
@@ -154,20 +157,22 @@ export const CHAIN_CONFIG = {
     name: "New Network",
     totalSupply: "0", // For non-home chains
     governanceVault: process.env.GOVERNANCE_VAULT || "0x...",
-    layerZero: {
+    // Protocol enablement flags
+    layerZero: true,
+    celerIM: false,
+    hyperlane: true,
+    // Protocol configurations
+    layerZeroConfig: {
       endpoint: "0x1a44076050125825900e736c501f859c50fE728c", // V2 mainnet endpoint
       lzChainId: 40123,
       dvns: ["0x...", "0x..."], // Network-specific DVN addresses
       // ... other LayerZero settings
     },
-    celer: {
-      messageBus: "0x...",
-      celerChainId: 12345,
-      fees: {
-        percentage: 10, // 0.1%
-        minFee: "1000000000000000000", // 1 LOOK
-        maxFee: "100000000000000000000", // 100 LOOK
-      },
+    hyperlaneConfig: {
+      mailbox: "0x...",
+      gasPaymaster: "0x...",
+      domain: 12345,
+      // ... other Hyperlane settings
     },
     // ... other configurations
   },
@@ -184,20 +189,42 @@ npm run config:generate
 
 This command runs the config generator script that creates JSON parameter files from the centralized configuration.
 
-### Validating Configuration
+### Command Reference
 
-To validate the configuration for completeness and consistency:
+The deployment process uses standard npm scripts for all operations:
 
 ```bash
-npm run config:validate
+# Deployment (Stage 1)
+npm run deploy:bsc-testnet
+npm run deploy:bsc-mainnet
+npm run deploy:base-sepolia
+npm run deploy:base-mainnet
+
+# Setup (Stage 2)
+npm run setup:bsc-testnet
+npm run setup:base-sepolia
+npm run setup:sapphire-mainnet
+
+# Configure (Stage 3) - Only available after other networks are deployed
+npm run configure:bsc-testnet
+npm run configure:base-sepolia
+npm run configure:optimism-sepolia
+npm run configure:sapphire-mainnet
 ```
 
-### Checking for Hardcoded Values
+### Deployment Mode Detection
 
-To scan the codebase for any remaining hardcoded configuration values:
+The deployment scripts automatically detect whether to use simple mode or multi-protocol mode:
 
 ```bash
-npm run lint:config
+# Force simple mode (BSC optimization)
+BSC_SIMPLE_MODE=1 npm run deploy:bsc-mainnet
+
+# Force standard mode (multi-protocol)
+FORCE_STANDARD_MODE=1 npm run deploy:bsc-mainnet
+
+# Use --simple-mode flag
+npm run deploy:bsc-mainnet -- --simple-mode
 ```
 
 ## Migration Guide
@@ -473,10 +500,10 @@ The protection system now ensures such misconfigurations are caught early and re
    - Corrected Oasis Sapphire testnet chain ID: 23295
    - Confirmed Akashic chain ID: 9070
 
-4. **Enhanced IBC Configuration**
-   - Added complete validator set parameters
-   - Specified consensus thresholds and timeouts
-   - Documented channel and port IDs
+4. **Protocol Configuration Updates**
+   - Added Hyperlane protocol support with mailbox and domain configuration
+   - Updated protocol enablement flags (layerZero, celerIM, hyperlane)
+   - Removed IBC protocol support
 
 ## Future Enhancements
 

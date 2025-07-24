@@ -1,8 +1,8 @@
 # LookCoin User Flow Guide
 
-**Cross-Chain Bridging with LayerZero and Celer IM**
+**Cross-Chain Bridging with LayerZero, Celer IM, and Hyperlane**
 
-This guide walks you through bridging LookCoin (LOOK) tokens across different blockchain networks using our two bridge protocols: LayerZero and Celer IM. Whether you're moving tokens between BSC, Base, Optimism, or Sapphire, this guide provides step-by-step instructions for a smooth bridging experience.
+This guide walks you through bridging LookCoin (LOOK) tokens across different blockchain networks using our three active bridge protocols: LayerZero, Celer IM, and Hyperlane. Whether you're moving tokens between BSC, Base, Optimism, or Sapphire, this guide provides step-by-step instructions for a smooth bridging experience.
 
 ## Prerequisites
 
@@ -19,19 +19,18 @@ Before bridging LOOK tokens, ensure you have:
 
 ## Supported Networks
 
-| Network  | Chain ID | LayerZero Support | Celer IM Support | Endpoint Address                           |
-| -------- | -------- | ----------------- | ---------------- | ------------------------------------------ |
-| BSC      | 56       |                   |                  | 0x1a44076050125825900e736c501f859c50fE728c |
-| Base     | 8453     |                   | L                | 0x1a44076050125825900e736c501f859c50fE728c |
-| Optimism | 10       |                   |                  | 0x1a44076050125825900e736c501f859c50fE728c |
-| Sapphire | 23295    | L                 |                  | TBD                                        |
+| Network  | Chain ID | LayerZero | Celer IM | Hyperlane | Endpoint Address                           |
+| -------- | -------- | --------- | -------- | --------- | ------------------------------------------ |
+| BSC      | 56       | ✓         | ✓        | ✓         | 0x1a44076050125825900e736c501f859c50fE728c |
+| Base     | 8453     | ✓         | ✗        | ✓         | 0x1a44076050125825900e736c501f859c50fE728c |
+| Optimism | 10       | ✓         | ✓        | ✓         | 0x1a44076050125825900e736c501f859c50fE728c |
+| Sapphire | 23295    | ✗         | ✓        | ✗         | TBD                                        |
 
 **Note**:
 
-- Base uses LayerZero exclusively (no Celer IM support)
-- Sapphire uses Celer IM exclusively (no LayerZero support)
-- Akashic uses IBC exclusively (not shown in this table)
-- BSC and Optimism support both LayerZero and Celer IM
+- Base uses LayerZero and Hyperlane (no Celer IM support)
+- Sapphire uses Celer IM exclusively (no LayerZero or Hyperlane support)
+- BSC and Optimism support all three protocols for maximum flexibility
 
 ## LayerZero Bridge (Burn-and-Mint)
 
@@ -211,16 +210,93 @@ Celer IM bridge charges two types of fees:
 - Optimism (Chain ID: 10)
 - Sapphire (Chain ID: 23295)
 
+## Hyperlane Bridge (Burn-and-Mint)
+
+Hyperlane uses a burn-and-mint mechanism similar to LayerZero but with its own message passing system and security model. It provides flexible security through Interchain Security Modules (ISM).
+
+### How It Works
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Wallet
+    participant Source Chain
+    participant Hyperlane
+    participant Destination Chain
+
+    User->>Wallet: Connect & Select Network
+    User->>Source Chain: Initiate Bridge Transfer
+    Source Chain->>Source Chain: Burn LOOK Tokens
+    Source Chain->>Hyperlane: Dispatch Message
+    Hyperlane->>Hyperlane: ISM Validation
+    Hyperlane->>Hyperlane: Pay Gas
+    Hyperlane->>Destination Chain: Deliver Message
+    Destination Chain->>Destination Chain: Mint LOOK Tokens
+    Destination Chain->>User: Transfer Complete
+```
+
+### Step-by-Step Instructions
+
+1. **Connect Your Wallet**
+   - Open your Web3 wallet
+   - Connect to the source chain (BSC, Base, or Optimism)
+   - Ensure you have sufficient LOOK balance
+
+2. **Check Requirements**
+   - LOOK balance: Your desired transfer amount
+   - Native token balance: For gas fees and Hyperlane gas payment
+   - Domain ID: Know the destination chain's Hyperlane domain ID
+
+3. **Initiate Bridge Transfer**
+
+   ```javascript
+   // Example: Bridge 1000 LOOK using Hyperlane
+   const amount = ethers.parseEther("1000");
+   const destinationDomain = 8453; // Base domain ID
+   const recipientAddress = "0xYourAddressOnBase";
+
+   await lookCoin.bridgeTokenHyperlane(
+     destinationDomain,
+     recipientAddress,
+     amount,
+     { value: ethers.parseEther("0.02") }, // Gas payment
+   );
+   ```
+
+4. **Pay Gas Fees**
+   - Hyperlane requires prepayment for destination chain gas
+   - Fee varies based on destination chain and current gas prices
+
+5. **Wait for Confirmation**
+   - Source chain burn: 1-2 minutes
+   - Message routing: 5-15 minutes (varies by security model)
+   - Destination chain mint: 1-2 minutes
+
+6. **Verify Receipt**
+   - Check your balance on the destination chain
+   - Track message status via Hyperlane explorer
+
+### Events to Track
+
+- **On Source Chain**: `CrossChainTransferInitiated(sender, destinationDomain, recipient, amount)`
+- **On Destination Chain**: `CrossChainTransferReceived(sender, sourceDomain, recipient, amount)`
+
+### Supported Chains
+
+- BSC (Domain: 56)
+- Base (Domain: 8453)
+- Optimism (Domain: 10)
+
 ## Bridge Comparison
 
-| Feature              | LayerZero                    | Celer IM                             |
-| -------------------- | ---------------------------- | ------------------------------------ |
-| **Mechanism**        | Burn-and-mint                | Lock-and-mint                        |
-| **Speed**            | 8-15 minutes                 | 12-20 minutes                        |
-| **LOOK Fee**         | None                         | 0.1% (1-100 LOOK)                    |
-| **Native Fee**       | ~0.01 ETH                    | Variable (base + per-byte)           |
-| **Supported Chains** | BSC, Base, Optimism          | BSC, Optimism, Sapphire              |
-| **Best For**         | Base transfers, No LOOK fees | Sapphire transfers, Predictable fees |
+| Feature              | LayerZero                    | Celer IM                             | Hyperlane                   |
+| -------------------- | ---------------------------- | ------------------------------------ | --------------------------- |
+| **Mechanism**        | Burn-and-mint                | Lock-and-mint                        | Burn-and-mint               |
+| **Speed**            | 8-15 minutes                 | 12-20 minutes                        | 5-15 minutes                |
+| **LOOK Fee**         | None                         | 0.1% (1-100 LOOK)                    | None                        |
+| **Native Fee**       | ~0.01 ETH                    | Variable (base + per-byte)           | Variable (gas prepayment)   |
+| **Supported Chains** | BSC, Base, Optimism          | BSC, Optimism, Sapphire              | BSC, Base, Optimism         |
+| **Best For**         | Base transfers, No LOOK fees | Sapphire transfers, Predictable fees | Flexible security, Fast transfers |
 
 ## Frequently Asked Questions
 
@@ -242,7 +318,7 @@ Always keep extra for safety.
 
 1. Check the transaction hash on the block explorer
 2. Verify the error message
-3. For LayerZero: Tokens are automatically refunded if burn fails
+3. For LayerZero/Hyperlane: Tokens are automatically refunded if burn fails
 4. For Celer IM: Locked tokens can be reclaimed after timeout period
 5. Contact support with transaction details if issues persist
 
@@ -266,6 +342,14 @@ Yes, with these security measures:
 - Emergency pause capability
 - Multiple security audits
 
+### Which bridge should I use?
+
+Choose based on your needs:
+
+- **LayerZero**: Best for Base transfers, no LOOK fees
+- **Celer IM**: Required for Sapphire, predictable fees
+- **Hyperlane**: Fast transfers, flexible security
+
 ### Best Practices
 
 1. **Test First**: Try a small amount before large transfers
@@ -279,4 +363,5 @@ Yes, with these security measures:
 - [Technical Documentation](./TECHNICAL.md) - Detailed technical specifications
 - [LayerZero V2 Documentation](https://docs.layerzero.network/v2) - Official LayerZero docs
 - [Celer Network Documentation](https://celer.network/docs/) - Official Celer docs
+- [Hyperlane Documentation](https://docs.hyperlane.xyz) - Official Hyperlane docs
 - [LookCoin Contract Repository](https://github.com/lookcard/lookcoin-contract) - Source code and deployment scripts

@@ -2,7 +2,7 @@ import { ethers } from "hardhat";
 import * as fs from "fs";
 import { getChainConfig, getNetworkTier, getNetworkName } from "../hardhat.config";
 import { getLayerZeroChainId, getCelerChainId, loadOtherChainDeployments, loadDeployment, validateDeploymentFormat } from "./utils/deployment";
-import { ProtocolDetector } from "./utils/protocolDetector";
+import { ProtocolDetector, isHyperlaneReady } from "./utils/protocolDetector";
 import * as configurators from "./utils/protocolConfigurators";
 
 // Dynamically import readline/promises
@@ -103,12 +103,11 @@ async function main() {
   }
 
   // Get contract instances
-  const lookCoin = await ethers.getContractAt("LookCoin", deployment.contracts.LookCoin.proxy);
   const supplyOracle = await ethers.getContractAt("SupplyOracle", deployment.contracts.SupplyOracle.proxy);
   
+  
   // Detect protocols to configure
-  const protocolDetector = new ProtocolDetector();
-  const protocolSupport = protocolDetector.detectSupportedProtocols(chainConfig);
+  const protocolSupport = ProtocolDetector.detectSupportedProtocols(chainConfig);
   console.log(`\nDetected protocols: ${protocolSupport.protocols.join(", ")}`);
 
   // Configure protocols based on deployment
@@ -128,11 +127,13 @@ async function main() {
         case 'celer':
           result = await configurators.configureCeler(deployment, otherChainDeployments, chainConfig);
           break;
-        case 'xerc20':
-          result = await configurators.configureXERC20(deployment, otherChainDeployments, chainConfig);
-          break;
         case 'hyperlane':
-          result = await configurators.configureHyperlane(deployment, otherChainDeployments, chainConfig);
+          if (isHyperlaneReady(chainConfig)) {
+            result = await configurators.configureHyperlane(deployment, otherChainDeployments, chainConfig);
+          } else {
+            result = { protocol, configured: false, details: 'Hyperlane not ready - missing mailbox or gas paymaster' };
+            console.log(`[INFO] Skipping Hyperlane configuration - not ready`);
+          }
           break;
         default:
           result = { protocol, configured: false, details: 'Unknown protocol' };
@@ -212,12 +213,8 @@ async function main() {
     ethers.parseUnits(String(chainConfig.oracle.tolerance * 10), 8), // Convert basis points to LOOK tokens
   );
 
-  // Configure rate limits on main contract from centralized config
-  console.log("\n6. Configuring main contract rate limits...");
-  await lookCoin.updateRateLimits(
-    chainConfig.rateLimiter.perAccountLimit,
-    chainConfig.rateLimiter.maxTransactionsPerAccount,
-  );
+  // Note: Rate limiting is handled by SecurityManager in the infrastructure contracts
+  // The SecurityManager is already configured with rate limits during deployment
 
   // Grant oracle roles
   console.log("\n7. Granting oracle roles...");
@@ -254,7 +251,7 @@ async function main() {
     })),
     layerZeroRemotes: deployment.protocolsDeployed?.includes('layerZero') || deployment.config?.layerZeroEndpoint
       ? Object.entries(otherChainDeployments)
-          .filter(([_, dep]) => dep.protocolsDeployed?.includes('layerZero') || dep.config?.layerZeroEndpoint)
+          .filter(([, dep]) => dep.protocolsDeployed?.includes('layerZero') || dep.config?.layerZeroEndpoint)
           .map(([chainId, dep]) => ({
             chainId: getLayerZeroChainId(parseInt(chainId)),
             networkTier: getNetworkTier(parseInt(chainId)),
@@ -263,17 +260,30 @@ async function main() {
       : [],
     celerRemotes: deployment.protocolsDeployed?.includes('celer') || deployment.contracts.CelerIMModule
       ? Object.entries(otherChainDeployments)
-          .filter(([_, dep]) => dep.protocolsDeployed?.includes('celer') || dep.contracts.CelerIMModule)
+          .filter(([, dep]) => dep.protocolsDeployed?.includes('celer') || dep.contracts.CelerIMModule)
           .map(([chainId, dep]) => ({
             chainId: getCelerChainId(parseInt(chainId)),
             networkTier: getNetworkTier(parseInt(chainId)),
             module: dep.contracts.CelerIMModule?.proxy || dep.protocolContracts?.celerIMModule || '',
           }))
       : [],
+    hyperlaneRemotes: deployment.protocolsDeployed?.includes('hyperlane') && isHyperlaneReady(chainConfig)
+      ? Object.entries(otherChainDeployments)
+          .filter(([, dep]) => dep.protocolsDeployed?.includes('hyperlane'))
+          .map(([chainId, dep]) => {
+            const otherChainConfig = getChainConfig(getNetworkName(parseInt(chainId)).toLowerCase().replace(/\s+/g, ""));
+            return {
+              domainId: otherChainConfig.hyperlane?.hyperlaneDomainId || parseInt(chainId),
+              networkTier: getNetworkTier(parseInt(chainId)),
+              module: dep.contracts.LookCoin.proxy, // Hyperlane uses LookCoin as the module
+            };
+          })
+      : [],
     supplyOracleConfig: {
       reconciliationInterval: `${chainConfig.oracle.updateInterval} seconds`,
       toleranceThreshold: `${chainConfig.oracle.tolerance} basis points`,
     },
+    hyperlaneStatus: isHyperlaneReady(chainConfig) ? 'ready' : 'not ready',
   };
 
   console.log("\nConfiguration Summary:");

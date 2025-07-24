@@ -56,6 +56,8 @@ The system uses an external MPC (Multi-Party Computation) vault wallet for gover
 | PAUSER_ROLE | Pause/unpause operations | Governance Vault |
 | UPGRADER_ROLE | Upgrade contract | Governance Vault |
 | BRIDGE_ROLE | Receive cross-chain transfers | LayerZero endpoint |
+| ROUTER_ADMIN_ROLE | Manage cross-chain router | Governance Vault |
+| PROTOCOL_ADMIN_ROLE | Manage protocol settings | Governance Vault |
 
 #### Bridge Module Roles
 
@@ -63,7 +65,6 @@ The system uses an external MPC (Multi-Party Computation) vault wallet for gover
 |------|---------|----------------|
 | ADMIN_ROLE | Administrative functions | Governance Vault |
 | OPERATOR_ROLE | Operational functions | Operators |
-| RELAYER_ROLE | IBC packet relay | IBC relayers |
 
 #### Supply Oracle Roles
 
@@ -72,6 +73,13 @@ The system uses an external MPC (Multi-Party Computation) vault wallet for gover
 | ORACLE_ROLE | Update supply data | Oracle operators |
 | EMERGENCY_ROLE | Emergency actions | Emergency operators |
 | BRIDGE_MANAGER_ROLE | Bridge registration | Governance Vault |
+
+#### SecurityManager Roles
+
+| Role | Purpose | Typical Holder |
+|------|---------|----------------|
+| SECURITY_ADMIN_ROLE | Security administration | Governance Vault |
+| EMERGENCY_ROLE | Emergency pause operations | Emergency operators |
 
 ### Permission Matrix
 
@@ -83,10 +91,13 @@ burn()                      BURNER_ROLE            LookCoin
 pause()                     PAUSER_ROLE            All
 unpause()                   PAUSER_ROLE            All
 upgrade()                   UPGRADER_ROLE          All
+setCrossChainRouter()       ROUTER_ADMIN_ROLE      LookCoin
+setHyperlaneMailbox()       PROTOCOL_ADMIN_ROLE    LookCoin
 setRemoteModule()           ADMIN_ROLE             Bridges
-updateValidatorSet()        ADMIN_ROLE             IBC
 registerBridge()            BRIDGE_MANAGER_ROLE    Oracle
 activateEmergencyMode()     EMERGENCY_ROLE         Oracle
+pauseProtocol()             SECURITY_ADMIN_ROLE    SecurityManager
+activateEmergencyPause()    EMERGENCY_ROLE         SecurityManager
 ```
 
 ## Cross-Chain Security
@@ -125,22 +136,27 @@ activateEmergencyMode()     EMERGENCY_ROLE         Oracle
    - Separate fee collector address
    - Min/max fee limits
 
-### IBC Security
+### Hyperlane Security
 
-1. **Validator Consensus**
-   - Minimum 21 validators required
-   - 2/3+ threshold for packet validation
-   - Signature verification for each validator
+1. **Interchain Security Module (ISM)**
+   - Modular security approach with configurable validators
+   - Domain-specific security configurations
+   - Message authentication via ISM verification
 
-2. **Packet Validation**
-   - Timeout verification
-   - Duplicate packet prevention
-   - Validator signature aggregation
+2. **Domain Validation**
+   - Supported domains mapping prevents unauthorized chains
+   - Domain ID verification on every message
+   - Mailbox address validation per domain
 
-3. **Unbonding Period**
-   - 14-day unbonding for validator changes
-   - Prevents rapid validator set manipulation
-   - Time for detection of malicious behavior
+3. **Message Security**
+   - Unique message IDs prevent replay attacks
+   - Origin domain verification
+   - Sender authentication through mailbox
+
+4. **Gas Payment**
+   - Required gas payment for message delivery
+   - Prevents spam and ensures message processing
+   - Configurable gas oracles per domain
 
 ## Emergency Procedures
 
@@ -157,7 +173,10 @@ activateEmergencyMode()     EMERGENCY_ROLE         Oracle
 // 1. Pause all operations
 lookCoin.pause()
 celerIMModule.pause()
-ibcModule.pause()
+// Or use SecurityManager for protocol-specific pause
+securityManager.pauseProtocol(Protocol.LayerZero)
+securityManager.pauseProtocol(Protocol.Celer)
+securityManager.pauseProtocol(Protocol.Hyperlane)
 
 // 2. Activate emergency mode on oracle
 supplyOracle.activateEmergencyMode()
@@ -244,7 +263,9 @@ bridgeModule.emergencyWithdraw(token, recipient, amount)
    - Cross-contract reentrancy ✅
 
 3. **Cross-Chain Tests**
-   - Message authentication ✅
+   - LayerZero message authentication ✅
+   - Celer IM transfer validation ✅
+   - Hyperlane domain security ✅
    - Replay attack prevention ✅
    - Invalid signature detection ✅
 

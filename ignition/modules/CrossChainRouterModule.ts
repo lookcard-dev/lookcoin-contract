@@ -29,7 +29,6 @@ export default buildModule("CrossChainRouterModule", (m) => {
   // Register protocol modules if provided
   const layerZeroModule = m.getParameter("layerZeroModule");
   const celerModule = m.getParameter("celerModule");
-  const xerc20Module = m.getParameter("xerc20Module");
   const hyperlaneModule = m.getParameter("hyperlaneModule");
 
   if (layerZeroModule && layerZeroModule !== "0x0000000000000000000000000000000000000000") {
@@ -40,19 +39,15 @@ export default buildModule("CrossChainRouterModule", (m) => {
     m.call(crossChainRouter, "registerProtocol", [1, celerModule]); // Protocol.Celer = 1
   }
 
-  if (xerc20Module && xerc20Module !== "0x0000000000000000000000000000000000000000") {
-    m.call(crossChainRouter, "registerProtocol", [2, xerc20Module]); // Protocol.XERC20 = 2
-  }
 
   if (hyperlaneModule && hyperlaneModule !== "0x0000000000000000000000000000000000000000") {
-    m.call(crossChainRouter, "registerProtocol", [3, hyperlaneModule]); // Protocol.Hyperlane = 3
+    m.call(crossChainRouter, "registerProtocol", [2, hyperlaneModule]); // Protocol.Hyperlane = 2
   }
 
   // Set up chain protocol support based on configuration
   const protocols = m.getParameter("protocols", {
     layerZero: false,
     celer: false,
-    xerc20: false,
     hyperlane: false,
   });
 
@@ -64,11 +59,8 @@ export default buildModule("CrossChainRouterModule", (m) => {
     if (protocols.celer) {
       m.call(crossChainRouter, "setChainProtocolSupport", [chainId, 1, true]);
     }
-    if (protocols.xerc20) {
-      m.call(crossChainRouter, "setChainProtocolSupport", [chainId, 2, true]);
-    }
     if (protocols.hyperlane) {
-      m.call(crossChainRouter, "setChainProtocolSupport", [chainId, 3, true]);
+      m.call(crossChainRouter, "setChainProtocolSupport", [chainId, 2, true]);
     }
   }
 

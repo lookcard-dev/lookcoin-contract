@@ -3,7 +3,6 @@ import { ChainConfig } from "../../hardhat.config";
 export interface ProtocolSupport {
   layerZero: boolean;
   celer: boolean;
-  xerc20: boolean;
   hyperlane: boolean;
   protocols: string[];
 }
@@ -24,7 +23,6 @@ export class ProtocolDetector {
     const support: ProtocolSupport = {
       layerZero: false,
       celer: false,
-      xerc20: false,
       hyperlane: false,
       protocols: []
     };
@@ -33,20 +31,24 @@ export class ProtocolDetector {
     if (chainConfig.protocols) {
       support.layerZero = !!chainConfig.protocols.layerZero;
       support.celer = !!chainConfig.protocols.celer;
-      support.xerc20 = !!chainConfig.protocols.xerc20;
-      support.hyperlane = !!chainConfig.protocols.hyperlane;
+      // Enhanced Hyperlane detection - check both mailbox AND gas paymaster
+      support.hyperlane = !!chainConfig.protocols.hyperlane && this.isHyperlaneReady(chainConfig);
     } else {
       // Fallback to checking endpoint addresses
       support.layerZero = this.isValidAddress(chainConfig.layerZeroEndpoint);
       support.celer = this.isValidAddress(chainConfig.celerMessageBus);
-      support.xerc20 = this.isValidAddress(chainConfig.xerc20Factory);
-      support.hyperlane = this.isValidAddress(chainConfig.hyperlaneMailbox);
+      support.hyperlane = this.isValidAddress(chainConfig.hyperlaneMailbox) && 
+                         this.isValidAddress(chainConfig.hyperlane?.gasPaymaster);
+    }
+
+    // Debug logging
+    if (chainConfig.protocols?.hyperlane && !support.hyperlane) {
+      console.log("⚠️  Hyperlane is not ready - missing mailbox or gas paymaster.");
     }
 
     // Build protocols array
     if (support.layerZero) support.protocols.push("layerZero");
     if (support.celer) support.protocols.push("celer");
-    if (support.xerc20) support.protocols.push("xerc20");
     if (support.hyperlane) support.protocols.push("hyperlane");
 
     return support;
@@ -66,8 +68,6 @@ export class ProtocolDetector {
         return support.layerZero;
       case "celer":
         return support.celer;
-      case "xerc20":
-        return support.xerc20;
       case "hyperlane":
         return support.hyperlane;
       default:
@@ -100,16 +100,13 @@ export class ProtocolDetector {
           endpoint: chainConfig.celerMessageBus || "",
           chainId: chainConfig.celerChainId
         };
-      case "xerc20":
-        return {
-          endpoint: chainConfig.xerc20Factory || ""
-        };
       case "hyperlane":
         return {
-          endpoint: chainConfig.hyperlaneMailbox || "",
+          endpoint: chainConfig.hyperlane?.mailbox || "",
           additionalSettings: {
-            hyperlaneISM: chainConfig.hyperlaneISM,
-            hyperlaneDomain: chainConfig.hyperlaneDomain
+            hyperlaneISM: chainConfig.hyperlane?.ism,
+            hyperlaneDomainId: chainConfig.hyperlane?.hyperlaneDomainId,
+            gasPaymaster: chainConfig.hyperlane?.gasPaymaster
           }
         };
       default:
@@ -138,4 +135,19 @@ export class ProtocolDetector {
            address !== "0x0000000000000000000000000000000000000000" &&
            address.toLowerCase() !== "0x0";
   }
+
+  /**
+   * Checks if Hyperlane is ready (has both mailbox and gas paymaster)
+   * @param chainConfig The chain configuration
+   * @returns True if Hyperlane is ready for deployment
+   */
+  static isHyperlaneReady(chainConfig: ChainConfig): boolean {
+    return (
+      this.isValidAddress(chainConfig.hyperlane?.mailbox) &&
+      this.isValidAddress(chainConfig.hyperlane?.gasPaymaster)
+    );
+  }
 }
+
+// Export the isHyperlaneReady helper as a named export for convenience
+export const isHyperlaneReady = ProtocolDetector.isHyperlaneReady.bind(ProtocolDetector);

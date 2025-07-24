@@ -161,7 +161,6 @@ Deployment Mode: multi-protocol
 
 1. Configuring roles...
 ✅ MINTER_ROLE granted to CelerIMModule
-✅ MINTER_ROLE granted to XERC20Module
 ✅ BURNER_ROLE granted to LookCoin
 
 2. Registering bridges with SupplyOracle...
@@ -184,8 +183,6 @@ The configure phase establishes cross-chain connections between deployed network
 1. **Protocol-Specific Settings**
    - LayerZero: Trusted remotes, DVN configuration
    - Celer: Remote modules, fee parameters
-   - IBC: Validators, daily limits
-   - XERC20: Bridge registrations, mint/burn limits
    - Hyperlane: Trusted senders, ISM configuration
 
 2. **Infrastructure (Multi-Protocol Only)**
@@ -307,6 +304,27 @@ No manual migration required!
 - **Cause**: Legacy deployment being migrated
 - **Solution**: Usually safe to ignore, system handles it
 
+#### "Unnecessary Proxy Upgrades"
+- **Cause**: Bytecode hash comparison detecting changes when none exist
+- **Solution**: 
+  - Enable debug mode: `DEBUG_DEPLOYMENT=true npm run deploy:<network>`
+  - Skip upgrades temporarily: `SKIP_UPGRADE_CHECK=true npm run deploy:<network>`
+  - Clear LevelDB if corrupted: `rm -rf leveldb/`
+
+#### "Network Connectivity Issues"
+- **Cause**: RPC endpoint not responding or rate limited
+- **Solution**:
+  - Check RPC URL in `.env` or `hardhat.config.ts`
+  - Use alternative RPC providers
+  - Deployment script retries 3 times automatically
+
+#### "BSC Multi-Protocol Overhead"
+- **Cause**: Infrastructure contracts deployed when not needed for single-chain operation
+- **Solution**:
+  - Use simple mode: `npm run deploy:bsc-testnet -- --simple-mode`
+  - Set environment: `BSC_SIMPLE_MODE=true npm run deploy:bsc-testnet`
+  - Force standard mode: `FORCE_STANDARD_MODE=true npm run deploy:<network>`
+
 ### Error Recovery
 
 The deployment system includes recovery mechanisms:
@@ -318,6 +336,42 @@ The deployment system includes recovery mechanisms:
 Resume a failed deployment:
 ```bash
 npm run deploy:resume -- --network bscTestnet
+```
+
+### Debug Options
+
+Enable verbose debugging to diagnose deployment issues:
+
+```bash
+# Debug deployment with detailed logging
+DEBUG_DEPLOYMENT=true npm run deploy:<network>
+
+# Debug with dry run (no actual deployment)
+npm run deploy:<network> -- --debug --dry-run
+
+# Debug specific contract upgrades
+DEBUG_DEPLOYMENT=true npm run deploy:<network> 2>&1 | grep -A5 -B5 "Hash comparison"
+```
+
+### Command Line Options
+
+The deployment script supports several command line options:
+
+```bash
+# Enable debug logging
+npm run deploy:<network> -- --debug
+
+# Dry run mode (simulate deployment)
+npm run deploy:<network> -- --dry-run
+
+# Skip proxy upgrades
+npm run deploy:<network> -- --skip-upgrade
+
+# Force simple mode (BSC optimization)
+npm run deploy:<network> -- --simple-mode
+
+# Combine multiple options
+npm run deploy:bsc-testnet -- --debug --skip-upgrade --simple-mode
 ```
 
 ## Cross-Tier Configuration
@@ -474,8 +528,8 @@ cp .env.example .env
 
 ## Supported Networks
 
-| Network                    | Chain ID | Network Name     | LayerZero | Celer IM | IBC | RPC Endpoint                                    |
-| -------------------------- | -------- | ---------------- | --------- | -------- | --- | ----------------------------------------------- |
+| Network                    | Chain ID | Network Name     | LayerZero | Celer IM | Hyperlane | RPC Endpoint                                    |
+| -------------------------- | -------- | ---------------- | --------- | -------- | --------- | ----------------------------------------------- |
 | **BSC Mainnet**            | 56       | bsc-mainnet      |           |          |     | https://bsc-dataseed.binance.org/               |
 | **BSC Testnet**            | 97       | bsc-testnet      |           |          |     | https://data-seed-prebsc-1-s1.binance.org:8545/ |
 | **Base Mainnet**           | 8453     | base-mainnet     |           |          |     | https://mainnet.base.org                        |
@@ -484,7 +538,6 @@ cp .env.example .env
 | **Optimism Sepolia**       | 11155420 | op-sepolia       |           |          |     | https://sepolia.optimism.io                     |
 | **Oasis Sapphire**         | 23295    | sapphire         |           |          |     | https://sapphire.oasis.io                       |
 | **Oasis Sapphire Testnet** | 23295    | sapphire-testnet |           |          |     | https://testnet.sapphire.oasis.io               |
-| **Akashic Mainnet**        | 9070     | akashic-mainnet  |           |          |     | https://rpc-mainnet.akashicrecords.io           |
 
 ### LayerZero Endpoints
 
@@ -495,7 +548,6 @@ cp .env.example .env
 - Optimism Mainnet: `0x1a44076050125825900e736c501f859c50fE728c`
 - Optimism Sepolia: `0x6EDCE65403992e310A62460808c4b910D972f10f`
 - Sapphire: Not supported by LayerZero (use Celer IM)
-- Akashic: Not supported by LayerZero (use IBC)
 
 ### Celer MessageBus
 
@@ -506,7 +558,6 @@ cp .env.example .env
 - Optimism Sepolia: Not supported on testnet
 - Oasis Sapphire: `0x9Bb46D5100d2Db4608112026951c9C965b233f4D`
 - Oasis Sapphire Testnet: `0x9Bb46D5100d2Db4608112026951c9C965b233f4D`
-- Akashic: Not supported by Celer (use IBC)
 
 ## Deployment File Naming Convention
 
@@ -559,9 +610,9 @@ The deployment process (implemented in `scripts/deploy.ts`) follows this sequenc
    - Deploys with LookCoin address and MessageBus address
    - Registers Celer chain IDs for cross-chain messaging
 
-3. **IBCModule** (BSC chains only)
-   - Deploys with LookCoin address
-   - Configures initial validator set (21 validators)
+3. **HyperlaneModule** (if Hyperlane is supported on the network)
+   - Deploys with LookCoin address and mailbox address
+   - Configures domain mappings and ISM settings
 
 4. **SupplyOracle**
    - Deploys with LookCoin address
@@ -575,7 +626,7 @@ The deployment process (implemented in `scripts/deploy.ts`) follows this sequenc
 
 After deployment, roles are automatically assigned:
 
-- **MINTER_ROLE**: Granted to bridge modules (CelerIMModule, IBCModule)
+- **MINTER_ROLE**: Granted to bridge modules (CelerIMModule, HyperlaneModule)
 - **BURNER_ROLE**: Granted to LookCoin itself (for self-burning in cross-chain transfers)
 - **DEFAULT_ADMIN_ROLE**: Transferred to MPCMultisig contract
 - **PAUSER_ROLE**: Granted to security monitoring addresses
@@ -587,7 +638,7 @@ All deployed bridges are registered with the SupplyOracle:
 
 - LayerZero (native to LookCoin contract)
 - Celer IM Module (if deployed)
-- IBC Module (if deployed)
+- Hyperlane Module (if deployed)
 
 ### 4. Deployment Artifacts
 
@@ -630,8 +681,6 @@ npm run deploy:op-mainnet
 # Oasis Sapphire (Chain ID: 23295)
 npm run deploy:sapphire
 
-# Akashic Mainnet (Chain ID: 9070)
-npm run deploy:akashic-mainnet
 ```
 
 ## Post-Deployment Configuration
@@ -657,7 +706,7 @@ LookCoin deployment follows a three-stage process to ensure proper contract setu
 **Script**: `scripts/setup.ts`
 **What it does**:
 
-- Assigns MINTER_ROLE to bridge modules (CelerIMModule, IBCModule)
+- Assigns MINTER_ROLE to bridge modules (CelerIMModule, HyperlaneModule)
 - Grants BURNER_ROLE to LookCoin contract for LayerZero burns
 - Registers local bridges with SupplyOracle for the current network only
 - Configures rate limiting parameters
@@ -710,14 +759,13 @@ The configuration script (`scripts/configure.ts`) performs:
 - Configures chain ID mappings (BSC: 56, Optimism: 10, Sapphire: 23295)
 - Bridge fee structure: 0.1% (10 basis points), minimum 1 LOOK, maximum 100 LOOK
 
-### 3. IBC Configuration (Akashic only)
+### 3. Hyperlane Configuration
 
-- Registers Akashic chain parameters (Chain ID: 9070)
-- Sets up validator public keys (21 validators minimum)
-- Configures consensus requirements (2/3 majority, threshold: 14)
-- Sets packet timeout parameters (1 hour)
-- Unbonding period: 14 days
-- Channel ID: channel-0, Port ID: transfer
+- Configures mailbox addresses for message passing
+- Sets up trusted senders from other Hyperlane-enabled chains
+- Configures domain mappings (BSC: 56, Base: 8453, Optimism: 10)
+- Sets up ISM (Interchain Security Module) parameters
+- Configures gas payment settings for cross-chain messages
 
 ### 4. Supply Oracle Setup
 

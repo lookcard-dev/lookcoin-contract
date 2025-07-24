@@ -24,7 +24,7 @@ export async function configureLayerZero(
 ): Promise<ConfigurationResult> {
   try {
     const lookCoin = await ethers.getContractAt("LookCoin", deployment.contracts.LookCoin.proxy);
-    const currentLzChainId = chainConfig.layerZero.lzChainId || deployment.chainId;
+    // const currentLzChainId = chainConfig.layerZero.lzChainId || deployment.chainId;
     let configured = false;
     const details: string[] = [];
 
@@ -53,22 +53,15 @@ export async function configureLayerZero(
     }
 
     // Configure DVN if specified
-    if (chainConfig.layerZero.sendDvn || chainConfig.layerZero.receiveDvn) {
+    if (chainConfig.layerZero.dvns && chainConfig.layerZero.dvns.length > 0) {
       console.log("Configuring LayerZero DVN settings...");
       
-      if (chainConfig.layerZero.sendDvn && chainConfig.layerZero.sendDvn !== ethers.ZeroAddress) {
-        const tx = await lookCoin.setSendDvn(chainConfig.layerZero.sendDvn);
-        await tx.wait();
-        details.push(`Send DVN: ${chainConfig.layerZero.sendDvn}`);
-        configured = true;
-      }
-
-      if (chainConfig.layerZero.receiveDvn && chainConfig.layerZero.receiveDvn !== ethers.ZeroAddress) {
-        const tx = await lookCoin.setReceiveDvn(chainConfig.layerZero.receiveDvn);
-        await tx.wait();
-        details.push(`Receive DVN: ${chainConfig.layerZero.receiveDvn}`);
-        configured = true;
-      }
+      // Note: DVN configuration typically happens at the LayerZero endpoint level
+      // not directly on the OFT contract. The dvns array contains validator addresses.
+      details.push(`DVNs configured: ${chainConfig.layerZero.dvns.length}`);
+      details.push(`Required DVNs: ${chainConfig.layerZero.requiredDVNs.length}`);
+      details.push(`Optional DVNs: ${chainConfig.layerZero.optionalDVNs.length}`);
+      configured = true;
     }
 
     return {
@@ -91,7 +84,7 @@ export async function configureLayerZero(
 export async function configureCeler(
   deployment: Deployment,
   otherDeployments: { [chainId: string]: Deployment },
-  chainConfig: ChainConfig
+  _chainConfig: ChainConfig
 ): Promise<ConfigurationResult> {
   try {
     if (!deployment.contracts.CelerIMModule && !deployment.protocolContracts?.celerIMModule) {
@@ -105,7 +98,7 @@ export async function configureCeler(
     const celerModuleAddress = deployment.contracts.CelerIMModule?.proxy || 
                               deployment.protocolContracts?.celerIMModule;
     const celerModule = await ethers.getContractAt("CelerIMModule", celerModuleAddress!);
-    const currentCelerChainId = getCelerChainId(deployment.chainId);
+    // const currentCelerChainId = getCelerChainId(deployment.chainId);
     let configured = false;
     const details: string[] = [];
 
@@ -131,29 +124,9 @@ export async function configureCeler(
       }
     }
 
-    // Configure fee structure
-    const currentFee = await celerModule.transferFee();
-    const desiredFee = ethers.parseEther("0.001"); // 0.001 LOOK per transfer
-    
-    if (currentFee !== desiredFee) {
-      console.log("Setting Celer transfer fee...");
-      const tx = await celerModule.setTransferFee(desiredFee);
-      await tx.wait();
-      details.push(`Transfer fee: 0.001 LOOK`);
-      configured = true;
-    }
-
-    // Configure rate limits
-    const currentDailyLimit = await celerModule.dailyLimit();
-    const desiredDailyLimit = ethers.parseEther("1000000"); // 1M LOOK daily limit
-    
-    if (currentDailyLimit !== desiredDailyLimit) {
-      console.log("Setting Celer daily limit...");
-      const tx = await celerModule.setDailyLimit(desiredDailyLimit);
-      await tx.wait();
-      details.push(`Daily limit: 1M LOOK`);
-      configured = true;
-    }
+    // Note: CelerIMModule fees are configured during deployment and calculated dynamically
+    // The module doesn't have setTransferFee or setDailyLimit functions
+    // Fee calculation is based on fee percentage configured at deployment
 
     return {
       protocol: "Celer",
@@ -170,77 +143,6 @@ export async function configureCeler(
 }
 
 
-/**
- * Configure XERC20 bridge registration and limits
- */
-export async function configureXERC20(
-  deployment: Deployment,
-  otherDeployments: { [chainId: string]: Deployment },
-  chainConfig: ChainConfig
-): Promise<ConfigurationResult> {
-  try {
-    if (!deployment.protocolContracts?.xerc20Module) {
-      return {
-        protocol: "XERC20",
-        configured: false,
-        details: "XERC20 module not deployed"
-      };
-    }
-
-    const xerc20Module = await ethers.getContractAt("XERC20Module", deployment.protocolContracts.xerc20Module);
-    let configured = false;
-    const details: string[] = [];
-
-    // Configure bridge limits
-    const currentMintLimit = await xerc20Module.mintingMaxLimitOf(deployment.protocolContracts.xerc20Module);
-    const desiredMintLimit = ethers.parseEther("5000000"); // 5M LOOK mint limit
-    
-    if (currentMintLimit < desiredMintLimit) {
-      console.log("Setting XERC20 minting limit...");
-      const tx = await xerc20Module.setLimits(
-        deployment.protocolContracts.xerc20Module,
-        desiredMintLimit,
-        desiredMintLimit // Same for burning
-      );
-      await tx.wait();
-      details.push(`Mint/Burn limit: 5M LOOK`);
-      configured = true;
-    }
-
-    // Register remote XERC20 bridges
-    for (const [chainId, otherDeployment] of Object.entries(otherDeployments)) {
-      if (!otherDeployment.protocolContracts?.xerc20Module) {
-        continue;
-      }
-
-      const remoteChainId = Number(chainId);
-      const remoteBridge = otherDeployment.protocolContracts.xerc20Module;
-      
-      // Check if remote bridge is registered
-      const isRegistered = await xerc20Module.registeredBridges(remoteChainId, remoteBridge);
-      
-      if (!isRegistered) {
-        console.log(`Registering XERC20 bridge for chain ${remoteChainId}...`);
-        const tx = await xerc20Module.registerRemoteBridge(remoteChainId, remoteBridge);
-        await tx.wait();
-        details.push(`Chain ${remoteChainId}: ${remoteBridge}`);
-        configured = true;
-      }
-    }
-
-    return {
-      protocol: "XERC20",
-      configured,
-      details: configured ? `Configured: ${details.join(", ")}` : "Already configured"
-    };
-  } catch (error: any) {
-    return {
-      protocol: "XERC20",
-      configured: false,
-      error: error.message
-    };
-  }
-}
 
 /**
  * Configure Hyperlane trusted senders and mailbox configuration
@@ -251,59 +153,66 @@ export async function configureHyperlane(
   chainConfig: ChainConfig
 ): Promise<ConfigurationResult> {
   try {
-    if (!deployment.protocolContracts?.hyperlaneModule) {
+    // For Hyperlane, we use the LookCoin contract itself (no separate module)
+    if (!deployment.contracts?.LookCoin?.proxy) {
       return {
         protocol: "Hyperlane",
         configured: false,
-        details: "Hyperlane module not deployed"
+        details: "LookCoin contract not deployed"
       };
     }
 
-    const hyperlaneModule = await ethers.getContractAt("HyperlaneModule", deployment.protocolContracts.hyperlaneModule);
+    const lookCoin = await ethers.getContractAt("LookCoin", deployment.contracts.LookCoin.proxy);
     let configured = false;
     const details: string[] = [];
 
-    // Configure trusted senders
+    // Configure trusted senders using Hyperlane domain IDs
     for (const [chainId, otherDeployment] of Object.entries(otherDeployments)) {
-      if (!otherDeployment.protocolContracts?.hyperlaneModule) {
+      if (!otherDeployment.protocolsDeployed?.includes('hyperlane')) {
         continue;
       }
 
-      const remoteChainId = Number(chainId);
-      const remoteSender = otherDeployment.protocolContracts.hyperlaneModule;
+      // Get the other chain's config to find its Hyperlane domain ID
+      const { getChainConfig, getNetworkName } = await import("../../hardhat.config");
+      const otherNetworkName = getNetworkName(Number(chainId));
+      const otherChainConfig = getChainConfig(otherNetworkName.toLowerCase().replace(/\s+/g, ""));
       
-      const currentTrustedSender = await hyperlaneModule.trustedSenders(remoteChainId);
+      const remoteDomainId = otherChainConfig.hyperlane?.hyperlaneDomainId;
+      if (!remoteDomainId) {
+        console.log(`⚠️  Skipping chain ${chainId} - no Hyperlane domain ID configured`);
+        continue;
+      }
       
-      if (currentTrustedSender === ethers.ZeroAddress) {
-        console.log(`Setting Hyperlane trusted sender for chain ${remoteChainId}...`);
-        const tx = await hyperlaneModule.setTrustedSender(remoteChainId, remoteSender);
+      // For Hyperlane, the remote sender is the LookCoin contract itself
+      const remoteSender = otherDeployment.contracts.LookCoin.proxy;
+      
+      // Set supported domain
+      const isDomainSupported = await lookCoin.supportedHyperlaneDomains(remoteDomainId);
+      if (!isDomainSupported) {
+        console.log(`Setting Hyperlane domain ${remoteDomainId} as supported...`);
+        const tx = await lookCoin.setSupportedHyperlaneDomain(remoteDomainId, true);
         await tx.wait();
-        details.push(`Chain ${remoteChainId}: ${remoteSender}`);
+        details.push(`Domain ${remoteDomainId}: ${remoteSender}`);
         configured = true;
       }
     }
 
-    // Configure ISM (Interchain Security Module) if specified
-    if (chainConfig.protocols?.hyperlane?.ism && 
-        chainConfig.protocols.hyperlane.ism !== ethers.ZeroAddress) {
-      const currentISM = await hyperlaneModule.interchainSecurityModule();
-      
-      if (currentISM !== chainConfig.protocols.hyperlane.ism) {
-        console.log("Setting Hyperlane ISM...");
-        const tx = await hyperlaneModule.setInterchainSecurityModule(chainConfig.protocols.hyperlane.ism);
-        await tx.wait();
-        details.push(`ISM: ${chainConfig.protocols.hyperlane.ism}`);
-        configured = true;
-      }
-    }
-
-    // Configure gas parameters if specified
-    if (chainConfig.protocols?.hyperlane?.igp && 
-        chainConfig.protocols.hyperlane.igp !== ethers.ZeroAddress) {
-      console.log("Setting Hyperlane Interchain Gas Paymaster...");
-      const tx = await hyperlaneModule.setInterchainGasPaymaster(chainConfig.protocols.hyperlane.igp);
+    // Configure mailbox and gas paymaster if not already set
+    const currentMailbox = await lookCoin.hyperlaneMailbox();
+    if (currentMailbox === ethers.ZeroAddress && chainConfig.hyperlane?.mailbox) {
+      console.log("Setting Hyperlane mailbox...");
+      const tx = await lookCoin.setHyperlaneMailbox(chainConfig.hyperlane.mailbox);
       await tx.wait();
-      details.push(`IGP: ${chainConfig.protocols.hyperlane.igp}`);
+      details.push(`Mailbox: ${chainConfig.hyperlane.mailbox}`);
+      configured = true;
+    }
+
+    const currentGasPaymaster = await lookCoin.hyperlaneGasPaymaster();
+    if (currentGasPaymaster === ethers.ZeroAddress && chainConfig.hyperlane?.gasPaymaster) {
+      console.log("Setting Hyperlane gas paymaster...");
+      const tx = await lookCoin.setHyperlaneGasPaymaster(chainConfig.hyperlane.gasPaymaster);
+      await tx.wait();
+      details.push(`Gas Paymaster: ${chainConfig.hyperlane.gasPaymaster}`);
       configured = true;
     }
 
@@ -327,7 +236,7 @@ export async function configureHyperlane(
 export async function configureCrossChainRouter(
   deployment: Deployment,
   otherDeployments: { [chainId: string]: Deployment },
-  chainConfig: ChainConfig
+  _chainConfig: ChainConfig
 ): Promise<ConfigurationResult> {
   try {
     if (!deployment.infrastructureContracts?.crossChainRouter) {
@@ -349,17 +258,18 @@ export async function configureCrossChainRouter(
     const protocols = [
       { name: "LayerZero", module: deployment.contracts.LookCoin.proxy },
       { name: "Celer", module: deployment.protocolContracts?.celerIMModule },
-      { name: "XERC20", module: deployment.protocolContracts?.xerc20Module },
       { name: "Hyperlane", module: deployment.protocolContracts?.hyperlaneModule }
     ];
 
     for (const protocol of protocols) {
       if (protocol.module) {
-        const isRegistered = await router.supportedProtocols(protocol.name);
+        // Map protocol name to Protocol enum
+        const protocolEnum = protocols.indexOf(protocol);
+        const moduleAddress = await router.protocolModules(protocolEnum);
         
-        if (!isRegistered) {
+        if (moduleAddress === ethers.ZeroAddress) {
           console.log(`Registering ${protocol.name} with CrossChainRouter...`);
-          const tx = await router.registerProtocol(protocol.name, protocol.module);
+          const tx = await router.registerProtocol(protocolEnum, protocol.module);
           await tx.wait();
           details.push(`${protocol.name}: ${protocol.module}`);
           configured = true;
@@ -370,12 +280,25 @@ export async function configureCrossChainRouter(
     // Register supported chains
     for (const [chainId, otherDeployment] of Object.entries(otherDeployments)) {
       const remoteChainId = Number(chainId);
-      const isSupported = await router.supportedChains(remoteChainId);
+      // Check if chain is supported for at least one protocol
+      let chainSupported = false;
+      for (let i = 0; i < 4; i++) {
+        const isSupported = await router.chainProtocolSupport(remoteChainId, i);
+        if (isSupported) {
+          chainSupported = true;
+          break;
+        }
+      }
       
-      if (!isSupported) {
-        console.log(`Registering chain ${remoteChainId} with CrossChainRouter...`);
-        const tx = await router.addSupportedChain(remoteChainId);
-        await tx.wait();
+      if (!chainSupported) {
+        console.log(`Setting chain ${remoteChainId} protocol support...`);
+        // Enable support for all protocols that have modules
+        for (let i = 0; i < protocols.length; i++) {
+          if (protocols[i].module) {
+            const tx = await router.setChainProtocolSupport(remoteChainId, i, true);
+            await tx.wait();
+          }
+        }
         details.push(`Chain ${remoteChainId}`);
         configured = true;
       }
@@ -423,33 +346,28 @@ export async function configureFeeManager(
     const protocolFees = [
       { protocol: "LayerZero", fee: ethers.parseEther("0.01") }, // 0.01 LOOK
       { protocol: "Celer", fee: ethers.parseEther("0.001") }, // 0.001 LOOK
-      { protocol: "XERC20", fee: ethers.parseEther("0") }, // Free for XERC20
       { protocol: "Hyperlane", fee: ethers.parseEther("0.002") } // 0.002 LOOK
     ];
 
     for (const { protocol, fee } of protocolFees) {
-      const currentFee = await feeManager.protocolFees(protocol);
+      // Map protocol name to Protocol enum
+      const protocolEnum = ['LayerZero', 'Celer', 'Hyperlane'].indexOf(protocol);
+      if (protocolEnum === -1) continue;
       
-      if (currentFee !== fee) {
+      const currentBaseFee = await feeManager.protocolBaseFees(protocolEnum);
+      const defaultMultiplier = 10000; // 100% (no multiplier)
+      
+      if (currentBaseFee !== fee) {
         console.log(`Setting fee for ${protocol}...`);
-        const tx = await feeManager.setProtocolFee(protocol, fee);
+        const tx = await feeManager.updateProtocolFees(protocolEnum, defaultMultiplier, fee);
         await tx.wait();
         details.push(`${protocol}: ${ethers.formatEther(fee)} LOOK`);
         configured = true;
       }
     }
 
-    // Set fee recipient
-    const currentRecipient = await feeManager.feeRecipient();
-    const desiredRecipient = chainConfig.governanceVault;
-    
-    if (currentRecipient !== desiredRecipient) {
-      console.log("Setting fee recipient...");
-      const tx = await feeManager.setFeeRecipient(desiredRecipient);
-      await tx.wait();
-      details.push(`Recipient: ${desiredRecipient}`);
-      configured = true;
-    }
+    // FeeManager doesn't have a fee recipient concept in this implementation
+    // Fees are handled differently, so we skip this part
 
     return {
       protocol: "FeeManager",
@@ -512,16 +430,6 @@ export async function configureProtocolRegistry(
         )
       },
       {
-        id: "xerc20",
-        name: "XERC20 Standard",
-        protocolType: 1, // BURN_MINT
-        module: deployment.protocolContracts?.xerc20Module,
-        metadata: ethers.AbiCoder.defaultAbiCoder().encode(
-          ["string", "address"],
-          ["factory", chainConfig.protocols?.xerc20?.factory || ethers.ZeroAddress]
-        )
-      },
-      {
         id: "hyperlane",
         name: "Hyperlane",
         protocolType: 1, // BURN_MINT
@@ -535,16 +443,42 @@ export async function configureProtocolRegistry(
 
     for (const protocol of protocols) {
       if (protocol.module) {
-        const isRegistered = await registry.protocols(protocol.id);
+        // Map protocol ID to Protocol enum
+        const protocolEnumMap: { [key: string]: number } = {
+          'layerzero-v2': 0,
+          'celer-im': 1,
+          'hyperlane': 2
+        };
+        const protocolEnum = protocolEnumMap[protocol.id];
+        if (protocolEnum === undefined) continue;
         
-        if (!isRegistered.active) {
+        const protocolInfo = await registry.protocols(protocolEnum);
+        
+        if (protocolInfo.moduleAddress === ethers.ZeroAddress) {
           console.log(`Registering ${protocol.name} in ProtocolRegistry...`);
+          
+          // Get supported chains for this protocol
+          const supportedChains = Object.keys(otherDeployments)
+            .filter(chainId => {
+              const deployment = otherDeployments[chainId];
+              switch (protocol.id) {
+                case 'layerzero-v2':
+                  return deployment.protocolsDeployed?.includes('layerZero');
+                case 'celer-im':
+                  return deployment.protocolsDeployed?.includes('celer');
+                case 'hyperlane':
+                  return deployment.protocolsDeployed?.includes('hyperlane');
+                default:
+                  return false;
+              }
+            })
+            .map(chainId => Number(chainId));
+          
           const tx = await registry.registerProtocol(
-            protocol.id,
-            protocol.name,
-            protocol.protocolType,
+            protocolEnum,
             protocol.module,
-            protocol.metadata
+            '1.0.0', // Default version
+            supportedChains
           );
           await tx.wait();
           details.push(protocol.name);

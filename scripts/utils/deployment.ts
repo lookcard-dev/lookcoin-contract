@@ -81,9 +81,9 @@ function migrateDeploymentFormat(deployment: any): Deployment {
   }
 
   // Detect deployment mode by analyzing contracts
-  const hasMultipleProtocols = 
-    (deployment.contracts.CelerIMModule && deployment.config?.layerZeroEndpoint) ||
-    (deployment.contracts.CelerIMModule && deployment.config?.layerZeroEndpoint);
+  // const hasMultipleProtocols = 
+  //   (deployment.contracts.CelerIMModule && deployment.config?.layerZeroEndpoint) ||
+  //   (deployment.contracts.CelerIMModule && deployment.config?.layerZeroEndpoint);
 
   const protocolsDeployed: string[] = [];
   const protocolContracts: any = {};
@@ -277,32 +277,63 @@ export function loadDeployment(networkName: string, useLevel: boolean = false): 
 export async function saveDeployment(networkName: string, deployment: Deployment): Promise<void> {
   const deploymentPath = getDeploymentPath(networkName);
   const deploymentsDir = path.dirname(deploymentPath);
+  const isDebug = process.env.DEBUG_DEPLOYMENT === 'true';
 
   // Create directory if it doesn't exist
   if (!fs.existsSync(deploymentsDir)) {
     fs.mkdirSync(deploymentsDir, { recursive: true });
   }
 
-  // Store each contract in Level database
-  const chainId = deployment.chainId;
-  for (const [contractName, contractData] of Object.entries(deployment.contracts)) {
-    if (contractData && contractData.proxy) {
-      await putContract(chainId, {
-        contractName,
-        chainId,
-        networkName: deployment.network,
-        address: contractData.implementation || contractData.proxy,
-        factoryByteCodeHash: deployment.implementationHashes?.[contractName] || "",
-        implementationHash: deployment.implementationHashes?.[contractName],
-        proxyAddress: contractData.proxy,
-        timestamp: Date.now(),
-      });
+  try {
+    // Store each contract in Level database
+    const chainId = deployment.chainId;
+    const levelDBUpdates: Promise<void>[] = [];
+    
+    for (const [contractName, contractData] of Object.entries(deployment.contracts)) {
+      if (contractData && contractData.proxy) {
+        if (isDebug) {
+          console.log(`[DEBUG] Saving ${contractName} to LevelDB with hash: ${deployment.implementationHashes?.[contractName]}`);
+        }
+        
+        levelDBUpdates.push(
+          putContract(chainId, {
+            contractName,
+            chainId,
+            networkName: deployment.network,
+            address: contractData.implementation || contractData.proxy,
+            factoryByteCodeHash: deployment.implementationHashes?.[contractName] || "",
+            implementationHash: deployment.implementationHashes?.[contractName],
+            proxyAddress: contractData.proxy,
+            timestamp: Date.now(),
+          })
+        );
+      }
     }
-  }
+    
+    // Execute all LevelDB updates
+    await Promise.all(levelDBUpdates);
+    
+    if (isDebug) {
+      console.log(`[DEBUG] All contracts saved to LevelDB`);
+    }
 
-  // Write to JSON file for backward compatibility
-  fs.writeFileSync(deploymentPath, JSON.stringify(deployment, null, 2));
-  console.log(`Deployment saved to ${deploymentPath}`);
+    // Write to JSON file for backward compatibility (atomic write using temp file)
+    const tempPath = `${deploymentPath}.tmp`;
+    fs.writeFileSync(tempPath, JSON.stringify(deployment, null, 2));
+    fs.renameSync(tempPath, deploymentPath);
+    
+    console.log(`Deployment saved to ${deploymentPath}`);
+  } catch (error) {
+    console.error(`[ERROR] Failed to save deployment:`, error);
+    
+    // Clean up temp file if it exists
+    const tempPath = `${deploymentPath}.tmp`;
+    if (fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
+    }
+    
+    throw error;
+  }
 }
 
 export function loadOtherChainDeployments(
@@ -362,10 +393,47 @@ export function loadCompatibleDeployments(
 
 // Bytecode comparison utilities
 export function getBytecodeHash(bytecode: string): string {
-  // Split auxdata to get execution bytecode without metadata
-  const [executionBytecode] = splitAuxdata(bytecode);
-  // Return keccak256 hash of execution bytecode
-  return ethers.keccak256(executionBytecode);
+  const isDebug = process.env.DEBUG_DEPLOYMENT === 'true';
+  
+  if (isDebug) {
+    console.log(`[DEBUG] getBytecodeHash called with bytecode length: ${bytecode.length}`);
+  }
+  
+  try {
+    // Split auxdata to get execution bytecode without metadata
+    const [executionBytecode] = splitAuxdata(bytecode);
+    
+    if (isDebug) {
+      console.log(`[DEBUG] After splitAuxdata, execution bytecode length: ${executionBytecode.length}`);
+      console.log(`[DEBUG] Metadata stripped: ${bytecode.length - executionBytecode.length} bytes`);
+      
+      // Verify that metadata was actually stripped (should be around 86 bytes for Solidity metadata)
+      const metadataSize = bytecode.length - executionBytecode.length;
+      if (metadataSize < 80 || metadataSize > 100) {
+        console.log(`[DEBUG] WARNING: Unexpected metadata size ${metadataSize}, expected ~86 bytes`);
+      }
+    }
+    
+    // Return keccak256 hash of execution bytecode with consistent formatting
+    const hash = ethers.keccak256(executionBytecode).toLowerCase();
+    
+    if (isDebug) {
+      console.log(`[DEBUG] Final bytecode hash: ${hash}`);
+    }
+    
+    return hash;
+  } catch (error) {
+    console.error(`[ERROR] Failed to process bytecode with splitAuxdata:`, error);
+    
+    // Fallback to direct hashing if splitAuxdata fails
+    const hash = ethers.keccak256(bytecode).toLowerCase();
+    
+    if (isDebug) {
+      console.log(`[DEBUG] Fallback to direct bytecode hash: ${hash}`);
+    }
+    
+    return hash;
+  }
 }
 
 // New function to load deployment from Level database
