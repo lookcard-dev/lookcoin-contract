@@ -8,7 +8,7 @@ structure:
 ignore:
   - CLAUDE.md
   - .kiro
-  - .kiro/**
+  - ".kiro/**"
   - node_modules
   - artifacts
   - cache
@@ -16,7 +16,7 @@ ignore:
   - typechain-types
   - leveldb
   - .env
-  - .env.*
+  - ".env.*"
   - deployments/.state
-  - *.log
+  - "*.log"
   - .DS_Store
