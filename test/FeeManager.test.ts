@@ -13,7 +13,6 @@ describe("FeeManager Test", function () {
   let feeCollector: SignerWithAddress;
   let layerZeroModule: SignerWithAddress;
   let celerModule: SignerWithAddress;
-  let xerc20Module: SignerWithAddress;
   let hyperlaneModule: SignerWithAddress;
 
   const FEE_ADMIN_ROLE = ethers.keccak256(ethers.toUtf8Bytes("FEE_ADMIN_ROLE"));
@@ -22,8 +21,7 @@ describe("FeeManager Test", function () {
   enum Protocol {
     LayerZero = 0,
     Celer = 1,
-    XERC20 = 2, // DEPRECATED - DO NOT USE
-    Hyperlane = 3,
+    Hyperlane = 2,
   }
 
   // Chain IDs
@@ -38,7 +36,7 @@ describe("FeeManager Test", function () {
   const GAS_PRICE_GWEI = 20; // 20 gwei
 
   beforeEach(async function () {
-    [owner, addr1, feeCollector, layerZeroModule, celerModule, xerc20Module, hyperlaneModule] = await ethers.getSigners();
+    [owner, addr1, feeCollector, layerZeroModule, celerModule, hyperlaneModule] = await ethers.getSigners();
 
     // Deploy FeeManager
     const FeeManager = await ethers.getContractFactory("FeeManager");
@@ -92,7 +90,6 @@ describe("FeeManager Test", function () {
     // Register protocols in registry
     await protocolRegistry.registerProtocol(Protocol.LayerZero, layerZeroModule.address, "LayerZero", "1.0.0");
     await protocolRegistry.registerProtocol(Protocol.Celer, celerModule.address, "Celer IM", "1.0.0");
-    // Skip XERC20 - deprecated
     await protocolRegistry.registerProtocol(Protocol.Hyperlane, hyperlaneModule.address, "Hyperlane", "1.0.0");
   });
 
@@ -136,8 +133,6 @@ describe("FeeManager Test", function () {
       
       // Celer - medium fees
       await feeManager.setProtocolFees(Protocol.Celer, ethers.parseEther("0.001"), 50, 250000);
-      
-      // Skip XERC20 - deprecated
       
       // Hyperlane - gas-based fees
       await feeManager.setProtocolFees(Protocol.Hyperlane, ethers.parseEther("0.0015"), 0, 500000);
@@ -224,7 +219,6 @@ describe("FeeManager Test", function () {
       // Configure protocol fees
       await feeManager.setProtocolFees(Protocol.LayerZero, ethers.parseEther("0.002"), 50, 350000);
       await feeManager.setProtocolFees(Protocol.Celer, ethers.parseEther("0.001"), 50, 250000);
-      // Skip XERC20 - deprecated
       await feeManager.setProtocolFees(Protocol.Hyperlane, ethers.parseEther("0.0015"), 0, 500000);
 
       // Set gas price oracle
@@ -271,7 +265,6 @@ describe("FeeManager Test", function () {
       // Set varied fees for different protocols
       await feeManager.setProtocolFees(Protocol.LayerZero, ethers.parseEther("0.003"), 40, 400000);
       await feeManager.setProtocolFees(Protocol.Celer, ethers.parseEther("0.001"), 60, 300000);
-      // Skip XERC20 - deprecated
       await feeManager.setProtocolFees(Protocol.Hyperlane, ethers.parseEther("0.002"), 20, 450000);
 
       await feeManager.updateGasPrice(OPTIMISM_CHAIN, ethers.parseUnits("1", "gwei")); // Low L2 gas
@@ -453,7 +446,6 @@ describe("FeeManager Test", function () {
       // Configure fees for all protocols
       await feeManager.setProtocolFees(Protocol.LayerZero, ethers.parseEther("0.002"), 50, 350000);
       await feeManager.setProtocolFees(Protocol.Celer, ethers.parseEther("0.001"), 50, 250000);
-      await feeManager.setProtocolFees(Protocol.XERC20, 0, 0, 150000);
       
       await feeManager.updateGasPrice(OPTIMISM_CHAIN, ethers.parseUnits("1", "gwei"));
     });
@@ -464,11 +456,9 @@ describe("FeeManager Test", function () {
       
       const layerZeroFee = await feeManager.estimateBridgeFee(Protocol.LayerZero, OPTIMISM_CHAIN, amount);
       const celerFee = await feeManager.estimateBridgeFee(Protocol.Celer, OPTIMISM_CHAIN, amount);
-      const xerc20Fee = await feeManager.estimateBridgeFee(Protocol.XERC20, OPTIMISM_CHAIN, amount);
 
       // Verify different protocols have different fees
       expect(layerZeroFee.totalFee).to.not.equal(celerFee.totalFee);
-      expect(xerc20Fee.totalFee).to.be.lt(layerZeroFee.totalFee); // xERC20 should be cheapest
     });
 
     it("Should track fees per route", async function () {

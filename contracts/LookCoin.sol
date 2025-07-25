@@ -93,7 +93,6 @@ contract LookCoin is
   /// @dev Cross-chain router for unified bridge operations
   ICrossChainRouter public crossChainRouter;
 
-
   // Storage gap for future upgrades
   uint256[48] private __gap;
 
@@ -146,7 +145,6 @@ contract LookCoin is
   /// @param endpoint New LayerZero endpoint address
   event LayerZeroEndpointSet(address indexed endpoint);
 
-
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
@@ -192,11 +190,12 @@ contract LookCoin is
       // Router will handle the check
       return true;
     }
-    
+
     // For direct LayerZero, check if trusted remote is set
-    return trustedRemoteLookup[_dstChainId] != bytes32(0) && 
-           address(lzEndpoint) != address(0) &&
-           gasForDestinationLzReceive > 0;
+    return
+      trustedRemoteLookup[_dstChainId] != bytes32(0) &&
+      address(lzEndpoint) != address(0) &&
+      gasForDestinationLzReceive > 0;
   }
 
   /**
@@ -206,11 +205,7 @@ contract LookCoin is
    */
   function mint(address to, uint256 amount) public whenNotPaused nonReentrant {
     require(to != address(0), "LookCoin: mint to zero address");
-    require(
-      hasRole(MINTER_ROLE, msg.sender) ||
-        hasRole(BRIDGE_ROLE, msg.sender),
-      "LookCoin: unauthorized minter"
-    );
+    require(hasRole(MINTER_ROLE, msg.sender) || hasRole(BRIDGE_ROLE, msg.sender), "LookCoin: unauthorized minter");
 
     totalMinted += amount;
     _mint(to, amount);
@@ -224,9 +219,7 @@ contract LookCoin is
   function burn(address from, uint256 amount) public whenNotPaused nonReentrant {
     require(from != address(0), "LookCoin: burn from zero address");
     require(
-      hasRole(BURNER_ROLE, msg.sender) ||
-        hasRole(BRIDGE_ROLE, msg.sender) ||
-        (from == msg.sender), // Allow self-burn
+      hasRole(BURNER_ROLE, msg.sender) || hasRole(BRIDGE_ROLE, msg.sender) || (from == msg.sender), // Allow self-burn
       "LookCoin: unauthorized burner"
     );
 
@@ -302,7 +295,6 @@ contract LookCoin is
     emit CrossChainTransferInitiated(_from, _dstChainId, _toAddress, _amount);
   }
 
-
   /**
    * @dev Simplified bridge function for cross-chain transfers
    * @param _dstChainId Destination chain ID
@@ -349,19 +341,11 @@ contract LookCoin is
       _burn(msg.sender, _amount);
 
       // Encode OFT v2 payload
-      bytes memory payload = abi.encode(
-        PT_SEND,
-        msg.sender,
-        _toAddress,
-        _amount
-      );
+      bytes memory payload = abi.encode(PT_SEND, msg.sender, _toAddress, _amount);
 
       // Use default adapter params
       uint256 minGas = enforcedOptions[_dstChainId] > 0 ? enforcedOptions[_dstChainId] : gasForDestinationLzReceive;
-      bytes memory adapterParams = abi.encodePacked(
-        uint16(1),
-        minGas
-      );
+      bytes memory adapterParams = abi.encodePacked(uint16(1), minGas);
 
       // Get the trusted remote address
       bytes memory trustedRemote = abi.encodePacked(trustedRemoteLookup[_dstChainId], address(this));
@@ -379,7 +363,6 @@ contract LookCoin is
       emit CrossChainTransferInitiated(msg.sender, _dstChainId, _toAddress, _amount);
     }
   }
-
 
   /**
    * @dev LayerZero receiver function to handle incoming cross-chain transfers
@@ -551,16 +534,6 @@ contract LookCoin is
     require(_router != address(0), "LookCoin: invalid router");
     crossChainRouter = ICrossChainRouter(_router);
   }
-
-
-
-
-
-
-
-
-
-
 
   /**
    * @dev Pause all token operations. Only callable by PAUSER_ROLE

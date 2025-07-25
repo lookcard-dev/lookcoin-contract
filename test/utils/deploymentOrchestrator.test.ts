@@ -28,7 +28,6 @@ describe("DeploymentOrchestrator", () => {
       const protocolSupport: ProtocolSupport = {
         layerZero: true,
         celer: false,
-        xerc20: false,
         hyperlane: false,
         protocols: ["layerZero"]
       };
@@ -41,7 +40,6 @@ describe("DeploymentOrchestrator", () => {
       const protocolSupport: ProtocolSupport = {
         layerZero: true,
         celer: true,
-        xerc20: false,
         hyperlane: false,
         protocols: ["layerZero", "celer"]
       };
@@ -54,7 +52,6 @@ describe("DeploymentOrchestrator", () => {
       const protocolSupport: ProtocolSupport = {
         layerZero: false,
         celer: false,
-        xerc20: false,
         hyperlane: false,
         protocols: []
       };
@@ -67,7 +64,6 @@ describe("DeploymentOrchestrator", () => {
       const protocolSupport: ProtocolSupport = {
         layerZero: true,
         celer: true,
-        xerc20: false,
         hyperlane: false,
         protocols: ["layerZero", "celer"]
       };

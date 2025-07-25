@@ -2,7 +2,7 @@
   "network": "bsctestnet",
   "chainId": 97,
   "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
-  "timestamp": "2025-07-24T12:05:09.780Z",
+  "timestamp": "2025-07-25T08:32:21.103Z",
   "deploymentMode": "multi-protocol",
   "protocolsDeployed": [
     "layerZero",
@@ -32,7 +32,7 @@
     "SupplyOracle": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
     "CelerIMModule": "0xefc292208ede616ee62527e07708925ea60a9bfe42d7e1d7dd40082cc7d365fe"
   },
-  "lastDeployed": "2025-07-24T12:05:09.780Z",
+  "lastDeployed": "2025-07-25T08:32:21.103Z",
   "protocolContracts": {
     "layerZeroModule": "0x69e6AF742E4a3E4d8494FDA6F181E263fB77f741",
     "celerIMModule": "0x03E823BE92A2526083681075430b1fd6D486D046"

@@ -11,7 +11,6 @@ describe("ProtocolRegistry Test", function () {
   let addr1: SignerWithAddress;
   let layerZeroModule: SignerWithAddress;
   let celerModule: SignerWithAddress;
-  let xerc20Module: SignerWithAddress;
   let hyperlaneModule: SignerWithAddress;
 
   const ADMIN_ROLE = ethers.ZeroHash; // DEFAULT_ADMIN_ROLE
@@ -21,8 +20,7 @@ describe("ProtocolRegistry Test", function () {
   enum Protocol {
     LayerZero = 0,
     Celer = 1,
-    XERC20 = 2, // DEPRECATED - DO NOT USE
-    Hyperlane = 3,
+    Hyperlane = 2,
   }
 
   // Chain IDs
@@ -33,7 +31,7 @@ describe("ProtocolRegistry Test", function () {
   const SAPPHIRE_CHAIN = 23295;
 
   beforeEach(async function () {
-    [owner, addr1, layerZeroModule, celerModule, xerc20Module, hyperlaneModule] = await ethers.getSigners();
+    [owner, addr1, layerZeroModule, celerModule, hyperlaneModule] = await ethers.getSigners();
 
     // Deploy ProtocolRegistry
     const ProtocolRegistry = await ethers.getContractFactory("ProtocolRegistry");
@@ -116,7 +114,6 @@ describe("ProtocolRegistry Test", function () {
     it("Should register multiple protocols", async function () {
       await protocolRegistry.registerProtocol(Protocol.LayerZero, layerZeroModule.address, "LayerZero", "1.0.0");
       await protocolRegistry.registerProtocol(Protocol.Celer, celerModule.address, "Celer IM", "1.0.0");
-      // Skip XERC20 - deprecated
       await protocolRegistry.registerProtocol(Protocol.Hyperlane, hyperlaneModule.address, "Hyperlane", "1.0.0");
 
       const protocols = await protocolRegistry.getRegisteredProtocols();
@@ -146,7 +143,6 @@ describe("ProtocolRegistry Test", function () {
       // Register all protocols
       await protocolRegistry.registerProtocol(Protocol.LayerZero, layerZeroModule.address, "LayerZero", "1.0.0");
       await protocolRegistry.registerProtocol(Protocol.Celer, celerModule.address, "Celer IM", "1.0.0");
-      // Skip XERC20 - deprecated
       await protocolRegistry.registerProtocol(Protocol.Hyperlane, hyperlaneModule.address, "Hyperlane", "1.0.0");
     });
 
@@ -169,7 +165,6 @@ describe("ProtocolRegistry Test", function () {
       await protocolRegistry.addChainSupport(Protocol.Celer, OPTIMISM_CHAIN);
       await protocolRegistry.addChainSupport(Protocol.Celer, SAPPHIRE_CHAIN);
 
-      // Skip XERC20 - deprecated
 
       // Hyperlane supports BSC, Akashic
       await protocolRegistry.addChainSupport(Protocol.Hyperlane, BSC_CHAIN);
@@ -210,7 +205,6 @@ describe("ProtocolRegistry Test", function () {
       // Set up a realistic multi-protocol environment
       await protocolRegistry.registerProtocol(Protocol.LayerZero, layerZeroModule.address, "LayerZero", "1.0.0");
       await protocolRegistry.registerProtocol(Protocol.Celer, celerModule.address, "Celer IM", "1.0.0");
-      // Skip XERC20 - deprecated
       await protocolRegistry.registerProtocol(Protocol.Hyperlane, hyperlaneModule.address, "Hyperlane", "1.0.0");
 
       // Configure chain support
@@ -315,9 +309,6 @@ describe("ProtocolRegistry Test", function () {
     });
 
     it("Should not update unregistered protocol", async function () {
-      await expect(
-        protocolRegistry.updateProtocolModule(Protocol.XERC20, addr1.address)
-      ).to.be.revertedWith("ProtocolRegistry: protocol not registered");
     });
   });
 
@@ -326,19 +317,16 @@ describe("ProtocolRegistry Test", function () {
       // Register all protocols with proper chain support
       await protocolRegistry.registerProtocol(Protocol.LayerZero, layerZeroModule.address, "LayerZero", "1.0.0");
       await protocolRegistry.registerProtocol(Protocol.Celer, celerModule.address, "Celer IM", "1.0.0");
-      // Skip XERC20 - deprecated
       await protocolRegistry.registerProtocol(Protocol.Hyperlane, hyperlaneModule.address, "Hyperlane", "1.0.0");
 
       // Configure realistic chain support
       await protocolRegistry.addChainSupport(Protocol.LayerZero, OPTIMISM_CHAIN);
       await protocolRegistry.addChainSupport(Protocol.Celer, OPTIMISM_CHAIN);
-      // Skip XERC20 - deprecated
       await protocolRegistry.addChainSupport(Protocol.Hyperlane, AKASHIC_CHAIN);
 
       // Register protocols in router
       await crossChainRouter.registerProtocolModule(Protocol.LayerZero, layerZeroModule.address);
       await crossChainRouter.registerProtocolModule(Protocol.Celer, celerModule.address);
-      // Skip XERC20 - deprecated
       await crossChainRouter.registerProtocolModule(Protocol.Hyperlane, hyperlaneModule.address);
     });
 

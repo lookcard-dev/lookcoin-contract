@@ -187,7 +187,7 @@ async function main() {
   if (deployment.infrastructureContracts?.crossChainRouter) {
     console.log("\n2.5. Configuring CrossChainRouter...");
     const crossChainRouter = await ethers.getContractAt(
-      "CrossChainRouter", 
+      "contracts/xchain/CrossChainRouter.sol:CrossChainRouter", 
       deployment.infrastructureContracts.crossChainRouter
     );
 
@@ -251,7 +251,6 @@ async function main() {
   } else {
     console.log(`- Hyperlane: Not ready (missing mailbox or gas paymaster)`);
   }
-  console.log(`- XERC20: Deprecated`);
   
   // Display protocol modules
   if (deployment.protocolsDeployed && deployment.protocolsDeployed.length > 0) {

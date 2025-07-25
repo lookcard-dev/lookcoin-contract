@@ -52,7 +52,6 @@ export interface Deployment {
   protocolContracts?: { // New field for protocol-specific contracts
     layerZeroModule?: string;
     celerIMModule?: string;
-    xerc20Module?: string;
     hyperlaneModule?: string;
   };
   infrastructureContracts?: { // New field for multi-protocol infrastructure
