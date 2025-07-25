@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 interface IPausable {
     function pause() external;
@@ -13,17 +14,11 @@ interface IPausable {
  * @title SupplyOracle
  * @dev Cross-chain supply reconciliation oracle for monitoring token supply consistency
  */
-contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
+contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     // Role definitions
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
-
-    // Chain identifiers
-    uint16 public constant CHAIN_BSC = 102;
-    uint16 public constant CHAIN_BASE = 184;
-    uint16 public constant CHAIN_OPTIMISM = 111;
-    uint16 public constant CHAIN_AKASHIC = 999;
 
     // Supply data structure
     struct ChainSupply {
@@ -35,13 +30,13 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
     }
 
     // State variables
-    mapping(uint16 => ChainSupply) public chainSupplies;
-    mapping(uint16 => address[]) public bridgeContracts;
-    uint16[] public supportedChains;
+    mapping(uint32 => ChainSupply) public chainSupplies;
+    mapping(uint32 => address[]) public bridgeContracts;
+    uint32[] public supportedChains;
     
     // Reconciliation parameters
-    uint256 public reconciliationInterval = 15 minutes;
-    uint256 public toleranceThreshold = 1000 * 10**18; // 1000 tokens
+    uint256 public reconciliationInterval;
+    uint256 public toleranceThreshold;
     uint256 public lastReconciliationTime;
     uint256 public totalExpectedSupply;
     
@@ -50,13 +45,13 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
     mapping(address => bool) public pausedBridges;
     
     // Multi-signature validation
-    uint256 public requiredSignatures = 3;
+    uint256 public requiredSignatures;
     mapping(bytes32 => mapping(address => bool)) public updateSignatures;
     mapping(bytes32 => uint256) public updateSignatureCount;
     
     // Events
     event SupplyUpdated(
-        uint16 indexed chainId,
+        uint32 indexed chainId,
         uint256 totalSupply,
         uint256 lockedSupply,
         uint256 circulatingSupply
@@ -76,13 +71,16 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
      * @dev Initialize the supply oracle
      * @param _admin Admin address
      * @param _totalSupply Total expected supply across all chains
+     * @param _supportedChains Array of supported chain IDs
      */
     function initialize(
         address _admin,
-        uint256 _totalSupply
+        uint256 _totalSupply,
+        uint32[] memory _supportedChains
     ) public initializer {
         __AccessControl_init();
         __Pausable_init();
+        __UUPSUpgradeable_init();
         
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(ORACLE_ROLE, _admin);
@@ -91,11 +89,23 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
         
         totalExpectedSupply = _totalSupply;
         
-        // Initialize supported chains
-        supportedChains.push(CHAIN_BSC);
-        supportedChains.push(CHAIN_BASE);
-        supportedChains.push(CHAIN_OPTIMISM);
-        supportedChains.push(CHAIN_AKASHIC);
+        // Set default values for reconciliation parameters
+        reconciliationInterval = 15 minutes;
+        toleranceThreshold = 1000 * 10**18; // 1000 tokens
+        requiredSignatures = 3;
+        
+        // Initialize supported chains from provided array
+        require(_supportedChains.length > 0, "SupplyOracle: no chains provided");
+        require(_supportedChains.length <= 10, "SupplyOracle: too many chains");
+        
+        for (uint i = 0; i < _supportedChains.length; i++) {
+            require(_supportedChains[i] > 0, "SupplyOracle: invalid chain ID");
+            // Check for duplicates
+            for (uint j = 0; j < i; j++) {
+                require(_supportedChains[i] != _supportedChains[j], "SupplyOracle: duplicate chain ID");
+            }
+            supportedChains.push(_supportedChains[i]);
+        }
     }
 
     /**
@@ -106,7 +116,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
      * @param _nonce Update nonce for multi-sig
      */
     function updateSupply(
-        uint16 _chainId,
+        uint32 _chainId,
         uint256 _totalSupply,
         uint256 _lockedSupply,
         uint256 _nonce
@@ -130,7 +140,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
      * @dev Execute supply update after multi-sig validation
      */
     function _executeSupplyUpdate(
-        uint16 _chainId,
+        uint32 _chainId,
         uint256 _totalSupply,
         uint256 _lockedSupply
     ) internal {
@@ -234,6 +244,13 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
     }
 
     /**
+     * @dev Get all supported chain IDs
+     */
+    function getSupportedChains() external view returns (uint32[] memory) {
+        return supportedChains;
+    }
+
+    /**
      * @dev Get global supply summary
      */
     function getGlobalSupply() external view returns (
@@ -264,7 +281,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
      * @param _chainId Chain identifier
      * @param _bridge Bridge contract address
      */
-    function registerBridge(uint16 _chainId, address _bridge) 
+    function registerBridge(uint32 _chainId, address _bridge) 
         external 
         onlyRole(DEFAULT_ADMIN_ROLE) 
     {
@@ -336,4 +353,26 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable {
     function unpause() external onlyRole(OPERATOR_ROLE) {
         _unpause();
     }
+
+    /**
+     * @dev Override supportsInterface for multiple inheritance
+     */
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(AccessControlUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @dev Authorize upgrade for UUPS proxy
+     * @param newImplementation New implementation address
+     */
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {}
 }

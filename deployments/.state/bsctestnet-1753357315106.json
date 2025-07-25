@@ -1,0 +1,72 @@
+{
+  "network": "bsctestnet",
+  "chainId": 97,
+  "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
+  "startTime": "2025-07-24T11:41:55.106Z",
+  "steps": [
+    {
+      "name": "ProtocolDetection",
+      "status": "pending"
+    },
+    {
+      "name": "CoreContracts",
+      "status": "pending"
+    },
+    {
+      "name": "ProtocolModules",
+      "status": "pending"
+    },
+    {
+      "name": "Infrastructure",
+      "status": "pending"
+    }
+  ],
+  "checkpoint": {
+    "network": "bsctestnet",
+    "chainId": 97,
+    "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
+    "timestamp": "2025-07-24T11:39:33.352Z",
+    "deploymentMode": "multi-protocol",
+    "protocolsDeployed": [
+      "layerZero",
+      "celer",
+      "hyperlane"
+    ],
+    "contracts": {
+      "LookCoin": {
+        "proxy": "0xB8B7604628F37D611e82D22609ACE0Ca01A14e2D",
+        "implementation": "0x1FAdB06eb9552F60b86eA564119ABc2fC8c42b3f"
+      },
+      "SupplyOracle": {
+        "proxy": "0xd6f310c307a6FF8163A94984163D541b66077004",
+        "implementation": "0x6E54Fc6936c01D1c53f7E3A9C69922D74085134F"
+      },
+      "CelerIMModule": {
+        "proxy": "0x03E823BE92A2526083681075430b1fd6D486D046",
+        "implementation": "0xf0C4c6548E6d734D0CDfc51B219B25973Bd3Fa66"
+      }
+    },
+    "config": {
+      "layerZeroEndpoint": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+      "celerMessageBus": "0xAd204986D6cB67A5Bc76a3CB8974823F43Cb9AAA",
+      "governanceVault": "0x0bec539fd761cae579802072d9ee7fde86ed05a3"
+    },
+    "implementationHashes": {
+      "LookCoin": "0xce28ba2b247174fb8cac282d316152daddf56796a534703bfd619012ebbbedf2",
+      "SupplyOracle": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
+      "CelerIMModule": "0x80de82a732caf2ac089fc5f751503bc4a56d5b20f6423db9335247b1c48e48a5"
+    },
+    "lastDeployed": "2025-07-24T11:39:33.352Z",
+    "protocolContracts": {
+      "layerZeroModule": "0x69e6AF742E4a3E4d8494FDA6F181E263fB77f741",
+      "celerIMModule": "0x03E823BE92A2526083681075430b1fd6D486D046",
+      "hyperlaneModule": "0x7C5e6ECE7BBb198fc59Abd98891305eE858aA2e9"
+    },
+    "infrastructureContracts": {
+      "crossChainRouter": "0x062e72413720Fd97310E7A787284b39af9d4Ea18",
+      "feeManager": "0x04001c7bE59A7e0F3F7b981eC4D0cbE59e56B0E1",
+      "securityManager": "0x97D543565Ab7CC09bd6643bFeD38Db56894BBAb8",
+      "protocolRegistry": "0x79b98fCecED2A468bB98FCB77c3b634af9C19978"
+    }
+  }
+}

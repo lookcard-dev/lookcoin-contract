@@ -1,0 +1,42 @@
+{
+  "LookCoinModule": {
+    "governanceVault": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "lzEndpoint": "0x0000000000000000000000000000000000000000",
+    "totalSupply": "1000000",
+    "chainId": 31337,
+    "dvns": "",
+    "requiredDVNs": 0,
+    "optionalDVNs": 0,
+    "dvnThreshold": 0
+  },
+  "CelerModule": {
+    "messageBus": "0x0000000000000000000000000000000000000000",
+    "lookCoin": "0x0000000000000000000000000000000000000000",
+    "governanceVault": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "chainId": 31337,
+    "remoteModules": "{}",
+    "celerSupportedChains": "31337",
+    "feePercentage": 10,
+    "minFee": "0.1",
+    "maxFee": "10",
+    "feeCollector": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+  },
+  "OracleModule": {
+    "governanceVault": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "totalSupply": "1000000",
+    "reconciliationInterval": 60,
+    "toleranceThreshold": "10",
+    "requiredSignatures": 1,
+    "bridgeRegistrations": "{}",
+    "supportedChains": "31337"
+  },
+  "MocksModule": {
+    "mockBaseChainId": 31337,
+    "mockSupportedChains": "31337,1,56,137,43114",
+    "celerFeeBase": "0.00001",
+    "celerFeePerByte": "0.00000000001",
+    "networkLatency": 10,
+    "packetLoss": 0,
+    "networkJitter": 5
+  }
+}
