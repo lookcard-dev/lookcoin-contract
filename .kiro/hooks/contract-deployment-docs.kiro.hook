@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Contract Deployment Documentation Updater",
+  "description": "Monitors the deployment directory for changes to contract addresses and automatically updates the documentation files (ADDRESSES.md, TECHNICAL.md, TIMELINE.md, and README.md) to reflect new deployments, proxy updates, or implementation changes",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "deployments/**/*.json",
+      ".openzeppelin/**/*.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "The deployment directory has been updated with new contract addresses or deployment information. Please analyze the changes in the deployment files and update the following documentation files accordingly:\n\n1. docs/ADDRESSES.md - Update contract addresses tables for the affected networks\n2. docs/TECHNICAL.md - Update any technical specifications, deployment matrices, or architecture diagrams that reference contract addresses\n3. docs/TIMELINE.md - Update deployment status and add new milestones if applicable\n4. README.md - Update any contract addresses, deployment information, or network configuration details\n\nFocus on:\n- New contract deployments and their addresses\n- Proxy vs implementation address distinctions\n- Network-specific deployment status updates\n- Cross-chain configuration changes\n- Any changes to supported protocols or bridge modules\n\nEnsure all documentation remains consistent and accurate with the latest deployment state."
+  }
+}
