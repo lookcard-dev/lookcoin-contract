@@ -13,8 +13,8 @@ This document tracks the deployment milestones and cross-chain bridge activation
 | Date        | Environment | Chain(s)                       | Bridge/Feature                 | Status         |
 | ----------- | ----------- | ------------------------------ | ------------------------------ | -------------- |
 | 23-Jul-2025 | Testnet     | BSC Testnet                    | Initial deployment             | ✅ Completed   |
-| 24-Jul-2025 | Mainnet     | BSC Mainnet                    | Deployment without cross-chain | 🚧 In Progress |
-| 30-Jul-2025 | Testnet     | Akashic Testnet, BSC Testnet   | Hyperlane warp/relay setup     | 🪄 Upcoming    |
+| 24-Jul-2025 | Mainnet     | BSC Mainnet                    | Deployment without cross-chain | ✅ Completed   |
+| 30-Jul-2025 | Testnet     | Akashic Testnet, BSC Testnet   | Hyperlane warp/relay setup     | 🚧 In Progress |
 | 01-Aug-2025 | Mainnet     | Akashic Mainnet, BSC Mainnet   | Hyperlane cross-chain ready    | 🪄 Upcoming    |
 | 06-Aug-2025 | Testnet     | Base Sepolia, Optimism Sepolia | LayerZero testnet cross-chain  | 🪄 Upcoming    |
 | 08-Aug-2025 | Mainnet     | Base Mainnet, Optimism Mainnet | LayerZero mainnet cross-chain  | 🪄 Upcoming    |
