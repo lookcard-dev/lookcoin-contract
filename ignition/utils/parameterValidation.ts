@@ -130,33 +130,34 @@ export function validateSupportedChain(chainId: number, supportedChains: number[
 }
 
 // Parameter schema validation
-export interface IBCParameters {
+export interface HyperlaneParameters {
   lookCoin?: string;
-  vault?: string;
-  validators?: string;
-  port?: string;
-  channel?: string;
-  version?: string;
-  ordering?: number;
-  connectionHops?: string;
-  counterpartyPortId?: string;
-  counterpartyChannelId?: string;
+  mailbox?: string;
+  gasPaymaster?: string;
+  domain?: number;
+  trustedSenders?: string;
+  gasConfig?: string;
+  defaultGasLimit?: number;
+  defaultIsmConfig?: string;
 }
 
-export function validateIBCParameters(params: IBCParameters): void {
+export function validateHyperlaneParameters(params: HyperlaneParameters): void {
   if (params.lookCoin) validateNonZeroAddress(params.lookCoin, "lookCoin");
-  if (params.vault) validateNonZeroAddress(params.vault, "vault");
+  if (params.mailbox) validateNonZeroAddress(params.mailbox, "mailbox");
 
-  if (params.validators) {
-    const validatorArray = parseCommaSeparatedAddresses(params.validators, "validators");
-    if (validatorArray.length < 21) {
-      throw createParameterError("validators", "at least 21 validators", `${validatorArray.length} validators`);
+  if (params.gasPaymaster) validateAddress(params.gasPaymaster, "gasPaymaster");
+  
+  if (params.domain !== undefined) {
+    if (params.domain < 0) {
+      throw createParameterError("domain", "positive integer", params.domain.toString());
     }
   }
 
-  if (params.ordering !== undefined) {
-    if (params.ordering < 0 || params.ordering > 2) {
-      throw createParameterError("ordering", "0 (NONE), 1 (UNORDERED), or 2 (ORDERED)", params.ordering.toString());
+  if (params.trustedSenders) {
+    try {
+      JSON.parse(params.trustedSenders);
+    } catch {
+      throw createParameterError("trustedSenders", "valid JSON string", params.trustedSenders);
     }
   }
 }

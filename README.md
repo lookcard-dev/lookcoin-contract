@@ -1,26 +1,26 @@
 # LookCoin - Omnichain Fungible Token
 
-LookCoin (LOOK) is an omnichain fungible token implementing LayerZero OFT V2, serving as the primary payment method for LookCard's crypto-backed credit/debit card system. The token features a triple-bridge architecture supporting cross-chain transfers via LayerZero OFT V2, Celer IM, and IBC Protocol.
+LookCoin (LOOK) is an omnichain fungible token implementing LayerZero OFT V2, serving as the primary payment method for LookCard's crypto-backed credit/debit card system. The token features a multi-bridge architecture supporting cross-chain transfers via LayerZero OFT V2, Celer IM, and Hyperlane.
 
 ## Overview
 
 ### Key Features
 
 - **Omnichain Compatibility**: Seamless transfers across BSC, Base, Optimism, Oasis Sapphire, and Akashic Chain
-- **Triple-Bridge Architecture**: Redundancy and flexibility with three distinct bridge mechanisms
+- **Multi-Bridge Architecture**: Redundancy and flexibility with three distinct bridge mechanisms
 - **Fintech-Grade Security**: Rate limiting, supply reconciliation, and emergency controls
 - **UUPS Upgradeable**: Future-proof design with proxy pattern implementation
 - **MPC Vault Governance**: External MPC vault wallet for secure off-chain governance
 
 ### Supported Chains
 
-| Chain          | Chain ID | Bridge Support           |
-| -------------- | -------- | ------------------------ |
-| BSC            | 56       | LayerZero, Celer IM, IBC |
-| Base           | 8453     | LayerZero                |
-| Optimism       | 10       | LayerZero, Celer IM      |
-| Oasis Sapphire | 23295    | Celer IM                 |
-| Akashic        | 9070     | IBC                      |
+| Chain          | Chain ID | Bridge Support              |
+| -------------- | -------- | --------------------------- |
+| BSC            | 56       | LayerZero, Celer IM, Hyperlane |
+| Base           | 8453     | LayerZero, Hyperlane        |
+| Optimism       | 10       | LayerZero, Celer IM, Hyperlane |
+| Oasis Sapphire | 23295    | Celer IM                    |
+| Akashic        | 9070     | Hyperlane                   |
 
 ## Architecture
 
@@ -30,8 +30,9 @@ LookCoin (LOOK) is an omnichain fungible token implementing LayerZero OFT V2, se
 contracts/
 ├── LookCoin.sol              # Main token (OFTV2Upgradeable, RateLimiter)
 ├── bridges/
-│   ├── CelerIMModule.sol     # Celer IM bridge (lock-and-mint)
-│   └── IBCModule.sol         # IBC bridge (lock-and-mint)
+│   ├── CelerIMModule.sol     # Celer IM bridge (burn-and-mint)
+│   ├── HyperlaneModule.sol   # Hyperlane bridge (burn-and-mint)
+│   └── LayerZeroModule.sol   # LayerZero module (burn-and-mint)
 └── security/
     ├── RateLimiter.sol       # Sliding window rate limiting
     └── SupplyOracle.sol      # Cross-chain supply monitoring
@@ -45,17 +46,17 @@ contracts/
 - DVN validation: 2 required, 1 optional, 66% threshold
 - Supported on BSC, Base, and Optimism
 
-#### Celer IM (Lock-and-Mint)
+#### Celer IM (Burn-and-Mint)
 
 - Separate bridge module with MessageBus integration
 - SGN consensus validation
 - Supported on BSC, Optimism, and Oasis Sapphire
 
-#### Hyperlane (Burn-and-Mint) - Planned
+#### Hyperlane (Burn-and-Mint)
 
 - Modular security via ISM (Interchain Security Modules)
 - Self-hosted infrastructure for complete control
-- Will support BSC, Base, Optimism, and Akashic
+- Supports BSC, Base, Optimism, and Akashic
 
 ## Security Features
 
@@ -210,7 +211,7 @@ The project uses Hardhat Ignition for modular deployment:
 
 - `LookCoinModule`: Main token deployment with UUPS proxy
 - `CelerModule`: Celer IM bridge deployment
-- `IBCModule`: IBC bridge deployment
+- `HyperlaneModule`: Hyperlane bridge deployment
 - `OracleModule`: Supply oracle deployment
 - `MocksModule`: Test infrastructure
 
@@ -267,13 +268,15 @@ celerIMModule.lockAndBridge(
 );
 ```
 
-### IBC Transfer (BSC to Akashic)
+### Hyperlane Transfer (BSC to Akashic)
 
 ```solidity
-// Lock tokens for IBC transfer
-ibcModule.lockForIBC(
-    "akashic1...", // Bech32 address
-    amount
+// Transfer tokens via Hyperlane
+hyperlaneModule.bridgeToken(
+    9070, // Akashic chain ID
+    recipient,
+    amount,
+    { value: messageFee }
 );
 ```
 
@@ -361,7 +364,7 @@ Akashic: https://rpc.akashic.city
 
 - [LayerZero OFT V2 Documentation](https://layerzero.gitbook.io/docs/)
 - [Celer IM Documentation](https://celer.network/docs/)
-- [IBC Protocol Specification](https://github.com/cosmos/ibc)
+- [Hyperlane Documentation](https://docs.hyperlane.xyz/)
 
 ### Security Best Practices
 

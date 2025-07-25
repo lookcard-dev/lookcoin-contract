@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-LookCoin Contract is the smart contract repository for LookCoin (LOOK), the omnichain fungible token that serves as the primary payment method for LookCard's crypto-backed credit/debit card system. The token implements a triple-bridge architecture for cross-chain transfers using LayerZero OFT V2, Celer IM, and IBC protocols.
+LookCoin Contract is the smart contract repository for LookCoin (LOOK), the omnichain fungible token that serves as the primary payment method for LookCard's crypto-backed credit/debit card system. The token implements a multi-bridge architecture for cross-chain transfers using LayerZero OFT V2, Celer IM, and Hyperlane protocols.
 
 ## Architecture
 
@@ -16,8 +16,7 @@ contracts/
 ├── bridges/                  # Cross-chain bridge implementations
 │   ├── LayerZeroModule.sol   # LayerZero V2 bridge module (burn-and-mint)
 │   ├── CelerIMModule.sol     # Celer Inter-chain Messaging (burn-and-mint)
-│   ├── HyperlaneModule.sol   # Hyperlane bridge module (burn-and-mint)
-│   └── IBCModule.sol         # IBC Protocol for Cosmos ecosystem
+│   └── HyperlaneModule.sol   # Hyperlane bridge module (burn-and-mint)
 ├── xchain/                   # Cross-chain infrastructure
 │   ├── CrossChainRouter.sol  # Unified router for multi-protocol bridging
 │   ├── FeeManager.sol        # Protocol-specific fee management
@@ -150,7 +149,7 @@ npm run test:security
 - **Development Framework**: Hardhat with TypeScript
 - **Testing**: Chai, Hardhat test helpers, TypeChain for type safety
 - **Security**: OpenZeppelin contracts, custom security modules
-- **Cross-chain**: LayerZero OFT V2, Celer IM SDK, IBC Protocol
+- **Cross-chain**: LayerZero OFT V2, Celer IM SDK, Hyperlane SDK
 - **Tools**: Solidity coverage, gas reporter, contract sizer, Slither for static analysis
 
 ## Multi-Chain Architecture
@@ -158,16 +157,15 @@ npm run test:security
 ### Supported Networks
 
 - **BSC** (Chain ID: 56) - Home chain with full token supply
-- **Base** (Chain ID: 8453) - LayerZero OFT deployment
-- **Optimism** (Chain ID: 10) - Celer IM deployment
-- **Akashic** (Chain ID: 9070) - IBC deployment for Cosmos
+- **Base** (Chain ID: 8453) - LayerZero and Hyperlane deployment
+- **Optimism** (Chain ID: 10) - LayerZero, Celer IM, and Hyperlane deployment
+- **Akashic** (Chain ID: 9070) - Hyperlane deployment
 
 ### Bridge Operations
 
 1. **LayerZero OFT V2**: Native burn-and-mint with dual-path support (direct OFT or via CrossChainRouter)
 2. **Celer IM**: Burn-and-mint mechanism via CelerIMModule
 3. **Hyperlane**: Burn-and-mint mechanism via HyperlaneModule
-4. **IBC Protocol**: Native Cosmos interoperability for Akashic
 
 ## Security Patterns
 

@@ -7,7 +7,7 @@ This directory contains Hardhat Ignition deployment modules for the LookCoin omn
 The deployment system consists of six main modules that work together to deploy and configure the complete LookCoin ecosystem:
 
 1. **LookCoinModule** - Deploys the main LookCoin token contract with LayerZero OFT V2 support
-2. **IBCModule** - Deploys the IBC bridge module for Cosmos ecosystem integration
+2. **HyperlaneModule** - Deploys the Hyperlane bridge module for cross-chain messaging
 3. **CelerModule** - Deploys the Celer IM bridge module for cross-chain messaging
 4. **OracleModule** - Deploys the supply oracle for cross-chain supply monitoring
 5. **MocksModule** - Deploys mock contracts for testing environments
@@ -30,18 +30,17 @@ All modules use string-based parameters to avoid Hardhat Ignition's limitations 
 | optionalDVNs    | number  | No       | 1            | Number of optional DVNs                              |
 | dvnThreshold    | number  | No       | 66           | DVN threshold percentage (1-100)                     |
 
-### IBCModule Parameters
+### HyperlaneModule Parameters
 
 | Parameter        | Type    | Required | Default     | Description                                  |
 | ---------------- | ------- | -------- | ----------- | -------------------------------------------- |
 | lookCoin         | address | Yes      | -           | LookCoin contract address                    |
-| vault            | address | Yes      | -           | Vault address for IBC operations             |
+| mailbox          | address | Yes      | -           | Hyperlane mailbox address                    |
 | governanceVault  | address | No       | account[0]  | Governance vault address                     |
-| validators       | string  | Yes      | -           | Comma-separated validator addresses (min 21) |
-| channelId        | string  | No       | "channel-0" | IBC channel ID                               |
-| portId           | string  | No       | "transfer"  | IBC port ID                                  |
-| timeoutTimestamp | number  | No       | 3600        | Packet timeout in seconds                    |
-| unbondingPeriod  | number  | No       | 1209600     | Validator unbonding period                   |
+| gasPaymaster     | address | No       | ZeroAddress | Gas paymaster address                        |
+| domain           | number  | No       | 56          | Hyperlane domain ID                          |
+| trustedSenders   | string  | No       | "{}"        | JSON string of trusted senders by domain     |
+| gasConfig        | string  | No       | "{}"        | JSON string of gas configs by domain         |
 
 ### CelerModule Parameters
 
@@ -78,8 +77,8 @@ All modules use string-based parameters to avoid Hardhat Ignition's limitations 
 | mockSupportedChains | string | No       | "56,8453,10,23295,999" | Supported chains        |
 | celerFeeBase        | string | No       | "0.001"                | Base fee in ether units |
 | celerFeePerByte     | string | No       | "0.000000001"          | Fee per byte in ether   |
-| ibcPacketTimeout    | number | No       | 3600                   | IBC packet timeout      |
-| ibcUnbondingPeriod  | number | No       | 1209600                | IBC unbonding period    |
+| hyperlaneGasLimit   | number | No       | 200000                 | Hyperlane gas limit     |
+| hyperlaneFee        | string | No       | "0.01"                 | Hyperlane fee in ether  |
 | networkLatency      | number | No       | 1000                   | Network latency in ms   |
 | packetLoss          | number | No       | 0                      | Packet loss percentage  |
 | networkJitter       | number | No       | 100                    | Network jitter in ms    |
@@ -107,7 +106,7 @@ npx hardhat ignition deploy ignition/modules/LookCoinModule.ts \
   --network bsc-mainnet
 
 # 2. Deploy bridge modules (can be done in parallel)
-npx hardhat ignition deploy ignition/modules/IBCModule.ts \
+npx hardhat ignition deploy ignition/modules/HyperlaneModule.ts \
   --parameters ignition/parameters/bsc-mainnet.json \
   --network bsc-mainnet
 
@@ -145,7 +144,7 @@ LookCoin uses a three-stage deployment process to ensure proper contract setup a
 **Purpose**: Assigns operational roles and configures local settings post-deployment
 **What it does**:
 
-- Assigns MINTER_ROLE to IBCModule and CelerIMModule on the LookCoin contract
+- Assigns MINTER_ROLE to HyperlaneModule and CelerIMModule on the LookCoin contract
 - Grants BURNER_ROLE to LookCoin contract itself for LayerZero burns
 - Registers local bridges with SupplyOracle for the current network only
 - Configures rate limiting parameters
@@ -196,12 +195,12 @@ npm run configure:sapphire-mainnet     # Oasis Sapphire Mainnet
 
 #### 2. Array Parameter Issues
 
-**Error**: "IBC requires at least 21 validators, got 0"
+**Error**: "Hyperlane requires valid mailbox address"
 
-**Solution**: Provide validators as a comma-separated string, not an array:
+**Solution**: Ensure the mailbox address is properly configured for your network:
 
 ```json
-"validators": "0x123...,0x456...,0x789..."
+"mailbox": "0x1234567890123456789012345678901234567890"
 ```
 
 #### 3. BigInt Parameter Issues
@@ -282,7 +281,7 @@ The parameter validation system enforces the following rules:
 1. **Addresses** - Must be valid Ethereum addresses (0x + 40 hex chars)
 2. **Non-Zero Addresses** - Critical addresses cannot be ZeroAddress
 3. **Chain IDs** - Must be positive integers
-4. **Validator Count** - Minimum 21 validators for IBC
+4. **Domain IDs** - Must match Hyperlane domain configuration
 5. **Fee Relationships** - minFee must be less than maxFee
 6. **Percentages** - Must be between 0-100 or 0-10000 (basis points)
 7. **Timeouts** - Must be positive numbers

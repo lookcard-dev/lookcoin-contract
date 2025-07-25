@@ -503,7 +503,7 @@ The protection system now ensures such misconfigurations are caught early and re
 4. **Protocol Configuration Updates**
    - Added Hyperlane protocol support with mailbox and domain configuration
    - Updated protocol enablement flags (layerZero, celerIM, hyperlane)
-   - Removed IBC protocol support
+   - Standardized all protocols to use burn-and-mint mechanism
 
 ## Future Enhancements
 
