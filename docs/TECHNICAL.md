@@ -435,14 +435,15 @@ Configuration includes:
 
 ### Role-Based Access Control
 
-- **DEFAULT_ADMIN_ROLE**: Full administrative control
-- **MINTER_ROLE**: Can mint new tokens
-- **BURNER_ROLE**: Can burn tokens (includes self-burn permission)
-- **PAUSER_ROLE**: Can pause/unpause all operations
-- **UPGRADER_ROLE**: Can authorize contract upgrades
-- **BRIDGE_ROLE**: Can mint/burn for bridge operations
-- **PROTOCOL_ADMIN_ROLE**: Can configure protocol settings (trusted remotes, gas limits)
-- **ROUTER_ADMIN_ROLE**: Can set CrossChainRouter contract
+- **DEFAULT_ADMIN_ROLE**: Full administrative control (Administrators only)
+- **MINTER_ROLE**: Can mint new tokens (Administrators and Bridge Contracts)
+- **BURNER_ROLE**: Can burn tokens (Administrators and Bridge Contracts)
+- **PAUSER_ROLE**: Can pause/unpause all operations (Administrators only)
+- **UPGRADER_ROLE**: Can authorize contract upgrades (Administrators and Dev Team)
+- **BRIDGE_ROLE**: Reserved for bridge contracts only
+- **PROTOCOL_ADMIN_ROLE**: Can configure protocol settings (Dev Team only)
+- **ROUTER_ADMIN_ROLE**: Can set CrossChainRouter contract (Dev Team only)
+- **OPERATOR_ROLE**: Operational tasks and configuration (Dev Team only)
 
 ## Security Considerations
 
@@ -525,27 +526,29 @@ The LookCoin ecosystem implements granular role-based access control using OpenZ
 | -------------------------- | -------------------- | --------------------------------------------- | ------------------------------- | ---------------- | ------------ |
 | **LookCoin.sol**           |                      |                                               |                                 |                  |              |
 |                            | `DEFAULT_ADMIN_ROLE` | `grantRole()`, `revokeRole()`                 | Grant/revoke all roles          | MPC Vault        | No           |
-|                            | `MINTER_ROLE`        | `mint()`                                      | Mint new tokens                 | Protocol Modules | Yes          |
-|                            | `BURNER_ROLE`        | `burn()`, `burnFrom()`                        | Burn tokens                     | Protocol Modules | Yes          |
+|                            | `MINTER_ROLE`        | `mint()`                                      | Mint new tokens                 | MPC Vault + Bridges | Yes          |
+|                            | `BURNER_ROLE`        | `burn()`, `burnFrom()`                        | Burn tokens                     | MPC Vault + Bridges | Yes          |
 |                            | `PAUSER_ROLE`        | `pause()`, `unpause()`                        | Pause/unpause transfers         | MPC Vault        | Yes          |
-|                            | `UPGRADER_ROLE`      | `upgradeToAndCall()`                          | Upgrade contract implementation | MPC Vault        | Yes          |
-|                            | `BRIDGE_ROLE`        | `setAuthorizedBridge()`, `setCrossChainRouter()` | Configure bridge access     | MPC Vault        | Yes          |
+|                            | `UPGRADER_ROLE`      | `upgradeToAndCall()`                          | Upgrade contract implementation | MPC Vault + Dev Team | Yes          |
+|                            | `BRIDGE_ROLE`        | Bridge-specific operations                     | Bridge functions only           | Bridge Contracts | Yes          |
+|                            | `PROTOCOL_ADMIN_ROLE`| `setTrustedRemote()`, protocol configs        | Configure protocols             | Dev Team         | Yes          |
+|                            | `ROUTER_ADMIN_ROLE`  | `setCrossChainRouter()`                       | Set router contract             | Dev Team         | Yes          |
 | **CrossChainRouter.sol**   |                      |                                               |                                 |                  |              |
 |                            | `DEFAULT_ADMIN_ROLE` | `grantRole()`, `revokeRole()`                 | Grant/revoke all roles          | MPC Vault        | No           |
-|                            | `OPERATOR_ROLE`      | `registerProtocol()`, `setChainProtocolSupport()` | Manage protocols          | MPC Vault        | Yes          |
+|                            | `OPERATOR_ROLE`      | `registerProtocol()`, `setChainProtocolSupport()` | Manage protocols          | Dev Team         | Yes          |
 |                            | `EMERGENCY_ROLE`     | `pauseProtocol()`, `unpauseProtocol()`        | Emergency protocol control      | MPC Vault        | Yes          |
 | **LayerZeroModule.sol**    |                      |                                               |                                 |                  |              |
 |                            | `DEFAULT_ADMIN_ROLE` | `grantRole()`, `revokeRole()`                 | Grant/revoke all roles          | MPC Vault        | No           |
-|                            | `OPERATOR_ROLE`      | `setTrustedRemote()`, `setMinDstGas()`        | Configure LayerZero            | MPC Vault        | Yes          |
+|                            | `OPERATOR_ROLE`      | `setTrustedRemote()`, `setMinDstGas()`        | Configure LayerZero            | Dev Team         | Yes          |
 | **CelerIMModule.sol**      |                      |                                               |                                 |                  |              |
 |                            | `DEFAULT_ADMIN_ROLE` | `grantRole()`, `revokeRole()`                 | Grant/revoke all roles          | MPC Vault        | No           |
-|                            | `OPERATOR_ROLE`      | `setRemoteModule()`, `setFeeParameters()`     | Configure Celer IM             | MPC Vault        | Yes          |
+|                            | `OPERATOR_ROLE`      | `setRemoteModule()`, `setFeeParameters()`     | Configure Celer IM             | Dev Team         | Yes          |
 | **HyperlaneModule.sol**    |                      |                                               |                                 |                  |              |
 |                            | `DEFAULT_ADMIN_ROLE` | `grantRole()`, `revokeRole()`                 | Grant/revoke all roles          | MPC Vault        | No           |
-|                            | `OPERATOR_ROLE`      | `setTrustedSender()`, `setGasConfig()`        | Configure Hyperlane            | MPC Vault        | Yes          |
+|                            | `OPERATOR_ROLE`      | `setTrustedSender()`, `setGasConfig()`        | Configure Hyperlane            | Dev Team         | Yes          |
 | **SecurityManager.sol**    |                      |                                               |                                 |                  |              |
 |                            | `DEFAULT_ADMIN_ROLE` | `grantRole()`, `revokeRole()`                 | Grant/revoke all roles          | MPC Vault        | No           |
-|                            | `OPERATOR_ROLE`      | `setProtocolLimits()`, `setAnomalyThresholds()` | Configure security           | MPC Vault        | Yes          |
+|                            | `OPERATOR_ROLE`      | `setProtocolLimits()`, `setAnomalyThresholds()` | Configure security           | Dev Team         | Yes          |
 |                            | `EMERGENCY_ROLE`     | `emergencyPause()`, `forceReconcile()`        | Emergency response              | MPC Vault        | Yes          |
 
 #### Role Hierarchy
@@ -589,8 +592,9 @@ The role assignment follows a three-stage pattern designed for security and oper
 **Stage 1: Contract Deployment**
 
 - During deployment, only administrative roles are assigned to the `_admin` parameter (MPC vault)
-- This includes `DEFAULT_ADMIN_ROLE`, `ADMIN_ROLE`, `PAUSER_ROLE`, `UPGRADER_ROLE`, `OPERATOR_ROLE`, and `EMERGENCY_ROLE`
-- No operational permissions are granted during initialization to prevent unauthorized operations
+- This includes `DEFAULT_ADMIN_ROLE`, `PAUSER_ROLE`, and `UPGRADER_ROLE`
+- Technical roles (`PROTOCOL_ADMIN_ROLE`, `ROUTER_ADMIN_ROLE`) are also assigned to MPC vault initially
+- No bridge permissions are granted during initialization
 - Creates deployment artifacts with contract addresses for use in subsequent stages
 
 **Stage 2: Setup (Local Configuration)**
@@ -598,12 +602,16 @@ The role assignment follows a three-stage pattern designed for security and oper
 - **Script**: `scripts/setup.ts`
 - **Purpose**: Configures roles and settings for the current network only
 - **Operations**:
-  - Assigns roles to protocol modules based on their requirements:
-    - LayerZero/Hyperlane: `MINTER_ROLE` and `BURNER_ROLE`
-    - CelerIM: `MINTER_ROLE`
+  - Grants `MINTER_ROLE` and `BURNER_ROLE` to MPC vault for token operations
+  - Grants technical roles to dev team addresses:
+    - `PROTOCOL_ADMIN_ROLE` for protocol configuration
+    - `ROUTER_ADMIN_ROLE` for router management
+    - `UPGRADER_ROLE` for contract upgrades
+    - `OPERATOR_ROLE` for operational tasks
+  - Assigns roles to protocol modules:
+    - Bridge contracts receive `MINTER_ROLE`, `BURNER_ROLE`, and `BRIDGE_ROLE`
   - Registers CrossChainRouter with LookCoin
   - Configures local protocol parameters
-  - Sets up infrastructure contracts (FeeManager, SecurityManager)
 
 **Stage 3: Configure (Cross-Chain Configuration)**
 
@@ -629,10 +637,11 @@ The role assignment follows a three-stage pattern designed for security and oper
 
 The role separation follows the principle of least privilege:
 
-- **Governance Isolation**: MPC vault holds administrative roles but not operational roles, preventing accidental token minting/burning
-- **Bridge Autonomy**: Each bridge module operates independently with its own `MINTER_ROLE` grant, allowing selective bridge disabling
-- **Emergency Response**: `EMERGENCY_ROLE` provides rapid response capability without full admin access
-- **Relayer Decentralization**: Multiple addresses can hold `RELAYER_ROLE` for redundancy
+- **Financial Control**: MPC vault holds minting/burning rights for business operations
+- **Technical Separation**: Dev team manages technical aspects without financial control
+- **Bridge Autonomy**: Each bridge module operates independently with its own role grants
+- **Emergency Response**: `PAUSER_ROLE` provides rapid response capability
+- **Upgrade Redundancy**: Both MPC vault and dev team can execute upgrades
 
 #### Operational Examples
 
@@ -663,7 +672,7 @@ The role separation follows the principle of least privilege:
 ```solidity
 // Upgrading LookCoin implementation
 1. Deploy new implementation contract
-2. MPC vault calls upgradeToAndCall() with UPGRADER_ROLE
+2. Dev team OR MPC vault calls upgradeToAndCall() with UPGRADER_ROLE
 3. Roles persist through upgrade (stored in proxy)
 4. No role reassignment needed
 ```
@@ -711,7 +720,7 @@ const hasMinterRole = await lookCoin.hasRole(MINTER_ROLE, bridgeAddress);
 ### UUPS Upgrade Pattern
 
 1. **Deploy New Implementation**: Create new version of contract logic
-2. **Authorize Upgrade**: MPC vault calls `_authorizeUpgrade()` with UPGRADER_ROLE
+2. **Authorize Upgrade**: Dev team or MPC vault with UPGRADER_ROLE can execute
 3. **Execute Upgrade**: Call `upgradeToAndCall()` to switch implementation
 4. **Verify**: Test all functionality post-upgrade
 
