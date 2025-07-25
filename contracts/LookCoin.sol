@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -53,6 +54,7 @@ interface ILayerZeroReceiver {
  */
 contract LookCoin is
   ERC20Upgradeable,
+  ERC20PermitUpgradeable,
   UUPSUpgradeable,
   AccessControlUpgradeable,
   PausableUpgradeable,
@@ -157,6 +159,7 @@ contract LookCoin is
    */
   function initialize(address _admin, address _lzEndpoint) public initializer {
     __ERC20_init("LookCoin", "LOOK");
+    __ERC20Permit_init("LookCoin");
     __UUPSUpgradeable_init();
     __AccessControl_init();
     __Pausable_init();
@@ -562,7 +565,7 @@ contract LookCoin is
   /**
    * @dev Override decimals to return 18 (standard ERC20)
    */
-  function decimals() public pure override returns (uint8) {
+  function decimals() public pure override(ERC20Upgradeable) returns (uint8) {
     return 18;
   }
 

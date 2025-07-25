@@ -2,7 +2,7 @@
   "network": "bscmainnet",
   "chainId": 56,
   "deployer": "0x6Fb9955AA9d3f77CB3281633FC6e57B249a26b21",
-  "startTime": "2025-07-25T08:56:02.809Z",
+  "startTime": "2025-07-25T08:51:00.564Z",
   "steps": [
     {
       "name": "ProtocolDetection",

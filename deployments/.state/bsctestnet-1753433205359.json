@@ -1,8 +1,8 @@
 {
   "network": "bsctestnet",
   "chainId": 97,
-  "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
-  "startTime": "2025-07-25T08:49:08.241Z",
+  "deployer": "0x6Fb9955AA9d3f77CB3281633FC6e57B249a26b21",
+  "startTime": "2025-07-25T08:46:45.359Z",
   "steps": [
     {
       "name": "ProtocolDetection",
