@@ -1,0 +1,22 @@
+root: ./
+
+structure:
+  readme: README.md
+  summary: SUMMARY.md
+
+# Files to ignore in GitBook
+ignore:
+  - CLAUDE.md
+  - .kiro
+  - .kiro/**
+  - node_modules
+  - artifacts
+  - cache
+  - coverage
+  - typechain-types
+  - leveldb
+  - .env
+  - .env.*
+  - deployments/.state
+  - *.log
+  - .DS_Store
