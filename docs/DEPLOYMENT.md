@@ -479,11 +479,25 @@ Do you want to continue? (yes/no):
 
 1. **Always Follow the Three-Phase Order**: Deploy → Setup → Configure
 2. **Deploy to All Networks First**: Before running configure
-3. **Test on Testnets**: Before mainnet deployment
+3. **Test on Testnets**: Before mainnet deployment (BSC Testnet deployment completed ✅)
 4. **Monitor Deployment Artifacts**: Check `deployments/` directory
 5. **Use Tier Protection**: Don't mix testnet/mainnet unless necessary
 6. **Verify After Deploy**: Run contract verification
 7. **Test Bridge Operations**: After configuration completes
+
+### BSC Deployment Notes
+
+Both BSC Testnet and BSC Mainnet have been successfully deployed with:
+- **LookCoin**: Core ERC20 token with native LayerZero OFT V2 integration and EIP-2612 permit support
+- **CelerIMModule**: Celer Inter-chain Messaging support
+- **SupplyOracle**: Cross-chain supply monitoring
+- **Multi-protocol support**: Both LayerZero and Celer IM are active
+
+For BSC deployments, the contracts support:
+- Direct LayerZero transfers via `sendFrom()`
+- Router-based transfers via `bridgeToken()` (when CrossChainRouter is deployed)
+- Celer IM transfers through the CelerIMModule
+- EIP-2612 permit for gasless approvals
 
 ## Advanced Topics
 

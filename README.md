@@ -51,20 +51,21 @@ contracts/
 - SGN consensus validation
 - Supported on BSC, Optimism, and Oasis Sapphire
 
-#### IBC Protocol (Lock-and-Mint)
+#### Hyperlane (Burn-and-Mint) - Planned
 
-- Cosmos ecosystem integration via BSC bridge
-- 21 validator minimum with 2/3 majority consensus
-- 14-day unbonding period for security
+- Modular security via ISM (Interchain Security Modules)
+- Self-hosted infrastructure for complete control
+- Will support BSC, Base, Optimism, and Akashic
 
 ## Security Features
 
 ### Rate Limiting
 
-- **Sliding Window Algorithm**: Per-user and global limits
-- **Transaction Limits**: 500K tokens per transaction, 3 transactions per hour
-- **User Tiers**: Configurable multipliers for different user types
-- **Operation Types**: Distinct limits for MINT, BURN, BRIDGE_IN, BRIDGE_OUT
+- **Per-Transaction Limit**: 500K LOOK maximum
+- **Per-Account Hourly Limit**: 1.5M LOOK (3 transactions)
+- **Global Daily Limit**: 20% of total supply
+- **Sliding Window Algorithm**: Accurate rate tracking
+- **Emergency Bypass**: Available for authorized operations
 
 ### Supply Reconciliation
 

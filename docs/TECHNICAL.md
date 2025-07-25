@@ -13,9 +13,11 @@ LookCoin (LOOK) is the native platform token of the LookCard ecosystem, designed
 - **Total Supply**: Dynamic (tracked via totalMinted and totalBurned)
 - **Circulating Supply**: totalMinted - totalBurned
 - **Token Standard**: ERC20 with native cross-chain support
+- **Deployment Status**: ✅ Live on BSC Mainnet and BSC Testnet
 
 ### Technical Standards
 - **Base**: OpenZeppelin ERC20Upgradeable v5.1.0
+- **Extensions**: ERC20PermitUpgradeable (EIP-2612 gasless approvals)
 - **Proxy Pattern**: UUPS (Universal Upgradeable Proxy Standard)
 - **Cross-chain**: Native LayerZero OFT V2 integration + modular bridge architecture
 - **Security**: Pausable, ReentrancyGuard, AccessControl with granular roles
@@ -204,30 +206,30 @@ Multi-Chain Deployment
 
 ## Chain Deployment Matrix
 
-| Chain Name     | Supported Protocols                        | Network ID | Protocol IDs | Status  |
-| -------------- | ------------------------------------------ | ---------- | ------------ | ------- |
-| BSC            | LayerZero, Celer IM, Hyperlane           | 56         | 0, 1, 2      | Planned |
-| Base           | LayerZero, Hyperlane                      | 8453       | 0, 2         | Planned |
-| Optimism       | LayerZero, Celer IM, Hyperlane           | 10         | 0, 1, 2      | Planned |
-| Oasis Sapphire | Celer IM                                  | 23295      | 1            | Planned |
-| Akashic        | Hyperlane (self-hosted)                   | 9070       | 2            | Planned |
+| Chain Name     | Supported Protocols                        | Network ID | Protocol IDs | Status        |
+| -------------- | ------------------------------------------ | ---------- | ------------ | ------------- |
+| BSC            | LayerZero, Celer IM, Hyperlane           | 56         | 0, 1, 2      | ✅ Deployed   |
+| Base           | LayerZero, Hyperlane                      | 8453       | 0, 2         | Planned       |
+| Optimism       | LayerZero, Celer IM, Hyperlane           | 10         | 0, 1, 2      | Planned       |
+| Oasis Sapphire | Celer IM                                  | 23295      | 1            | Planned       |
+| Akashic        | Hyperlane (self-hosted)                   | 9070       | 2            | Planned       |
 
 ## Supported Networks
 
 The following table provides a comprehensive overview of all supported networks and their protocol compatibility. RPC endpoints are configured in `hardhat.config.ts`.
 
-| Network                    | Chain ID | Network Key         | LayerZero | Celer IM | Hyperlane | RPC Configuration     |
-| -------------------------- | -------- | ------------------- | --------- | -------- | --------- | --------------------- |
-| **BSC Mainnet**            | 56       | bsc                 | ✓         | ✓        | ✓         | See `hardhat.config.ts` line 12 |
-| **BSC Testnet**            | 97       | bscTestnet          | ✓         | ✓        | ✓         | See `hardhat.config.ts` line 13 |
-| **Base Mainnet**           | 8453     | base                | ✓         | ✗        | ✓         | See `hardhat.config.ts` line 14 |
-| **Base Sepolia**           | 84532    | baseSepolia         | ✓         | ✗        | ✓         | See `hardhat.config.ts` line 15 |
-| **Optimism Mainnet**       | 10       | optimism            | ✓         | ✓        | ✓         | See `hardhat.config.ts` line 16 |
-| **Optimism Sepolia**       | 11155420 | opSepolia           | ✓         | ✓        | ✓         | See `hardhat.config.ts` line 17 |
-| **Oasis Sapphire Mainnet** | 23294    | sapphire            | ✗         | ✓        | ✗         | See `hardhat.config.ts` line 18 |
-| **Oasis Sapphire Testnet** | 23295    | sapphireTestnet     | ✗         | ✓        | ✗         | See `hardhat.config.ts` line 19 |
-| **Akashic Mainnet**        | 9070     | akashic             | ✗         | ✗        | ✓*        | See `hardhat.config.ts` line 20 |
-| **Akashic Testnet**        | 9071     | akashicTestnet      | ✗         | ✗        | ✓*        | See `hardhat.config.ts` line 21 |
+| Network                    | Chain ID | Network Key         | LayerZero | Celer IM | Hyperlane | Deployment Status | RPC Configuration     |
+| -------------------------- | -------- | ------------------- | --------- | -------- | --------- | ----------------- | --------------------- |
+| **BSC Mainnet**            | 56       | bsc                 | ✓         | ✓        | ✓         | ✅ Deployed       | See `hardhat.config.ts` line 12 |
+| **BSC Testnet**            | 97       | bscTestnet          | ✓         | ✓        | ✓         | ✅ Deployed       | See `hardhat.config.ts` line 13 |
+| **Base Mainnet**           | 8453     | base                | ✓         | ✗        | ✓         | ⏳ Pending        | See `hardhat.config.ts` line 14 |
+| **Base Sepolia**           | 84532    | baseSepolia         | ✓         | ✗        | ✓         | ⏳ Pending        | See `hardhat.config.ts` line 15 |
+| **Optimism Mainnet**       | 10       | optimism            | ✓         | ✓        | ✓         | ⏳ Pending        | See `hardhat.config.ts` line 16 |
+| **Optimism Sepolia**       | 11155420 | opSepolia           | ✓         | ✓        | ✓         | ⏳ Pending        | See `hardhat.config.ts` line 17 |
+| **Oasis Sapphire Mainnet** | 23294    | sapphire            | ✗         | ✓        | ✗         | ⏳ Pending        | See `hardhat.config.ts` line 18 |
+| **Oasis Sapphire Testnet** | 23295    | sapphireTestnet     | ✗         | ✓        | ✗         | ⏳ Pending        | See `hardhat.config.ts` line 19 |
+| **Akashic Mainnet**        | 9070     | akashic             | ✗         | ✗        | ✓*        | ⏳ Pending        | See `hardhat.config.ts` line 20 |
+| **Akashic Testnet**        | 9071     | akashicTestnet      | ✗         | ✗        | ✓*        | ⏳ Pending        | See `hardhat.config.ts` line 21 |
 
 **Notes:**
 - ✓ = Supported
