@@ -4,6 +4,31 @@ structure:
   readme: README.md
   summary: SUMMARY.md
 
+# Enable integrations
+integrations:
+  # Mermaid diagrams support
+  mermaid:
+    theme: default
+
+# Plugin configuration
+plugins:
+  - mermaid:
+      version: "10.6.1"
+      theme: 
+        light: default
+        dark: dark
+      themeVariables:
+        primaryColor: "#f9d71c"
+        primaryTextColor: "#000"
+        primaryBorderColor: "#f9d71c"
+        lineColor: "#333"
+        secondaryColor: "#0052cc"
+        tertiaryColor: "#ff0420"
+        background: "#fff"
+        mainBkg: "#fff"
+        secondBkg: "#f5f5f5"
+        tertiaryBkg: "#e8e8e8"
+
 # Files to ignore in GitBook
 ignore:
   - CLAUDE.md
