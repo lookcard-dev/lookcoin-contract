@@ -2,7 +2,7 @@
   "network": "bsctestnet",
   "chainId": 97,
   "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
-  "timestamp": "2025-07-25T08:49:23.441Z",
+  "timestamp": "2025-07-25T11:10:32.561Z",
   "deploymentMode": "multi-protocol",
   "protocolsDeployed": [
     "layerZero",
@@ -11,7 +11,7 @@
   "contracts": {
     "LookCoin": {
       "proxy": "0xB8B7604628F37D611e82D22609ACE0Ca01A14e2D",
-      "implementation": "0x6342E03B4E99915016F9e9bceFaa7B559BB15b03"
+      "implementation": "0x5838A9f96E72eA83317D155F31AB660832533bAB"
     },
     "SupplyOracle": {
       "proxy": "0xd6f310c307a6FF8163A94984163D541b66077004",
@@ -28,11 +28,11 @@
     "governanceVault": "0x0bec539fd761cae579802072d9ee7fde86ed05a3"
   },
   "implementationHashes": {
-    "LookCoin": "0x55a951bf930f546f188c11de03190ff272ccd5ee1620b93ca81a2fe392a51f64",
+    "LookCoin": "0x035df318e7b4d02767fc5d749d77c0cd1f8a24e45950df940b71de21b6b81d49",
     "SupplyOracle": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
     "CelerIMModule": "0xefc292208ede616ee62527e07708925ea60a9bfe42d7e1d7dd40082cc7d365fe"
   },
-  "lastDeployed": "2025-07-25T08:49:23.441Z",
+  "lastDeployed": "2025-07-25T11:10:32.561Z",
   "protocolContracts": {
     "layerZeroModule": "0x69e6AF742E4a3E4d8494FDA6F181E263fB77f741",
     "celerIMModule": "0x03E823BE92A2526083681075430b1fd6D486D046"

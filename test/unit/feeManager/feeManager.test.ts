@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
-import { FeeManager, CrossChainRouter, LookCoin, ProtocolRegistry } from "../typechain-types";
+import { FeeManager, CrossChainRouter, LookCoin, ProtocolRegistry } from "../../../typechain-types";
 
 describe("FeeManager Test", function () {
   let feeManager: FeeManager;

@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
-import { ProtocolRegistry, CrossChainRouter, LookCoin } from "../typechain-types";
+import { ProtocolRegistry, CrossChainRouter, LookCoin } from "../../../typechain-types";
 
 describe("ProtocolRegistry Test", function () {
   let protocolRegistry: ProtocolRegistry;

@@ -13,6 +13,9 @@ export const TEST_CHAINS = {
   SAPPHIRE: getChainConfig("sapphiremainnet").chainId,
   AKASHIC: getChainConfig("akashicmainnet").chainId,
   HARDHAT: 31337,
+  // Additional chains used in tests
+  arbitrum: 42161, // Arbitrum One
+  polygon: 137, // Polygon
 };
 
 // Common test addresses

@@ -221,10 +221,7 @@ contract LookCoin is
    */
   function burn(address from, uint256 amount) public whenNotPaused nonReentrant {
     require(from != address(0), "LookCoin: burn from zero address");
-    require(
-      hasRole(BURNER_ROLE, msg.sender) || hasRole(BRIDGE_ROLE, msg.sender) || (from == msg.sender), // Allow self-burn
-      "LookCoin: unauthorized burner"
-    );
+    require(hasRole(BURNER_ROLE, msg.sender) || hasRole(BRIDGE_ROLE, msg.sender), "LookCoin: unauthorized burner");
 
     totalBurned += amount;
     _burn(from, amount);

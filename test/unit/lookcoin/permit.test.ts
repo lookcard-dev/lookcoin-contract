@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { LookCoin } from "../typechain-types";
+import { LookCoin } from "../../../typechain-types";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 describe("LookCoin Permit Functionality", function () {

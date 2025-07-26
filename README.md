@@ -188,20 +188,53 @@ npm run size
 
 ### Testing
 
+The test suite is organized into unit and integration tests for comprehensive coverage.
+
+#### Test Structure
+
+```bash
+test/
+├── unit/                    # Isolated contract testing
+│   ├── lookcoin/           # Core token functionality
+│   ├── bridges/            # Bridge module tests
+│   ├── router/             # Cross-chain router tests
+│   ├── feeManager/         # Fee management tests
+│   ├── protocolRegistry/   # Protocol registry tests
+│   └── security/           # Security component tests
+└── integration/            # End-to-end testing
+    ├── crossChainFlows.test.ts
+    ├── security.test.ts
+    └── consolidatedDeployment.test.ts
+```
+
+#### Running Tests
+
 ```bash
 # Run all tests
 npm test
 
-# Run with gas reporting
+# Unit tests only
+npm run test:unit
+npm run test:unit:lookcoin    # Core token tests
+npm run test:unit:bridges     # Bridge tests
+npm run test:unit:router      # Router tests
+npm run test:unit:security    # Security tests
+
+# Integration tests
+npm run test:integration
+npm run test:integration:flows     # Cross-chain flows
+npm run test:integration:security  # Security integration
+
+# With gas reporting
 npm run test:gas
 
-# Generate coverage report
+# Coverage reports
 npm run coverage
-
-# Run specific test suites
-npm run test:integration
-npm run test:security
+npm run coverage:unit
+npm run coverage:integration
 ```
+
+See [TESTCASE.md](./TESTCASE.md) for detailed test documentation.
 
 ## Ignition Deployment
 
