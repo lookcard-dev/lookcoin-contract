@@ -27,8 +27,6 @@
     "deploy:bsc-mainnet": "hardhat run scripts/deploy.ts --network bsc",
     "deploy:base-sepolia": "hardhat run scripts/deploy.ts --network baseSepolia",
     "deploy:base-mainnet": "hardhat run scripts/deploy.ts --network base",
-    "deploy:op-sepolia": "hardhat run scripts/deploy.ts --network opSepolia",
-    "deploy:op-mainnet": "hardhat run scripts/deploy.ts --network optimism",
     "deploy:akashic-mainnet": "hardhat run scripts/deploy.ts --network akashic",
     "configure:bsc-testnet": "hardhat run scripts/configure.ts --network bscTestnet",
     "configure:bsc-mainnet": "hardhat run scripts/configure.ts --network bsc",
@@ -65,12 +63,8 @@
     "docs:generate": "hardhat docgen",
     "docs:validate": "echo 'Documentation completeness check'",
     "deploy:resume": "hardhat run scripts/deploy.ts --resume",
-    "deploy:router": "hardhat run scripts/deploy-router.ts",
-    "deploy:hyperlane": "hardhat run scripts/deploy-hyperlane.ts",
     "deploy:debug": "DEBUG_DEPLOYMENT=true hardhat run scripts/deploy.ts",
-    "deploy:simple": "BSC_SIMPLE_MODE=true hardhat run scripts/deploy.ts",
-    "deploy:lookcoin-only": "hardhat run scripts/deploy-lookcoin-only.ts",
-    "configure:lookcoin-only": "hardhat run scripts/configure-lookcoin-only.ts"
+    "deploy:simple": "BSC_SIMPLE_MODE=true hardhat run scripts/deploy.ts"
   },
   "keywords": [],
   "author": "",

@@ -24,7 +24,7 @@ export class ProtocolDetector {
       layerZero: false,
       celer: false,
       hyperlane: false,
-      protocols: []
+      protocols: [],
     };
 
     // Prefer protocols object if available
@@ -35,10 +35,10 @@ export class ProtocolDetector {
       support.hyperlane = !!chainConfig.protocols.hyperlane && this.isHyperlaneReady(chainConfig);
     } else {
       // Fallback to checking endpoint addresses
-      support.layerZero = this.isValidAddress(chainConfig.layerZeroEndpoint);
-      support.celer = this.isValidAddress(chainConfig.celerMessageBus);
-      support.hyperlane = this.isValidAddress(chainConfig.hyperlaneMailbox) && 
-                         this.isValidAddress(chainConfig.hyperlane?.gasPaymaster);
+      support.layerZero = this.isValidAddress(chainConfig.layerZero.endpoint);
+      support.celer = this.isValidAddress(chainConfig.celer.messageBus);
+      support.hyperlane =
+        this.isValidAddress(chainConfig.hyperlane.mailbox) && this.isValidAddress(chainConfig.hyperlane?.gasPaymaster);
     }
 
     // Debug logging
@@ -62,7 +62,7 @@ export class ProtocolDetector {
    */
   static shouldDeployProtocol(protocol: string, chainConfig: ChainConfig): boolean {
     const support = this.detectSupportedProtocols(chainConfig);
-    
+
     switch (protocol.toLowerCase()) {
       case "layerzero":
         return support.layerZero;
@@ -89,16 +89,16 @@ export class ProtocolDetector {
     switch (protocol.toLowerCase()) {
       case "layerzero":
         return {
-          endpoint: chainConfig.layerZeroEndpoint || "",
-          chainId: chainConfig.layerZeroChainId,
+          endpoint: chainConfig.layerZero.endpoint || "",
+          chainId: chainConfig.layerZero.lzChainId,
           additionalSettings: {
-            dvnAddresses: chainConfig.dvnAddresses || []
-          }
+            dvnAddresses: chainConfig.layerZero.dvns || [],
+          },
         };
       case "celer":
         return {
-          endpoint: chainConfig.celerMessageBus || "",
-          chainId: chainConfig.celerChainId
+          endpoint: chainConfig.celer.messageBus || "",
+          chainId: chainConfig.celer.celerChainId,
         };
       case "hyperlane":
         return {
@@ -106,8 +106,8 @@ export class ProtocolDetector {
           additionalSettings: {
             hyperlaneISM: chainConfig.hyperlane?.ism,
             hyperlaneDomainId: chainConfig.hyperlane?.hyperlaneDomainId,
-            gasPaymaster: chainConfig.hyperlane?.gasPaymaster
-          }
+            gasPaymaster: chainConfig.hyperlane?.gasPaymaster,
+          },
         };
       default:
         return null;
@@ -131,9 +131,9 @@ export class ProtocolDetector {
    */
   private static isValidAddress(address?: string): boolean {
     if (!address) return false;
-    return address !== "" && 
-           address !== "0x0000000000000000000000000000000000000000" &&
-           address.toLowerCase() !== "0x0";
+    return (
+      address !== "" && address !== "0x0000000000000000000000000000000000000000" && address.toLowerCase() !== "0x0"
+    );
   }
 
   /**
@@ -143,8 +143,7 @@ export class ProtocolDetector {
    */
   static isHyperlaneReady(chainConfig: ChainConfig): boolean {
     return (
-      this.isValidAddress(chainConfig.hyperlane?.mailbox) &&
-      this.isValidAddress(chainConfig.hyperlane?.gasPaymaster)
+      this.isValidAddress(chainConfig.hyperlane?.mailbox) && this.isValidAddress(chainConfig.hyperlane?.gasPaymaster)
     );
   }
 }

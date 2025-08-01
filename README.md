@@ -120,7 +120,27 @@ npm run setup:op-sepolia
 npm run setup:sapphire-mainnet
 ```
 
-This stage assigns MINTER_ROLE and BURNER_ROLE to appropriate contracts and registers local bridges with the SupplyOracle.
+This stage performs comprehensive local configuration:
+
+**Role Assignments:**
+- **MPC Vault** receives:
+  - `MINTER_ROLE` - For minting tokens in business operations
+  - `BURNER_ROLE` - For burning tokens in supply management
+- **Dev Team** (if configured via `DEV_TEAM_ADDRESS`) receives:
+  - `PROTOCOL_ADMIN_ROLE` - For configuring protocol settings
+  - `ROUTER_ADMIN_ROLE` - For managing CrossChainRouter
+  - `UPGRADER_ROLE` - For contract upgrades (redundancy with MPC vault)
+  - `OPERATOR_ROLE` - On all infrastructure and protocol contracts
+- **Bridge Modules** receive:
+  - `MINTER_ROLE` and `BURNER_ROLE` - For burn-and-mint operations
+  - `BRIDGE_ROLE` - For bridge-specific operations
+- **LookCoin Contract** receives:
+  - `BURNER_ROLE` - To enable direct LayerZero OFT functionality
+
+**Infrastructure Setup:**
+- Registers bridges with SupplyOracle for cross-chain tracking
+- Configures CrossChainRouter with protocol modules (if deployed)
+- Sets LayerZero endpoint for direct OFT transfers
 
 ### Stage 3: Configure
 
@@ -173,7 +193,10 @@ npm install
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with your configuration:
+# - GOVERNANCE_VAULT: MPC vault wallet address
+# - DEV_TEAM_ADDRESS: Dev team address for technical roles (optional)
+# - Network RPC URLs and private keys
 ```
 
 ### Compilation

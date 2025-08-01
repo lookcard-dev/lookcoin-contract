@@ -1,6 +1,5 @@
 import { ethers, upgrades } from "hardhat";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
-import { Contract } from "ethers";
 import { expect } from "chai";
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import {
@@ -24,6 +23,9 @@ import {
   ILayerZeroUserApplicationConfig,
 } from "../../typechain-types";
 import { TEST_CHAINS } from "../utils/testConfig";
+
+// Type for contracts that can receive cross-chain messages
+export type CrossChainReceiver = LookCoin | LayerZeroModule | CelerIMModule | HyperlaneModule;
 
 export interface BooleanCombination {
   from: boolean;
@@ -88,7 +90,7 @@ export async function testBooleanCombinations(
 }
 
 export async function testRoleBasedFunction(
-  contract: Contract,
+  contract: LookCoin,
   functionName: string,
   args: any[],
   requiredRole: string,
@@ -106,7 +108,7 @@ export async function testRoleBasedFunction(
 }
 
 export async function testPausableFunction(
-  contract: Contract,
+  contract: LookCoin,
   functionName: string,
   args: any[],
   pauserSigner: SignerWithAddress
@@ -129,7 +131,7 @@ export async function testPausableFunction(
 }
 
 export async function testConfigurationDependency(
-  contract: Contract,
+  contract: LookCoin,
   functionName: string,
   args: any[],
   configureFunction: () => Promise<void>,
@@ -407,7 +409,7 @@ export async function setupMockHyperlane(
 
 export async function simulateCrossChainMessage(
   sourceChainId: number,
-  targetContract: Contract,
+  targetContract: CrossChainReceiver,
   messageData: string,
   protocol: "layerzero" | "celer" | "hyperlane"
 ) {
@@ -418,24 +420,30 @@ export async function simulateCrossChainMessage(
         ["uint16", "bytes"],
         [0, messageData] // PT_SEND = 0
       );
-      await targetContract.lzReceive(sourceChainId, "0x", 0, packet);
+      if ('lzReceive' in targetContract) {
+        await (targetContract as LookCoin | LayerZeroModule).lzReceive(sourceChainId, "0x", 0, packet);
+      }
       break;
     case "celer":
       // Simulate Celer message
-      await targetContract.executeMessageWithTransfer(
-        "0x", // sender
-        targetContract.address,
-        messageData,
-        0 // messageId
-      );
+      if ('executeMessageWithTransfer' in targetContract) {
+        await (targetContract as CelerIMModule).executeMessageWithTransfer(
+          "0x", // sender
+          await targetContract.getAddress(),
+          messageData,
+          0 // messageId
+        );
+      }
       break;
     case "hyperlane":
       // Simulate Hyperlane message
-      await targetContract.handle(
-        1, // origin domain
-        ethers.encodeBytes32String("sender"),
-        messageData
-      );
+      if ('handle' in targetContract) {
+        await (targetContract as HyperlaneModule).handle(
+          1, // origin domain
+          ethers.encodeBytes32String("sender"),
+          messageData
+        );
+      }
       break;
   }
 }
@@ -478,7 +486,7 @@ export async function revokeAllRoles(
 }
 
 export async function testRolePermissions(
-  contract: Contract,
+  contract: LookCoin,
   roleName: string,
   roleFunction: string,
   args: any[],
@@ -582,7 +590,7 @@ export async function simulateTransferFailure(
 
 // Assertion and Validation Helpers
 export async function assertRoleBasedAccess(
-  contract: Contract,
+  contract: LookCoin,
   functionName: string,
   args: any[],
   role: string,
@@ -603,7 +611,7 @@ export async function assertRoleBasedAccess(
 
 export async function assertEventEmission(
   tx: any,
-  contract: Contract,
+  contract: LookCoin,
   eventName: string,
   expectedArgs: any[]
 ) {
@@ -651,7 +659,7 @@ export async function advanceTimeAndBlock(seconds: number) {
 // Error and Exception Helpers
 export async function expectSpecificRevert(
   operation: () => Promise<any>,
-  contract: Contract,
+  contract: LookCoin,
   errorName: string,
   ...errorArgs: any[]
 ) {
@@ -672,7 +680,7 @@ export async function testAllRevertScenarios(
   scenarios: Array<{
     name: string;
     operation: () => Promise<any>;
-    contract: Contract;
+    contract: LookCoin;
     errorName: string;
     errorArgs?: any[];
   }>

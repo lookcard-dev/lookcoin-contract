@@ -481,7 +481,14 @@ Configuration includes:
 
 ### Governance Model
 - **Type**: MPC Vault Wallet (Off-chain Multi-Party Computation)
-- **Address**: Configured via GOVERNANCE_VAULT environment variable
+- **MPC Vault Address**: Configured via `GOVERNANCE_VAULT` environment variable
+  - Holds financial control (MINTER_ROLE, BURNER_ROLE)
+  - Can perform all administrative functions
+  - Has DEFAULT_ADMIN_ROLE on all contracts
+- **Dev Team Address**: Configured via `DEV_TEAM_ADDRESS` environment variable (optional)
+  - Holds technical roles without financial control
+  - Manages protocol configurations and operational tasks
+  - Has OPERATOR_ROLE on infrastructure contracts
 - **Execution**: Direct on-chain execution without timelock
 - **Scope**: All administrative functions via role-based permissions
 - **Security**: No single point of failure, distributed key management
@@ -526,11 +533,11 @@ The LookCoin ecosystem implements granular role-based access control using OpenZ
 | -------------------------- | -------------------- | --------------------------------------------- | ------------------------------- | ---------------- | ------------ |
 | **LookCoin.sol**           |                      |                                               |                                 |                  |              |
 |                            | `DEFAULT_ADMIN_ROLE` | `grantRole()`, `revokeRole()`                 | Grant/revoke all roles          | MPC Vault        | No           |
-|                            | `MINTER_ROLE`        | `mint()`                                      | Mint new tokens                 | MPC Vault + Bridges | Yes          |
-|                            | `BURNER_ROLE`        | `burn()`, `burnFrom()`                        | Burn tokens                     | MPC Vault + Bridges | Yes          |
+|                            | `MINTER_ROLE`        | `mint()`                                      | Mint new tokens                 | MPC Vault + Bridge Modules | Yes          |
+|                            | `BURNER_ROLE`        | `burn()`, `burnFrom()`                        | Burn tokens                     | MPC Vault + Bridge Modules + LookCoin | Yes          |
 |                            | `PAUSER_ROLE`        | `pause()`, `unpause()`                        | Pause/unpause transfers         | MPC Vault        | Yes          |
 |                            | `UPGRADER_ROLE`      | `upgradeToAndCall()`                          | Upgrade contract implementation | MPC Vault + Dev Team | Yes          |
-|                            | `BRIDGE_ROLE`        | Bridge-specific operations                     | Bridge functions only           | Bridge Contracts | Yes          |
+|                            | `BRIDGE_ROLE`        | Bridge-specific operations                     | Bridge functions only           | Bridge Modules + CrossChainRouter | Yes          |
 |                            | `PROTOCOL_ADMIN_ROLE`| `setTrustedRemote()`, protocol configs        | Configure protocols             | Dev Team         | Yes          |
 |                            | `ROUTER_ADMIN_ROLE`  | `setCrossChainRouter()`                       | Set router contract             | Dev Team         | Yes          |
 | **CrossChainRouter.sol**   |                      |                                               |                                 |                  |              |
@@ -601,17 +608,45 @@ The role assignment follows a three-stage pattern designed for security and oper
 
 - **Script**: `scripts/setup.ts`
 - **Purpose**: Configures roles and settings for the current network only
+- **Prerequisites**: 
+  - Stage 1 deployment completed with artifacts in `/deployments`
+  - Environment variables configured (`GOVERNANCE_VAULT`, `DEV_TEAM_ADDRESS`)
 - **Operations**:
-  - Grants `MINTER_ROLE` and `BURNER_ROLE` to MPC vault for token operations
-  - Grants technical roles to dev team addresses:
-    - `PROTOCOL_ADMIN_ROLE` for protocol configuration
-    - `ROUTER_ADMIN_ROLE` for router management
-    - `UPGRADER_ROLE` for contract upgrades
-    - `OPERATOR_ROLE` for operational tasks
-  - Assigns roles to protocol modules:
-    - Bridge contracts receive `MINTER_ROLE`, `BURNER_ROLE`, and `BRIDGE_ROLE`
-  - Registers CrossChainRouter with LookCoin
-  - Configures local protocol parameters
+
+  **1. Role Configuration:**
+  - **MPC Vault** (`GOVERNANCE_VAULT`) receives:
+    - `MINTER_ROLE` - For minting tokens in business operations
+    - `BURNER_ROLE` - For burning tokens in supply management
+  
+  - **Dev Team** (`DEV_TEAM_ADDRESS` - optional) receives:
+    - `PROTOCOL_ADMIN_ROLE` - For configuring protocol settings (trusted remotes, fees)
+    - `ROUTER_ADMIN_ROLE` - For setting/updating CrossChainRouter contract
+    - `UPGRADER_ROLE` - For contract upgrades (provides redundancy with MPC vault)
+    - `OPERATOR_ROLE` - On CrossChainRouter, FeeManager, SecurityManager, and all protocol modules
+  
+  - **Bridge Modules** receive:
+    - LayerZeroModule: `MINTER_ROLE`, `BURNER_ROLE`, `BRIDGE_ROLE`
+    - HyperlaneModule: `MINTER_ROLE`, `BURNER_ROLE`, `BRIDGE_ROLE` (if Hyperlane ready)
+    - CelerIMModule: `MINTER_ROLE`, `BRIDGE_ROLE`
+  
+  - **LookCoin Contract** receives:
+    - `BURNER_ROLE` - Enables direct LayerZero OFT functionality
+
+  **2. Infrastructure Configuration:**
+  - Sets LayerZero endpoint on LookCoin for direct OFT transfers
+  - Registers bridges with SupplyOracle for cross-chain supply tracking:
+    - LookCoin itself for LayerZero (uses LZ chain ID)
+    - HyperlaneModule (uses Hyperlane domain ID)
+    - CelerIMModule (uses Celer chain ID)
+  
+  **3. CrossChainRouter Setup (Multi-Protocol Mode):**
+  - Registers CrossChainRouter with LookCoin via `setCrossChainRouter()`
+  - Grants `OPERATOR_ROLE` to dev team on CrossChainRouter
+  - Registers protocol modules with router:
+    - LayerZero module (Protocol ID: 0)
+    - Celer module (Protocol ID: 1)
+    - Hyperlane module (Protocol ID: 2)
+  - Grants `BRIDGE_ROLE` to CrossChainRouter for module interaction
 
 **Stage 3: Configure (Cross-Chain Configuration)**
 
