@@ -2,18 +2,18 @@
 
 ## Overview
 
-The Supply Oracle monitors cross-chain token supply to prevent inflation attacks and ensure total supply integrity. This document explains the efficient architecture for production deployment.
+The Supply Oracle monitors cross-chain token supply to prevent inflation attacks and ensure total supply integrity. This document explains the current multi-chain architecture and future optimization options.
 
-## Recommended Architecture: Single-Chain Oracle
+## Current Architecture: Multi-Chain Oracle
 
-### Why Single Chain?
+### Implementation Status
 
-Instead of deploying SupplyOracle on every chain (expensive and complex), deploy it on **ONE chain only**:
+LookCoin currently deploys SupplyOracle on **every chain** for local bridge control:
 
-1. **Home Chain Deployment**: Deploy SupplyOracle only on BSC (your home chain)
-2. **Read from All Chains**: Oracle nodes read supply data from all chains via RPC
-3. **Write to One Chain**: All updates go to the single SupplyOracle on BSC
-4. **Cost Efficient**: 3 transactions every 15 minutes instead of 27
+1. **Per-Chain Deployment**: Each chain has its own SupplyOracle instance
+2. **Local Bridge Control**: Each oracle controls bridges on its own chain
+3. **Multi-Sig Updates**: Each oracle requires 3 signatures for supply updates
+4. **Batch Updates**: Supports batch updates to reduce gas costs
 
 ### Architecture Diagram
 
@@ -22,25 +22,22 @@ Instead of deploying SupplyOracle on every chain (expensive and complex), deploy
 │   Oracle Node 1 │     │   Oracle Node 2 │     │   Oracle Node 3 │
 └────────┬────────┘     └────────┬────────┘     └────────┬────────┘
          │                       │                       │
-         │ Reads supply from     │                       │
+         │ Reads supply from all chains and submits to each
          ├──────────────────────┐│┌──────────────────────┤
          │                      │││                      │
     ┌────▼────┐            ┌────▼▼▼────┐           ┌────▼────┐
     │   BSC   │            │   Base    │           │Optimism │
     │LookCoin │            │ LookCoin  │           │LookCoin │
+    │  Oracle │            │  Oracle   │           │  Oracle  │
     └─────────┘            └───────────┘           └─────────┘
          │                       │                       │
-         │ All submit updates to │                       │
-         └───────────┬───────────┘                       │
-                     │                                   │
-                ┌────▼────────────────────────────────────┘
-                │                                          
-          ┌─────▼─────────┐                               
-          │ Supply Oracle │  (Deployed ONLY on BSC)       
-          │               │                               
-          │ Requires 3    │                               
-          │ signatures    │                               
-          └───────────────┘                               
+         │ Each chain has its    │                       │
+         │ own SupplyOracle      │                       │
+         │                       │                       │
+    ┌────▼────┐            ┌────▼────┐            ┌────▼────┐
+    │  Local  │            │  Local  │            │  Local  │
+    │ Bridges │            │ Bridges │            │ Bridges │
+    └─────────┘            └─────────┘            └─────────┘
 ```
 
 ## Implementation Details
@@ -48,56 +45,60 @@ Instead of deploying SupplyOracle on every chain (expensive and complex), deploy
 ### 1. Deployment Strategy
 
 ```typescript
-// Deploy SupplyOracle only on BSC
-if (network === 'bsc' || network === 'bsc-testnet') {
-  // Deploy SupplyOracle
-  const supplyOracle = await deploySupplyOracle();
-} else {
-  // Other chains: Skip SupplyOracle deployment
-  console.log("SupplyOracle only deployed on home chain (BSC)");
-}
+// Deploy SupplyOracle on every chain
+const supplyOracle = await deploySupplyOracle();
+// Each chain controls its own bridges locally
 ```
 
 ### 2. Oracle Operation
 
 Each oracle node:
 1. **Reads** supply data from all chains via RPC
-2. **Submits** updates only to BSC SupplyOracle
+2. **Submits** updates to **each chain's SupplyOracle**
 3. **Monitors** for discrepancies
+4. **Uses batch updates** when supported to reduce gas costs
 
 ```typescript
-// Simplified oracle operation
+// Current multi-chain oracle operation
 async function runOracle() {
   // Step 1: Read from all chains
-  const bscSupply = await readSupply('bsc');
-  const baseSupply = await readSupply('base');
-  const opSupply = await readSupply('optimism');
+  const chainSupplies = await readAllChainSupplies();
   
-  // Step 2: Submit to BSC SupplyOracle only
-  const bscProvider = new ethers.JsonRpcProvider(BSC_RPC);
-  const wallet = new ethers.Wallet(ORACLE_KEY, bscProvider);
-  const supplyOracle = new ethers.Contract(ORACLE_ADDRESS, ABI, wallet);
-  
-  const nonce = Date.now();
-  await supplyOracle.updateSupply(56, bscSupply.total, bscSupply.locked, nonce);
-  await supplyOracle.updateSupply(8453, baseSupply.total, baseSupply.locked, nonce);
-  await supplyOracle.updateSupply(10, opSupply.total, opSupply.locked, nonce);
+  // Step 2: Submit to each chain's SupplyOracle
+  for (const chain of deployedChains) {
+    const provider = new ethers.JsonRpcProvider(chain.rpc);
+    const wallet = new ethers.Wallet(ORACLE_KEY, provider);
+    const supplyOracle = new ethers.Contract(chain.oracleAddress, ABI, wallet);
+    
+    const nonce = Date.now();
+    
+    // Use batch update if available
+    if (supplyOracle.batchUpdateSupply) {
+      await supplyOracle.batchUpdateSupply(chainSupplies, nonce);
+    } else {
+      // Fallback to individual updates
+      for (const supply of chainSupplies) {
+        await supplyOracle.updateSupply(supply.chainId, supply.total, supply.locked, nonce);
+      }
+    }
+  }
 }
 ```
 
 ### 3. Cost Analysis
 
-**Multi-Chain Deployment (Expensive):**
-- 3 chains × 3 oracles × 3 updates = 27 transactions
-- Cost: ~$0.10 × 27 = $2.70 per update
-- Daily: $259.20
-- Monthly: $7,776
-
-**Single-Chain Deployment (Efficient):**
-- 1 chain × 3 oracles × 3 updates = 9 transactions
-- Cost: ~$0.10 × 9 = $0.90 per update
+**Current Multi-Chain Deployment:**
+- With batch updates: 3 chains × 3 oracles × 1 batch = 9 transactions
+- Without batch: 3 chains × 3 oracles × 3 updates = 27 transactions
+- Cost with batch: ~$0.10 × 9 = $0.90 per update
 - Daily: $86.40
 - Monthly: $2,592
+
+**Alternative Single-Chain Deployment (Future Optimization):**
+- 1 chain × 3 oracles × 1 batch = 3 transactions
+- Cost: ~$0.10 × 3 = $0.30 per update
+- Daily: $28.80
+- Monthly: $864
 
 **Savings: 66% reduction in gas costs**
 

@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-LookCoin (LOOK) is the native platform token of the LookCard ecosystem, designed as a native multi-protocol omnichain fungible token. The token implements a unified cross-chain architecture through the CrossChainRouter, supporting multiple bridge protocols: LayerZero's OFT V2 standard (BSC, Base, Optimism), Celer IM's cross-chain messaging (BSC, Optimism, Oasis Sapphire), and Hyperlane for cross-chain messaging. The architecture employs protocol abstraction through a modular design where each bridge protocol implements the ILookBridgeModule interface, enabling seamless protocol selection based on destination chain, cost optimization, speed requirements, or security preferences. The system maintains a unified global supply model with appropriate mechanics for each protocol (burn-and-mint for LayerZero and Hyperlane, lock-and-mint for Celer IM), ensuring consistent token supply across all deployments while providing redundancy, optimal routing, and enhanced cross-chain capabilities.
+LookCoin (LOOK) is the native platform token of the LookCard ecosystem, designed as a native multi-protocol omnichain fungible token. The token implements a unified cross-chain architecture through the CrossChainRouter (when deployed in multi-protocol mode), supporting multiple bridge protocols: LayerZero's OFT V2 standard (BSC, Base, Optimism), Celer IM's cross-chain messaging (BSC, Optimism, Oasis Sapphire), with Hyperlane planned for future deployment. The architecture employs protocol abstraction through a modular design where each bridge protocol implements the ILookBridgeModule interface, enabling seamless protocol selection based on destination chain, cost optimization, speed requirements, or security preferences. The system maintains a unified global supply model with burn-and-mint mechanics for all protocols, ensuring consistent token supply across all deployments while providing redundancy, optimal routing, and enhanced cross-chain capabilities.
 
 ## Token Specification
 
@@ -10,10 +10,11 @@ LookCoin (LOOK) is the native platform token of the LookCard ecosystem, designed
 - **Name**: LookCoin
 - **Symbol**: LOOK
 - **Decimals**: 18
-- **Total Supply**: Dynamic (tracked via totalMinted and totalBurned)
+- **Total Supply Cap**: 5,000,000,000 LOOK
+- **Current Minted**: 20,000 LOOK (BSC Mainnet only)
 - **Circulating Supply**: totalMinted - totalBurned
 - **Token Standard**: ERC20 with native cross-chain support
-- **Deployment Status**: ✅ Live on BSC Mainnet and BSC Testnet
+- **Deployment Status**: ✅ Live on BSC Mainnet, BSC Testnet, Base Sepolia, Optimism Sepolia, Oasis Sapphire Mainnet
 
 ### Technical Standards
 - **Base**: OpenZeppelin ERC20Upgradeable v5.1.0
@@ -85,19 +86,16 @@ graph TB
   - Remote module registration
   - Fee refund mechanism
 
-#### 3. Hyperlane
-- **Mechanism**: Burn-and-mint
-- **Networks**: Configurable via domain mappings
-- **Security**: Modular ISM (Interchain Security Modules)
+#### 3. Hyperlane (Planned - Not Yet Deployed)
+- **Mechanism**: Burn-and-mint (planned)
+- **Networks**: To be configured via domain mappings
+- **Security**: Will use Modular ISM (Interchain Security Modules)
 - **Features**: 
   - Domain-based routing (no hardcoded chain IDs)
   - Configurable domain-to-chain mappings
   - Gas oracle integration
   - Message-based architecture
-
-### Multi-Protocol Router Architecture
-
-LookCard operates its own complete Hyperlane infrastructure across all supported chains:
+- **Status**: Infrastructure deployment pending
 
 - **Custom Mailboxes**: LookCard-deployed mailbox contracts on each chain
 - **Self-Operated Relayers**: Dedicated relayer infrastructure for all routes

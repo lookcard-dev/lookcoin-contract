@@ -1,8 +1,8 @@
 # LookCoin User Flow Guide
 
-**Cross-Chain Bridging with LayerZero, Celer IM, and Hyperlane**
+**Cross-Chain Bridging with LayerZero and Celer IM**
 
-This guide walks you through bridging LookCoin (LOOK) tokens across different blockchain networks using our three active bridge protocols: LayerZero, Celer IM, and Hyperlane. Whether you're moving tokens between BSC, Base, Optimism, or Sapphire, this guide provides step-by-step instructions for a smooth bridging experience.
+This guide walks you through bridging LookCoin (LOOK) tokens across different blockchain networks using our active bridge protocols: LayerZero and Celer IM. Whether you're moving tokens between BSC, Base, Optimism, or Sapphire, this guide provides step-by-step instructions for a smooth bridging experience. Hyperlane support is planned for future deployment.
 
 ## Bridging Methods Overview
 
@@ -20,22 +20,21 @@ graph LR
 - Most gas-efficient for LayerZero transfers
 - Ideal for programmatic integrations
 
-### 2. Router Path (All Protocols)
+### 2. Router Path (Multi-Protocol)
 ```mermaid
 graph LR
     User --> CrossChainRouter
     CrossChainRouter --> |route| Decision{Protocol}
     Decision --> |LayerZero| LayerZeroModule
     Decision --> |Celer| CelerIMModule
-    Decision --> |Hyperlane| HyperlaneModule
     LayerZeroModule --> |burn-and-mint| Dest1[Destination]
     CelerIMModule --> |burn-and-mint| Dest2[Destination]
-    HyperlaneModule --> |burn-and-mint| Dest3[Destination]
 ```
 - Call `CrossChainRouter.bridgeToken()`
-- Supports all protocols (LayerZero, Celer, Hyperlane)
+- Supports LayerZero and Celer protocols
 - Automatic protocol selection available
 - Unified interface for all bridges
+- Note: CrossChainRouter is only deployed on BSC networks in multi-protocol mode
 
 ## Prerequisites
 

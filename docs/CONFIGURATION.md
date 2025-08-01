@@ -176,15 +176,9 @@ export const CHAIN_CONFIG = {
 };
 ```
 
-### Generating Ignition Parameters
+### Configuration Updates
 
-After modifying the configuration, regenerate the Ignition parameter files:
-
-```bash
-npm run config:generate
-```
-
-This command runs the config generator script that creates JSON parameter files from the centralized configuration.
+After modifying the configuration in `hardhat.config.ts`, the changes will be automatically picked up by the deployment scripts. No additional generation step is required.
 
 ### Command Reference
 
@@ -263,16 +257,7 @@ const lzEndpoint = chainConfig.layerZero.endpoint; // V2 endpoint from centraliz
 
 ## Configuration Files
 
-### Auto-Generated Files
-
-The following files are auto-generated and should not be edited manually:
-
-- `ignition/parameters/*.json` - Generated from `CHAIN_CONFIG`
-
-### Source Files
-
-- `hardhat.config.ts` - Central configuration source
-- `scripts/utils/config-generator.ts` - Configuration generator utility
+- `hardhat.config.ts` - Central configuration source containing all network and protocol settings
 
 ## Testing
 
@@ -305,25 +290,19 @@ const bscConfig = getChainConfig("bsc");
    - Ensure the network name matches exactly (case-sensitive)
    - Check that the network is defined in `CHAIN_CONFIG`
 
-2. **Parameter Generation Fails**
-   - Validate configuration with `npm run config:validate`
-   - Check for missing required fields
-
-3. **Deployment Scripts Fail**
-   - Ensure parameter files are regenerated after config changes
-   - Verify governance vault address is set correctly
+2. **Deployment Scripts Fail**
+   - Verify all required fields are present in the configuration
+   - Check that governance vault address is set correctly
+   - Ensure RPC endpoints are accessible
 
 ### Debug Commands
 
 ```bash
-# Validate specific network configuration
-npm run config:validate -- <network-name>
+# Check network configuration
+npx hardhat config
 
-# Generate parameters for specific network
-npm run config:generate -- <network-name>
-
-# Check deployment configuration
-npx hardhat run scripts/utils/config-generator.ts validate
+# Verify network connection
+npx hardhat run scripts/deploy.ts --network <network-name> --dry-run
 ```
 
 ## Network Tier Isolation

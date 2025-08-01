@@ -10,17 +10,24 @@ This document tracks the deployment milestones and cross-chain bridge activation
 
 ## Deployment Timeline
 
-| Date        | Environment | Chain(s)                       | Bridge/Feature                 | Status         |
-| ----------- | ----------- | ------------------------------ | ------------------------------ | -------------- |
-| 23-Jul-2025 | Testnet     | BSC Testnet                    | Initial deployment             | ✅ Completed   |
-| 24-Jul-2025 | Mainnet     | BSC Mainnet                    | Deployment without cross-chain | ✅ Completed   |
-| 30-Jul-2025 | Testnet     | Akashic Testnet, BSC Testnet   | Hyperlane warp/relay setup     | 🚧 In Progress |
-| 01-Aug-2025 | Mainnet     | Akashic Mainnet, BSC Mainnet   | Hyperlane cross-chain ready    | 🪄 Upcoming    |
-| 06-Aug-2025 | Testnet     | Base Sepolia, Optimism Sepolia | LayerZero testnet cross-chain  | 🪄 Upcoming    |
-| 08-Aug-2025 | Mainnet     | Base Mainnet, Optimism Mainnet | LayerZero mainnet cross-chain  | 🪄 Upcoming    |
+| Date        | Environment | Chain(s)                       | Bridge/Feature                   | Status         |
+| ----------- | ----------- | ------------------------------ | -------------------------------- | -------------- |
+| 23-Jul-2025 | Testnet     | BSC Testnet                    | Initial deployment (multi-proto) | ✅ Completed   |
+| 25-Jul-2025 | Mainnet     | BSC Mainnet                    | Multi-protocol deployment        | ✅ Completed   |
+| 25-Jul-2025 | Mainnet     | BSC Mainnet                    | 20,000 LOOK manually minted      | ✅ Completed   |
+| 01-Aug-2025 | Mainnet     | Oasis Sapphire                 | Celer IM deployment              | ✅ Completed   |
+| 01-Aug-2025 | Testnet     | Base Sepolia                   | LayerZero deployment             | ✅ Completed   |
+| 01-Aug-2025 | Testnet     | Optimism Sepolia               | LayerZero deployment             | ✅ Completed   |
+| 01-Aug-2025 | Testnet     | BSC ↔ Base ↔ Optimism         | Cross-chain configuration        | ✅ Completed   |
+| TBD         | Mainnet     | Base Mainnet                   | LayerZero deployment             | 🪄 Upcoming    |
+| TBD         | Mainnet     | Optimism Mainnet               | LayerZero + Celer deployment     | 🪄 Upcoming    |
+| TBD         | Mainnet     | Akashic Mainnet                | Hyperlane deployment             | 🪄 Upcoming    |
+| TBD         | All         | All chains                     | Hyperlane infrastructure         | 🪄 Upcoming    |
 
 ## Notes
 
-- All dates are target dates in UTC
-- Cross-chain functionality refers to bridge protocol activation
-- Only active protocols (LayerZero, Hyperlane, CelerIM) are referenced
+- All dates are in UTC
+- BSC Mainnet is the home chain where tokens can be minted
+- Only 20,000 LOOK have been minted so far (manually)
+- Hyperlane infrastructure deployment is pending
+- Cross-chain configuration requires deployment on multiple chains first

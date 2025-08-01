@@ -2,6 +2,7 @@
 
 ## Table of Contents
 - [Introduction](#introduction)
+- [Global Supply Management](#global-supply-management)
 - [Three-Phase Deployment Architecture](#three-phase-deployment-architecture)
 - [Phase 1: Deploy](#phase-1-deploy)
 - [Phase 2: Setup](#phase-2-setup)
@@ -18,6 +19,8 @@ LookCoin uses a unified three-phase deployment process that automatically detect
 
 ### Key Architecture Features
 
+- **Global Supply Cap**: 5 billion LOOK tokens managed through burn-and-mint mechanism
+- **Home Chain (BSC)**: Primary chain where the full supply is initially minted
 - **Dual-Path Support**: LayerZero offers both direct OFT calls (`sendFrom`) and router-based calls (`bridgeToken`)
 - **Unified Token Mechanics**: All protocols (LayerZero, Celer, Hyperlane) use burn-and-mint for consistency
 - **Multi-Protocol Router**: CrossChainRouter provides a unified interface for all bridge protocols
@@ -29,6 +32,75 @@ LookCoin uses a unified three-phase deployment process that automatically detect
 - **Simplified Workflow**: One set of commands for all deployment scenarios
 - **Enhanced Safety**: Built-in tier validation and cross-chain safety checks
 - **Better Maintainability**: Consolidated codebase reduces duplication and errors
+
+## Global Supply Management
+
+LookCoin has a **global supply cap of 5 billion LOOK tokens** managed through a burn-and-mint mechanism across all chains.
+
+### Key Principles
+
+1. **Home Chain (BSC)**: The BSC deployment is the home chain where tokens can be minted up to the global cap
+2. **Secondary Chains**: All other chains (Base, Optimism, Akashic) start with 0 supply and receive tokens only through bridges
+3. **Supply Monitoring**: The SupplyOracle monitors total supply across all chains and automatically pauses bridges if supply exceeds the configured limit
+4. **Flexible Minting**: Tokens can be minted gradually as needed, not necessarily all at once
+
+### Token Minting (BSC Only)
+
+**Note**: The deployment process does NOT automatically mint any tokens. All minting is done manually after deployment.
+
+```javascript
+// Manual minting example (done separately from deployment)
+const mpcVault = "0x..."; // Your MPC vault address
+const amount = ethers.parseEther("20000"); // Example: 20,000 LOOK
+await lookCoin.mint(mpcVault, amount);
+
+// You can mint additional tokens later as needed, up to the 5 billion cap
+```
+
+**Important**: 
+- No tokens are minted during deploy, setup, or configure phases
+- All minting must be done manually by accounts with MINTER_ROLE
+- Only mint on the home chain (BSC)
+- The MPC vault must have MINTER_ROLE (granted during setup phase)
+- Total minted across all minting operations cannot exceed 5 billion LOOK
+- SupplyOracle tracks cumulative minted amounts
+
+### Supply Verification
+
+#### Automatic Supply Configuration
+
+The setup script automatically ensures the SupplyOracle has the correct 5 billion LOOK expected supply:
+- If the current expected supply doesn't match 5 billion, it will be updated automatically
+- This requires the deployer to have DEFAULT_ADMIN_ROLE on the SupplyOracle
+- If the deployer lacks permissions, the script will provide manual update instructions
+- The expected supply represents the maximum that can ever be minted, not the current circulating supply
+
+#### Check Individual Chain Supply
+
+Run the reconciliation script on any deployed chain:
+
+```bash
+npm run reconcile:bsc-testnet
+```
+
+This will show:
+- Current chain's minted, burned, and circulating supply
+- SupplyOracle's expected global supply (should be 5 billion LOOK)
+- Recommendations for any required actions
+
+#### Monitor Cross-Chain Supply
+
+The SupplyOracle provides global supply monitoring:
+
+```javascript
+// Check global supply health
+const oracle = await ethers.getContractAt("SupplyOracle", supplyOracleAddress);
+const { expectedSupply, actualSupply, isHealthy } = await oracle.getGlobalSupply();
+
+console.log(`Expected: ${ethers.formatEther(expectedSupply)} LOOK`);
+console.log(`Actual: ${ethers.formatEther(actualSupply)} LOOK`);
+console.log(`Healthy: ${isHealthy}`);
+```
 
 ## Three-Phase Deployment Architecture
 
@@ -54,7 +126,7 @@ graph LR
 ### Phase Overview
 
 1. **Deploy**: Creates contracts on a single network
-2. **Setup**: Configures local-only settings (roles, registrations)
+2. **Setup**: Configures local-only settings (roles, registrations) and validates supply configuration
 3. **Configure**: Establishes cross-chain connections between networks
 
 ## Phase 1: Deploy
@@ -151,6 +223,11 @@ The setup phase configures local-only settings on the deployed network.
    - Register protocol modules with SupplyOracle
    - Set up chain-specific identifiers
 
+3. **Supply Validation** (BSC Only)
+   - Verifies SupplyOracle has 5 billion LOOK expected supply (maximum cap)
+   - Reports current minted amount (will be 0 after initial deployment)
+   - Shows available minting capacity (5 billion initially)
+
 ### Running Setup
 
 ```bash
@@ -242,17 +319,23 @@ Configuring celer...
 Complete deployment flow for a three-network setup:
 
 ```bash
-# 1. Deploy to all networks
-npm run deploy:bsc-testnet
-npm run deploy:base-sepolia  
-npm run deploy:optimism-sepolia
+# 1. Deploy to all networks (BSC first as home chain)
+npm run deploy:bsc-testnet          # Home chain
+npm run deploy:base-sepolia         # Secondary chain
+npm run deploy:optimism-sepolia     # Secondary chain
 
 # 2. Setup each network locally
-npm run setup:bsc-testnet
-npm run setup:base-sepolia
-npm run setup:optimism-sepolia
+npm run setup:bsc-testnet           # Configures roles, no minting
+npm run setup:base-sepolia          # Secondary chain setup
+npm run setup:optimism-sepolia      # Secondary chain setup
 
-# 3. Configure cross-chain connections
+# 3. Mint tokens manually on BSC (separate from deployment process)
+# Use your own scripts or console to mint tokens as needed
+# Example: npx hardhat console --network bsc-mainnet
+# > const lookCoin = await ethers.getContractAt("LookCoin", "0x...")
+# > await lookCoin.mint("0xMpcVault...", ethers.parseEther("20000"))
+
+# 4. Configure cross-chain connections
 npm run configure:bsc-testnet      # Connects to Base & Optimism
 npm run configure:base-sepolia      # Connects to BSC & Optimism
 npm run configure:optimism-sepolia  # Connects to BSC & Base
@@ -340,6 +423,22 @@ No manual migration required!
   - Set environment: `SIMPLE_MODE=true npm run deploy:<network>`
   - Force standard mode: `FORCE_STANDARD_MODE=true npm run deploy:<network>`
   - BSC legacy support: `BSC_SIMPLE_MODE=true` still works for backward compatibility
+
+#### "No tokens have been minted on the home chain"
+- **Solution**: This is not an error if you plan to mint gradually. You can mint tokens as needed using the MINTER_ROLE up to the 5 billion cap
+
+#### "SupplyOracle expected supply doesn't match the 5 billion cap"
+- **Solution**: The setup script will automatically update it if the deployer has admin rights. If not:
+```javascript
+// Admin can manually update:
+await supplyOracle.updateExpectedSupply("5000000000000000000000000000");  // 5 billion LOOK
+```
+
+#### "Destination chain not configured" error when bridging
+- **Solution**: Ensure you've run the configure script for both source and destination chains
+
+#### Supply mismatch causes bridge pause
+- **Solution**: This is a safety feature. If total supply across chains exceeds 5 billion by more than the tolerance threshold (default 1000 LOOK), bridges are automatically paused. Admin intervention required
 
 ### Error Recovery
 
@@ -478,26 +577,39 @@ Do you want to continue? (yes/no):
 ## Best Practices
 
 1. **Always Follow the Three-Phase Order**: Deploy → Setup → Configure
-2. **Deploy to All Networks First**: Before running configure
-3. **Test on Testnets**: Before mainnet deployment (BSC Testnet deployment completed ✅)
-4. **Monitor Deployment Artifacts**: Check `deployments/` directory
-5. **Use Tier Protection**: Don't mix testnet/mainnet unless necessary
-6. **Verify After Deploy**: Run contract verification
-7. **Test Bridge Operations**: After configuration completes
+2. **Deploy to BSC (Home Chain) First**: This is where tokens can be minted
+3. **Mint Tokens Gradually**: You can mint as needed up to the 5 billion cap
+4. **Deploy Secondary Chains with Zero Supply**: They receive tokens only through bridges
+5. **Deploy to All Networks First**: Before running configure
+6. **Test on Testnets**: Before mainnet deployment (BSC Testnet deployment completed ✅)
+7. **Monitor Deployment Artifacts**: Check `deployments/` directory
+8. **Use Tier Protection**: Don't mix testnet/mainnet unless necessary
+9. **Verify After Deploy**: Run contract verification
+10. **Test Bridge Operations**: After configuration completes
+11. **Monitor SupplyOracle Regularly**: It tracks total minted vs. the 5 billion cap
+12. **Regular Reconciliation**: SupplyOracle reconciles every 15 minutes by default
 
 ### BSC Deployment Notes
 
-Both BSC Testnet and BSC Mainnet have been successfully deployed with:
+Both BSC Testnet and BSC Mainnet have been successfully deployed as the **home chain** with:
 - **LookCoin**: Core ERC20 token with native LayerZero OFT V2 integration and EIP-2612 permit support
 - **CelerIMModule**: Celer Inter-chain Messaging support
-- **SupplyOracle**: Cross-chain supply monitoring
+- **SupplyOracle**: Cross-chain supply monitoring with 5 billion LOOK maximum supply cap
 - **Multi-protocol support**: Both LayerZero and Celer IM are active
+- **Zero Initial Supply**: No tokens minted during deployment (all minting is manual)
 
 For BSC deployments, the contracts support:
 - Direct LayerZero transfers via `sendFrom()`
 - Router-based transfers via `bridgeToken()` (when CrossChainRouter is deployed)
 - Celer IM transfers through the CelerIMModule
 - EIP-2612 permit for gasless approvals
+
+### Security Considerations
+
+1. **Never mint tokens on secondary chains** - They should only receive tokens through bridges
+2. **Monitor SupplyOracle regularly** - It's the guardian of supply consistency
+3. **Keep bridge modules updated** - They enforce the burn-and-mint mechanism
+4. **Regular reconciliation** - SupplyOracle reconciles every 15 minutes by default
 
 ## Advanced Topics
 
@@ -931,6 +1043,8 @@ Set up monitoring for critical events:
 - Set up alerts for >0.5% supply discrepancies
 - Review reconciliation reports every 15 minutes
 - Investigate any automatic pauses
+- Run manual reconciliation with: `npm run reconcile:<network>`
+
 
 ### Emergency Procedures
 
@@ -948,7 +1062,7 @@ Set up monitoring for critical events:
 
 ## Troubleshooting
 
-### Common Issues
+### Deployment Errors
 
 #### Network Connectivity
 
@@ -995,6 +1109,6 @@ npx hardhat run scripts/test-bridge.ts --network <network>
 
 ### Support Resources
 
-- GitHub Issues: https://github.com/lookcard/lookcoin-contract/issues
+- GitHub Issues: [LookCoin Contract Issues](https://github.com/lookcard/lookcoin-contract/issues)
 - Technical Documentation: See CLAUDE.md for detailed architecture
 - Security Audits: Available in `/audits` directory

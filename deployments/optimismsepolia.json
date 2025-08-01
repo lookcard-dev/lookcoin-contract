@@ -2,7 +2,7 @@
   "network": "optimismsepolia",
   "chainId": 11155420,
   "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
-  "timestamp": "2025-08-01T18:47:48.569Z",
+  "timestamp": "2025-08-01T20:20:10.608Z",
   "deploymentMode": "standard",
   "protocolsDeployed": [
     "layerZero"
@@ -14,7 +14,7 @@
     },
     "SupplyOracle": {
       "proxy": "0x959bC8859Af2adF2da6168cc1fB9F434fd573a4e",
-      "implementation": "0x45C2fAeAAe1E5191d25Ae2Ac712881e6E710F024"
+      "implementation": "0x42C8A4B98414C8dF66E7a61Fc68320E627Cd710c"
     }
   },
   "config": {
@@ -24,9 +24,9 @@
   },
   "implementationHashes": {
     "LookCoin": "0x035df318e7b4d02767fc5d749d77c0cd1f8a24e45950df940b71de21b6b81d49",
-    "SupplyOracle": "0xe69b16c3f00cfebe5322f1f3aad80af0531dcbda593979aa7ad8004734a01635"
+    "SupplyOracle": "0xf159f83ef568998f00591e56d9f411ff8a9af9fce5c312e7812927d78e1d9995"
   },
-  "lastDeployed": "2025-08-01T18:47:48.569Z",
+  "lastDeployed": "2025-08-01T20:20:10.608Z",
   "protocolContracts": {
     "layerZeroModule": "0xe71BEF0472C96c0D255Bd4ec40CB4A0618B53A2C"
   }
