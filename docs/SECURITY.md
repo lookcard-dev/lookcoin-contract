@@ -70,9 +70,9 @@ The system uses an external MPC (Multi-Party Computation) vault wallet for gover
 
 | Role | Purpose | Typical Holder |
 |------|---------|----------------|
-| ORACLE_ROLE | Update supply data | Oracle operators |
+| ORACLE_ROLE | Update supply data (multi-sig) | Oracle operators (3+ addresses) |
 | EMERGENCY_ROLE | Emergency actions | Emergency operators |
-| BRIDGE_MANAGER_ROLE | Bridge registration | Governance Vault |
+| DEFAULT_ADMIN_ROLE | Admin functions & signature threshold | Governance Vault (MPC) |
 
 #### SecurityManager Roles
 
@@ -236,6 +236,69 @@ supplyOracle.enableBridge(bridgeAddress)
 // Only with governance approval
 bridgeModule.emergencyWithdraw(token, recipient, amount)
 ```
+
+## Multi-Signature Oracle Security
+
+The SupplyOracle implements a multi-signature validation system for supply updates, ensuring data integrity through consensus mechanisms.
+
+### Security Architecture
+
+1. **Multi-Oracle Consensus**
+   - Requires 3 independent oracle signatures by default
+   - Each oracle must report identical supply data
+   - Prevents single point of failure in supply reporting
+
+2. **Signature Validation Process**
+   ```solidity
+   // Each oracle signs with identical parameters
+   updateSupply(chainId, totalSupply, lockedSupply, nonce)
+   
+   // Contract tracks signatures per update hash
+   mapping(bytes32 => mapping(address => bool)) updateSignatures
+   mapping(bytes32 => uint256) updateSignatureCount
+   ```
+
+3. **Security Benefits**
+   - **Byzantine Fault Tolerance**: Can tolerate up to (n-1)/2 malicious oracles
+   - **Data Integrity**: Multiple independent sources validate supply data
+   - **Attack Resistance**: Compromising one oracle doesn't affect system
+   - **Audit Trail**: All oracle submissions are logged on-chain
+
+### Operational Security
+
+1. **Oracle Node Distribution**
+   - Geographic distribution across different regions
+   - Different cloud providers (AWS, GCP, Azure)
+   - Independent RPC endpoints
+   - Separate monitoring systems
+
+2. **Key Management**
+   - Each oracle has unique private key
+   - Keys stored in secure environments (HSM/KMS)
+   - Regular key rotation procedures
+   - No shared credentials between oracles
+
+3. **Coordination Mechanism**
+   - Nonce-based synchronization (timestamp or block number)
+   - No direct communication between oracles
+   - Independent data collection and validation
+
+### Attack Scenarios & Mitigations
+
+| Attack Vector | Mitigation |
+|--------------|------------|
+| Single oracle compromise | Requires 3 signatures; one compromised oracle cannot update supply |
+| Data manipulation | All oracles must agree on exact values |
+| Replay attacks | Nonce prevents replay of old updates |
+| Denial of service | System continues with remaining healthy oracles |
+| Collusion attack | Requires compromising majority of oracles |
+
+### Configuration Security
+
+- Only MPC Vault can change signature threshold
+- Minimum threshold enforced (cannot set to 0 or 1)
+- Maximum threshold prevents operational deadlock
+- Role separation between oracle operators and administrators
 
 ## Security Audit Results
 

@@ -84,9 +84,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     rateLimiter: {
       /* Rate limiting config */
     },
-    remoteModules: {
-      /* Cross-chain module mappings */
-    },
   },
   // ... other networks
 };

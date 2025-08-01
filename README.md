@@ -94,6 +94,8 @@ LookCoin uses a three-stage deployment process to ensure proper contract setup a
 | **Setup**     | `setup.ts`     | Configure local roles and settings        | Deploy stage complete                    | All networks                                                  |
 | **Configure** | `configure.ts` | Establish cross-chain connections         | Deployment artifacts from other networks | base-sepolia, bsc-testnet, optimism-sepolia, sapphire-mainnet |
 
+**Important**: The home chain (BSC) should mint the full supply (as configured in `hardhat.config.ts` `TOTAL_SUPPLY`) after deployment. Secondary chains receive tokens only through bridges. See [DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) for detailed instructions.
+
 ### Stage 1: Deploy
 
 Creates smart contracts and generates deployment artifacts on a single network:
@@ -156,6 +158,13 @@ npm run configure:sapphire-mainnet
 
 **Note**: Configure scripts are only available for networks that have deployment artifacts from other networks. This stage requires the `loadOtherChainDeployments()` function to scan the `/deployments` directory for JSON files from other networks to establish LayerZero trusted remotes, Celer IM remote modules, and cross-chain bridge registrations.
 
+### Supply Management
+
+- **Total Supply**: Configured in `hardhat.config.ts` as `TOTAL_SUPPLY` (currently 5 billion LOOK)
+- **Home Chain**: BSC mints the full supply initially
+- **Secondary Chains**: Start with 0 supply, receive tokens via bridges
+- **Supply Monitoring**: SupplyOracle enforces the configured supply cap across all chains
+
 ### Deployment File Naming
 
 Deployment files follow the canonical CHAIN_CONFIG key format (lowercase, no spaces or dashes) to ensure consistency with the network lookup logic:
@@ -172,6 +181,26 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed information about the 
 Always follow this sequence: **Deploy → Setup → Configure**
 
 Currently, only 4 networks support all three stages because these are the only networks with the necessary deployment artifacts for cross-chain configuration.
+
+### Supply Reconciliation
+
+After deployment across multiple chains, use the reconciliation script to monitor and update cross-chain supply:
+
+```bash
+# Run reconciliation from any deployed network
+npm run reconcile:bsc-testnet
+npm run reconcile:base-sepolia
+npm run reconcile:optimism-sepolia
+```
+
+The reconciliation script:
+- Queries supply data from all deployed chains
+- Calculates total supply across the ecosystem
+- Updates SupplyOracle with accurate cross-chain data
+- Detects supply discrepancies beyond tolerance threshold
+- Triggers automatic bridge pausing if supply exceeds the configured total supply
+
+**Note**: Reconciliation requires ORACLE_ROLE on the SupplyOracle contract.
 
 ## Development Setup
 
@@ -294,7 +323,7 @@ npm run deploy:sapphire
 {
   governanceVault: "0x...", // MPC vault wallet address
   lzEndpoint: "0x...",      // LayerZero endpoint
-  totalSupply: "1000000000", // 1B tokens
+  totalSupply: "5000000000", // 5B tokens (home chain only)
   chainId: 56,              // Target chain
   dvns: [...],              // DVN addresses
   requiredDVNs: 2,

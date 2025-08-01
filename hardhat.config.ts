@@ -2,11 +2,11 @@ import "dotenv/config";
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
-import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
+import { HardhatUserConfig } from "hardhat/config";
 
-const TOTAL_SUPPLY = "5000000000000000000000000000"; // 5 billion tokens
+export const TOTAL_SUPPLY = "5000000000000000000000000000"; // 5 billion tokens
 
 // Network RPC URLs
 const BSC_RPC_URL = process.env.BSC_RPC_URL || "https://bsc-rpc.publicnode.com";
@@ -237,34 +237,6 @@ const CELER_FEES = {
   },
 };
 
-// Supported chains per module type
-const SUPPORTED_CHAINS = {
-  layerZero: ["bsc", "bscTestnet", "base", "baseSepolia", "optimism", "opSepolia", "optimismsepolia"],
-  celer: ["bsc", "bscTestnet", "optimism", "sapphire", "sapphireTestnet"],
-  hyperlane: ["bsc", "bscTestnet", "base", "baseSepolia", "optimism", "opSepolia", "akashic", "akashicTestnet"],
-};
-
-// Remote modules configuration for cross-chain communication
-const REMOTE_MODULES = {
-  bsc: {
-    base: "0x0000000000000000000000000000000000000000", // To be filled after deployment
-    optimism: "0x0000000000000000000000000000000000000000",
-    sapphire: "0x0000000000000000000000000000000000000000",
-    akashic: "0x0000000000000000000000000000000000000000",
-  },
-  base: {
-    bsc: "0x0000000000000000000000000000000000000000",
-  },
-  optimism: {
-    bsc: "0x0000000000000000000000000000000000000000",
-  },
-  sapphire: {
-    bsc: "0x0000000000000000000000000000000000000000",
-  },
-  akashic: {
-    bsc: "0x0000000000000000000000000000000000000000",
-  },
-};
 
 // Oracle bridge registrations per network
 const ORACLE_BRIDGE_REGISTRATIONS = {
@@ -358,7 +330,6 @@ export interface ChainConfig {
     updateInterval: number;
     tolerance: number;
   };
-  remoteModules: { [network: string]: string };
   hyperlane: {
     mailbox: string;
     gasPaymaster: string;
@@ -405,7 +376,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900, // 15 minutes
       tolerance: 100, // 1%
     },
-    remoteModules: REMOTE_MODULES.bsc || {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.bsc,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.bsc,
@@ -449,7 +419,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.bscTestnet,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.bscTestnet,
@@ -498,7 +467,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: REMOTE_MODULES.base || {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.base,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.base,
@@ -547,7 +515,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.baseSepolia,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.baseSepolia,
@@ -591,7 +558,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: REMOTE_MODULES.optimism || {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.optimism,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.optimism,
@@ -640,7 +606,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.opSepolia,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.opSepolia,
@@ -684,7 +649,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: REMOTE_MODULES.sapphire || {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.sapphire,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.sapphire,
@@ -695,7 +659,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     protocols: {
       layerZero: false, // Not supported by LayerZero
       celer: true,
-      hyperlane: false, // Not supported by Hyperlane
+      hyperlane: true,
     },
     rateLimiter: {
       perAccountLimit: "500000000000000000000000", // 500K tokens
@@ -728,7 +692,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.sapphireTestnet,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.sapphireTestnet,
@@ -739,7 +702,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     protocols: {
       layerZero: false,
       celer: true,
-      hyperlane: false,
+      hyperlane: true,
     },
     rateLimiter: {
       perAccountLimit: "500000000000000000000000", // 500K tokens
@@ -777,7 +740,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: REMOTE_MODULES.akashic || {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.akashic,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.akashic,
@@ -788,7 +750,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     protocols: {
       layerZero: false, // Not supported by LayerZero
       celer: false, // Not supported by Celer
-      hyperlane: false, // Custom deployment needed
+      hyperlane: true,
     },
     rateLimiter: {
       perAccountLimit: "500000000000000000000000", // 500K tokens
@@ -825,7 +787,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: {},
     hyperlane: {
       mailbox: "0x0000000000000000000000000000000000000000",
       gasPaymaster: "0x0000000000000000000000000000000000000000",
@@ -975,8 +936,6 @@ export { LZ_ENDPOINTS, CELER_MESSAGEBUS, LZ_DVN };
 export {
   CELER_CHAIN_IDS,
   CELER_FEES,
-  SUPPORTED_CHAINS,
-  REMOTE_MODULES,
   ORACLE_BRIDGE_REGISTRATIONS,
   GOVERNANCE_VAULTS,
   LZ_CHAIN_IDS,

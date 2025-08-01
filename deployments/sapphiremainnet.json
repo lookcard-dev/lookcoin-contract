@@ -1,0 +1,38 @@
+{
+  "network": "sapphiremainnet",
+  "chainId": 23295,
+  "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
+  "timestamp": "2025-08-01T15:28:24.176Z",
+  "deploymentMode": "standard",
+  "protocolsDeployed": [
+    "celer"
+  ],
+  "contracts": {
+    "LookCoin": {
+      "proxy": "0xe71BEF0472C96c0D255Bd4ec40CB4A0618B53A2C",
+      "implementation": "0xE6285525A8756b0cEd73E673902A017BEf5154BD"
+    },
+    "SupplyOracle": {
+      "proxy": "0x7Cb7AaA5C7098BaF3BE1E6649d64b1e236E98ca8",
+      "implementation": "0x23cB8692F409AFF342220657685744e42f2aa8C5"
+    },
+    "CelerIMModule": {
+      "proxy": "0x12EbF0ca24831d0553C073289F13E1cc014B29fF",
+      "implementation": "0xCC29079424F48ecb569B79E3257d736ea4e7FDee"
+    }
+  },
+  "config": {
+    "layerZeroEndpoint": "0x0000000000000000000000000000000000000000",
+    "celerMessageBus": "0x9Bb46D5100d2Db4608112026951c9C965b233f4D",
+    "governanceVault": "0x0bec539fd761cae579802072d9ee7fde86ed05a3"
+  },
+  "implementationHashes": {
+    "LookCoin": "0x035df318e7b4d02767fc5d749d77c0cd1f8a24e45950df940b71de21b6b81d49",
+    "SupplyOracle": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
+    "CelerIMModule": "0xefc292208ede616ee62527e07708925ea60a9bfe42d7e1d7dd40082cc7d365fe"
+  },
+  "lastDeployed": "2025-08-01T15:28:24.176Z",
+  "protocolContracts": {
+    "celerIMModule": "0x12EbF0ca24831d0553C073289F13E1cc014B29fF"
+  }
+}

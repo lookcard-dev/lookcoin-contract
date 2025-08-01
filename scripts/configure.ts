@@ -117,6 +117,34 @@ async function main() {
   // Configure each deployed protocol
   if (deployment.protocolsDeployed) {
     for (const protocol of deployment.protocolsDeployed) {
+      console.log(`\nChecking ${protocol} configuration...`);
+      
+      // Check if protocol is supported on this network
+      const isProtocolSupported = () => {
+        switch (protocol.toLowerCase()) {
+          case 'layerzero':
+            return chainConfig.protocols.layerZero;
+          case 'celer':
+            return chainConfig.protocols.celer;
+          case 'hyperlane':
+            return chainConfig.protocols.hyperlane;
+          default:
+            return false;
+        }
+      };
+      
+      if (!isProtocolSupported()) {
+        console.log(`⚠️  WARNING: ${protocol} was deployed but is not supported on ${networkName}`);
+        console.log(`   Skipping configuration for this protocol.`);
+        const result = { 
+          protocol, 
+          configured: false, 
+          details: `Not supported on ${networkName}` 
+        };
+        configurationResults.push(result);
+        continue;
+      }
+      
       console.log(`Configuring ${protocol}...`);
       
       let result: configurators.ConfigurationResult;
@@ -125,7 +153,7 @@ async function main() {
           result = await configurators.configureLayerZero(deployment, otherChainDeployments, chainConfig);
           break;
         case 'celer':
-          result = await configurators.configureCeler(deployment, otherChainDeployments, chainConfig);
+          result = await configurators.configureCeler(deployment, otherChainDeployments);
           break;
         case 'hyperlane':
           if (isHyperlaneReady(chainConfig)) {
@@ -154,11 +182,17 @@ async function main() {
   if (deployment.deploymentMode === 'multi-protocol' && deployment.infrastructureContracts) {
     console.log("\n[CONFIG]  Configuring multi-protocol infrastructure...");
     
-    const infraResults = await Promise.all([
-      configurators.configureCrossChainRouter(deployment, otherChainDeployments, chainConfig),
-      configurators.configureFeeManager(deployment, otherChainDeployments, chainConfig),
-      configurators.configureProtocolRegistry(deployment, otherChainDeployments, chainConfig)
-    ]);
+    // Run infrastructure configurations sequentially to avoid nonce conflicts
+    const infraResults = [];
+    
+    // Configure CrossChainRouter first
+    infraResults.push(await configurators.configureCrossChainRouter(deployment, otherChainDeployments));
+    
+    // Then configure FeeManager
+    infraResults.push(await configurators.configureFeeManager(deployment));
+    
+    // Finally configure ProtocolRegistry
+    infraResults.push(await configurators.configureProtocolRegistry(deployment, otherChainDeployments, chainConfig));
     
     configurationResults.push(...infraResults);
     
@@ -175,57 +209,106 @@ async function main() {
 
   // Legacy support for deployments without protocolsDeployed field
   if (!deployment.protocolsDeployed && deployment.config?.layerZeroEndpoint) {
-    console.log("\n[WARNING]  Legacy deployment detected, configuring LayerZero...");
-    const result = await configurators.configureLayerZero(deployment, otherChainDeployments, chainConfig);
-    configurationResults.push(result);
+    console.log("\n[WARNING]  Legacy deployment detected, checking LayerZero...");
+    if (chainConfig.protocols.layerZero) {
+      const result = await configurators.configureLayerZero(deployment, otherChainDeployments, chainConfig);
+      configurationResults.push(result);
+    } else {
+      console.log("⚠️  LayerZero endpoint found but protocol not supported on this network");
+      configurationResults.push({ 
+        protocol: 'layerZero', 
+        configured: false, 
+        details: 'Not supported on this network' 
+      });
+    }
   }
   
   if (!deployment.protocolsDeployed && deployment.contracts.CelerIMModule) {
-    console.log("\n[WARNING]  Legacy deployment detected, configuring Celer...");
-    const result = await configurators.configureCeler(deployment, otherChainDeployments, chainConfig);
-    configurationResults.push(result);
+    console.log("\n[WARNING]  Legacy deployment detected, checking Celer...");
+    if (chainConfig.protocols.celer) {
+      const result = await configurators.configureCeler(deployment, otherChainDeployments);
+      configurationResults.push(result);
+    } else {
+      console.log("⚠️  Celer module found but protocol not supported on this network");
+      configurationResults.push({ 
+        protocol: 'celer', 
+        configured: false, 
+        details: 'Not supported on this network' 
+      });
+    }
   }
   
 
   // Configure Supply Oracle
-  console.log("\n5. Configuring Supply Oracle...");
+  console.log("\n5. Configuring Supply Oracle (Cross-Chain Bridges)...");
+  console.log("   Note: Local bridges were already registered in setup.ts");
 
-  // Register all chain supplies
-  for (const [otherChainId, otherDeployment] of Object.entries(otherChainDeployments)) {
-    const lzChainId = getLayerZeroChainId(parseInt(otherChainId));
-    const remoteTier = getNetworkTier(parseInt(otherChainId));
-    const tierWarning = remoteTier !== currentTier ? ` [WARNING]  (${remoteTier} tier)` : "";
-
-    console.log(`Registering bridge for chain ${lzChainId}${tierWarning}`);
-
-    await supplyOracle.registerBridge(lzChainId, otherDeployment.contracts.LookCoin.proxy);
-
-    if (otherDeployment.contracts.CelerIMModule) {
-      await supplyOracle.registerBridge(lzChainId, otherDeployment.contracts.CelerIMModule.proxy);
+  // Helper function to register bridge with idempotency check
+  async function registerBridgeIfNeeded(chainId: number, bridgeAddress: string, bridgeName: string) {
+    try {
+      // Check if bridge is already registered
+      const isRegistered = await supplyOracle.isBridgeRegistered(chainId, bridgeAddress);
+      
+      if (isRegistered) {
+        console.log(`  ✓ ${bridgeName} already registered for chain ${chainId}`);
+        return;
+      }
+      
+      // Register the bridge
+      console.log(`  - Registering ${bridgeName} (chain ${chainId})...`);
+      const tx = await supplyOracle.registerBridge(chainId, bridgeAddress);
+      await tx.wait();
+      console.log(`  ✅ ${bridgeName} registered successfully`);
+    } catch (error) {
+      console.error(`  ❌ Failed to register ${bridgeName}:`, error instanceof Error ? error.message : String(error));
+      throw error;
     }
-
   }
 
-  // Set reconciliation parameters from centralized config
-  console.log("Setting reconciliation parameters...");
-  await supplyOracle.updateReconciliationParams(
-    chainConfig.oracle.updateInterval,
-    ethers.parseUnits(String(chainConfig.oracle.tolerance * 10), 8), // Convert basis points to LOOK tokens
-  );
+  // Register bridges from OTHER chains (cross-chain configuration)
+  for (const [otherChainId, otherDeployment] of Object.entries(otherChainDeployments)) {
+    const remoteTier = getNetworkTier(parseInt(otherChainId));
+    const tierWarning = remoteTier !== currentTier ? ` [WARNING]  (${remoteTier} tier)` : "";
+    const otherNetworkName = getNetworkName(parseInt(otherChainId));
+    const otherChainConfig = getChainConfig(otherNetworkName.toLowerCase().replace(/\s+/g, ""));
 
-  // Note: Rate limiting is handled by SecurityManager in the infrastructure contracts
-  // The SecurityManager is already configured with rate limits during deployment
+    console.log(`\nRegistering bridges for ${otherNetworkName}${tierWarning}`);
 
-  // Grant oracle roles
-  console.log("\n7. Granting oracle roles...");
-  const ORACLE_ROLE = await supplyOracle.ORACLE_ROLE();
-  const OPERATOR_ROLE = await supplyOracle.OPERATOR_ROLE();
+    // Register LayerZero bridge if both chains support it
+    if (chainConfig.protocols.layerZero && otherChainConfig.protocols.layerZero && 
+        (otherDeployment.protocolsDeployed?.includes('layerZero') || otherDeployment.config?.layerZeroEndpoint)) {
+      const lzChainId = getLayerZeroChainId(parseInt(otherChainId));
+      await registerBridgeIfNeeded(lzChainId, otherDeployment.contracts.LookCoin.proxy, "LayerZero bridge");
+    }
 
-  // In production, grant to actual oracle operators
-  await supplyOracle.grantRole(ORACLE_ROLE, deployer.address);
-  await supplyOracle.grantRole(OPERATOR_ROLE, deployer.address);
+    // Register Celer bridge if both chains support it
+    if (chainConfig.protocols.celer && otherChainConfig.protocols.celer && otherDeployment.contracts.CelerIMModule) {
+      const celerChainId = getCelerChainId(parseInt(otherChainId));
+      await registerBridgeIfNeeded(celerChainId, otherDeployment.contracts.CelerIMModule.proxy, "Celer bridge");
+    }
 
-  console.log("\n[OK] Configuration completed successfully!");
+    // Register Hyperlane bridge if both chains support it
+    if (chainConfig.protocols.hyperlane && otherChainConfig.protocols.hyperlane && 
+        otherDeployment.protocolsDeployed?.includes('hyperlane')) {
+      const hyperlaneDomainId = otherChainConfig.hyperlane?.hyperlaneDomainId || parseInt(otherChainId);
+      // For Hyperlane, we register the HyperlaneModule if it exists
+      const hyperlaneModule = otherDeployment.protocolContracts?.hyperlaneModule || otherDeployment.contracts.LookCoin.proxy;
+      await registerBridgeIfNeeded(hyperlaneDomainId, hyperlaneModule, "Hyperlane bridge");
+    }
+  }
+
+  console.log("\n[OK] Cross-chain configuration completed successfully!");
+  
+  // Show configuration warnings if any protocols were skipped
+  const skippedProtocols = configurationResults.filter(r => !r.configured && r.details?.includes('Not supported'));
+  if (skippedProtocols.length > 0) {
+    console.log("\n⚠️  Configuration Warnings:");
+    skippedProtocols.forEach(result => {
+      console.log(`   - ${result.protocol}: ${result.details}`);
+    });
+    console.log("\n   These protocols were deployed but are not supported on this network.");
+    console.log("   Consider redeploying with the correct protocol configuration.");
+  }
 
   // Generate configuration summary
   const configSummary = {

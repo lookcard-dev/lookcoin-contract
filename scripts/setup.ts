@@ -21,7 +21,7 @@
  */
 
 import { ethers } from "hardhat";
-import { getChainConfig, getNetworkName } from "../hardhat.config";
+import { getChainConfig, getNetworkName, TOTAL_SUPPLY } from "../hardhat.config";
 import { loadDeployment, validateDeploymentFormat } from "./utils/deployment";
 import { isHyperlaneReady } from "./utils/protocolDetector";
 
@@ -59,6 +59,79 @@ async function main() {
   // Get contract instances
   const lookCoin = await ethers.getContractAt("LookCoin", deployment.contracts.LookCoin.proxy);
   const supplyOracle = await ethers.getContractAt("SupplyOracle", deployment.contracts.SupplyOracle.proxy);
+
+  // ============================================================================
+  // SECTION 0: SUPPLY ORACLE CONFIGURATION CHECK AND UPDATE
+  // ============================================================================
+  console.log("\n0. Checking and updating SupplyOracle configuration...");
+  
+  // Get global total supply from hardhat config
+  const GLOBAL_TOTAL_SUPPLY = BigInt(TOTAL_SUPPLY); // Already in wei from config
+  
+  // Check SupplyOracle's expected total supply
+  const oracleExpectedSupply = await supplyOracle.totalExpectedSupply();
+  console.log(`- Current SupplyOracle Expected Supply: ${ethers.formatEther(oracleExpectedSupply)} LOOK`);
+  console.log(`- Required Global Supply Cap: ${ethers.formatEther(GLOBAL_TOTAL_SUPPLY)} LOOK`);
+  
+  // Update SupplyOracle if needed
+  if (oracleExpectedSupply !== GLOBAL_TOTAL_SUPPLY) {
+    console.log("\n⚠️  SupplyOracle's expected supply doesn't match the global supply cap!");
+    console.log(`   Current: ${ethers.formatEther(oracleExpectedSupply)} LOOK`);
+    console.log(`   Required: ${ethers.formatEther(GLOBAL_TOTAL_SUPPLY)} LOOK`);
+    
+    // Check if we have the necessary role to update
+    const DEFAULT_ADMIN_ROLE = await supplyOracle.DEFAULT_ADMIN_ROLE();
+    const hasAdminRole = await supplyOracle.hasRole(DEFAULT_ADMIN_ROLE, deployer.address);
+    
+    if (hasAdminRole || chainConfig.governanceVault === deployer.address) {
+      console.log("\n🔧 Updating SupplyOracle's expected supply to 5 billion LOOK...");
+      
+      try {
+        // The SupplyOracle doesn't have a direct setter for totalExpectedSupply
+        // We need to check if there's an admin function or if we need to upgrade
+        // First, let's check if there's an updateExpectedSupply function
+        const updateTx = await supplyOracle.updateExpectedSupply(GLOBAL_TOTAL_SUPPLY);
+        await updateTx.wait();
+        
+        // Verify the update
+        const newExpectedSupply = await supplyOracle.totalExpectedSupply();
+        if (newExpectedSupply === GLOBAL_TOTAL_SUPPLY) {
+          console.log("✅ SupplyOracle expected supply updated successfully to 5 billion LOOK!");
+        } else {
+          console.log("❌ Failed to update SupplyOracle expected supply. Please check manually.");
+        }
+      } catch (error) {
+        // If the function doesn't exist, we need to inform the user
+        console.log("\n❌ Unable to update SupplyOracle expected supply automatically.");
+        console.log("   The SupplyOracle contract may need to be upgraded to support supply updates.");
+        console.log("   Please contact the admin to update the expected supply to 5 billion LOOK.");
+        console.log("\n   Error details:", error instanceof Error ? error.message : String(error));
+      }
+    } else {
+      console.log("\n⚠️  Cannot update SupplyOracle - deployer doesn't have DEFAULT_ADMIN_ROLE.");
+      console.log("   Please ask an admin to update the expected supply to 5 billion LOOK.");
+      console.log("   Admin command: supplyOracle.updateExpectedSupply(\"5000000000000000000000000000\")");
+    }
+  } else {
+    console.log("✅ SupplyOracle is already correctly configured with 5 billion LOOK expected supply.");
+  }
+  
+  // Show current chain supply info for reference
+  const isHomeChain = networkName.toLowerCase().includes('bsc');
+  const onChainSupply = await lookCoin.totalSupply();
+  const totalMinted = await lookCoin.totalMinted();
+  const totalBurned = await lookCoin.totalBurned();
+  
+  console.log(`\n📊 Current Chain Supply Info (${networkName}):`);
+  console.log(`- Chain Type: ${isHomeChain ? 'Home Chain (BSC)' : 'Secondary Chain'}`);
+  console.log(`- Current Supply: ${ethers.formatEther(onChainSupply)} LOOK`);
+  console.log(`- Total Minted: ${ethers.formatEther(totalMinted)} LOOK`);
+  console.log(`- Total Burned: ${ethers.formatEther(totalBurned)} LOOK`);
+  
+  if (isHomeChain && totalMinted == 0) {
+    console.log("\n💡 Note: The home chain (BSC) should mint the full 5 billion LOOK supply initially.");
+    console.log(`   To mint: lookCoin.mint("${chainConfig.governanceVault}", "${GLOBAL_TOTAL_SUPPLY.toString()}")`);
+  }
 
   // ============================================================================
   // SECTION 1: ROLE CONFIGURATION
@@ -161,7 +234,8 @@ async function main() {
     
     // LayerZeroModule needs MINTER_ROLE, BURNER_ROLE, and BRIDGE_ROLE
     // Uses burn-and-mint mechanism for cross-chain transfers
-    if (deployment.protocolContracts.layerZeroModule) {
+    // Only configure if LayerZero is supported on this network
+    if (deployment.protocolContracts.layerZeroModule && chainConfig.protocols.layerZero) {
       const layerZeroModule = deployment.protocolContracts.layerZeroModule;
       
       // Grant MINTER_ROLE
@@ -196,6 +270,9 @@ async function main() {
       } else {
         console.log(`✓ LayerZeroModule already has BRIDGE_ROLE`);
       }
+    } else if (deployment.protocolContracts.layerZeroModule && !chainConfig.protocols.layerZero) {
+      console.log(`⚠️  Warning: LayerZeroModule was deployed but LayerZero is not supported on ${networkName}`);
+      console.log(`   This module should not have been deployed on this network.`);
     }
     
     // HyperlaneModule needs MINTER_ROLE, BURNER_ROLE, and BRIDGE_ROLE
@@ -242,7 +319,8 @@ async function main() {
 
   // CelerIMModule configuration (supports legacy deployment format)
   // Uses burn-and-mint mechanism via Celer's MessageBus
-  if (deployment.contracts.CelerIMModule) {
+  // Only configure if Celer is supported on this network
+  if (deployment.contracts.CelerIMModule && chainConfig.protocols.celer) {
     const celerModuleAddress = deployment.contracts.CelerIMModule.proxy;
     
     // Grant MINTER_ROLE
@@ -266,6 +344,9 @@ async function main() {
     } else {
       console.log(`✓ CelerIMModule already has BRIDGE_ROLE`);
     }
+  } else if (deployment.contracts.CelerIMModule && !chainConfig.protocols.celer) {
+    console.log(`⚠️  Warning: CelerIMModule was deployed but Celer is not supported on ${networkName}`);
+    console.log(`   This module should not have been deployed on this network.`);
   }
 
 
@@ -275,63 +356,77 @@ async function main() {
   // This allows direct cross-chain transfers without going through modules
   // ============================================================================
   
-  // Grant BURNER_ROLE to LookCoin itself to enable direct OFT burns
+  // Get LookCoin address for various operations
   const lookCoinAddress = deployment.contracts.LookCoin.proxy;
-  const hasBurnerRoleForLookCoin = await lookCoin.hasRole(burnerRole, lookCoinAddress);
+  
+  // Only configure direct LayerZero OFT if LayerZero is supported on this network
+  if (chainConfig.protocols.layerZero) {
+    // Grant BURNER_ROLE to LookCoin itself to enable direct OFT burns
+    const hasBurnerRoleForLookCoin = await lookCoin.hasRole(burnerRole, lookCoinAddress);
 
-  if (!hasBurnerRoleForLookCoin) {
-    console.log(`Granting BURNER_ROLE to LookCoin for direct OFT functionality...`);
-    const tx = await lookCoin.grantRole(burnerRole, lookCoinAddress);
-    await tx.wait();
-    console.log(`✅ BURNER_ROLE granted to LookCoin (enables direct LayerZero OFT)`);
+    if (!hasBurnerRoleForLookCoin) {
+      console.log(`Granting BURNER_ROLE to LookCoin for direct OFT functionality...`);
+      const tx = await lookCoin.grantRole(burnerRole, lookCoinAddress);
+      await tx.wait();
+      console.log(`✅ BURNER_ROLE granted to LookCoin (enables direct LayerZero OFT)`);
+    } else {
+      console.log(`✓ LookCoin already has BURNER_ROLE (direct OFT enabled)`);
+    }
+
+    // Configure LayerZero endpoint if not already set (for direct OFT)
+    const currentEndpoint = await lookCoin.lzEndpoint();
+    if (currentEndpoint === ethers.ZeroAddress && chainConfig.layerZero?.endpoint) {
+      console.log("Setting LayerZero endpoint on LookCoin for direct OFT...");
+      const tx = await lookCoin.setLayerZeroEndpoint(chainConfig.layerZero.endpoint);
+      await tx.wait();
+      console.log(`✅ LayerZero endpoint set for direct OFT functionality`);
+    } else if (currentEndpoint !== ethers.ZeroAddress) {
+      console.log(`✓ LayerZero endpoint already configured: ${currentEndpoint}`);
+    }
   } else {
-    console.log(`✓ LookCoin already has BURNER_ROLE (direct OFT enabled)`);
-  }
-
-  // Configure LayerZero endpoint if not already set (for direct OFT)
-  const currentEndpoint = await lookCoin.lzEndpoint();
-  if (currentEndpoint === ethers.ZeroAddress && chainConfig.layerZero?.endpoint) {
-    console.log("Setting LayerZero endpoint on LookCoin for direct OFT...");
-    const tx = await lookCoin.setLayerZeroEndpoint(chainConfig.layerZero.endpoint);
-    await tx.wait();
-    console.log(`✅ LayerZero endpoint set for direct OFT functionality`);
-  } else if (currentEndpoint !== ethers.ZeroAddress) {
-    console.log(`✓ LayerZero endpoint already configured: ${currentEndpoint}`);
+    console.log("\n1.4. Skipping LayerZero OFT configuration (not supported on this network)");
   }
 
   // ============================================================================
-  // SECTION 2: SUPPLY ORACLE BRIDGE REGISTRATION
+  // SECTION 2: SUPPLY ORACLE BRIDGE REGISTRATION (LOCAL CHAIN ONLY)
   // The SupplyOracle tracks cross-chain token movements for supply reconciliation
+  // Note: This registers bridges on the CURRENT CHAIN only
+  // Remote chain bridges are registered in configure.ts (Stage 3)
   // ============================================================================
-  console.log("\n2. Registering bridges with SupplyOracle...");
+  console.log("\n2. Registering local bridges with SupplyOracle...");
 
   // Helper function to register bridge with the SupplyOracle
   // Each bridge must be registered to enable cross-chain supply tracking
   async function registerBridgeIfNeeded(chainId: number, bridgeAddress: string, bridgeName: string) {
     try {
-      const bridgeInfo = await supplyOracle.bridgeInfo(chainId, bridgeAddress);
-      // Check if bridge is already registered and active
-      if (bridgeInfo.isActive) {
+      // Check if bridge is already registered
+      const isRegistered = await supplyOracle.isBridgeRegistered(chainId, bridgeAddress);
+      
+      if (isRegistered) {
         console.log(`✓ ${bridgeName} already registered with SupplyOracle for chain ${chainId}`);
         return;
       }
-      // Bridge exists but not active, re-register
+      
+      // Register the bridge
       console.log(`Registering ${bridgeName} as bridge for chain ${chainId}...`);
       const tx = await supplyOracle.registerBridge(chainId, bridgeAddress);
       await tx.wait();
       console.log(`✅ ${bridgeName} registered with SupplyOracle`);
     } catch (error) {
-      // Bridge not registered yet (first time)
-      console.log(`Registering ${bridgeName} as bridge for chain ${chainId}...`);
-      const tx = await supplyOracle.registerBridge(chainId, bridgeAddress);
-      await tx.wait();
-      console.log(`✅ ${bridgeName} registered with SupplyOracle`);
+      // Handle registration errors
+      if (error instanceof Error && error.message.includes("bridge already registered")) {
+        console.log(`✓ ${bridgeName} already registered with SupplyOracle for chain ${chainId}`);
+      } else {
+        console.error(`❌ Failed to register ${bridgeName}:`, error instanceof Error ? error.message : String(error));
+        throw error;
+      }
     }
   }
 
   // Register LookCoin itself for direct LayerZero OFT transfers
   // Uses LayerZero chain ID instead of regular chain ID
-  if (deployment.protocolsDeployed && deployment.protocolsDeployed.includes("layerZero")) {
+  // Only register if LayerZero is supported on this network
+  if (deployment.protocolsDeployed && deployment.protocolsDeployed.includes("layerZero") && chainConfig.protocols.layerZero) {
     const bridgeChainId = chainConfig.layerZero.lzChainId || chainId;
     await registerBridgeIfNeeded(bridgeChainId, lookCoinAddress, "LookCoin (LayerZero)");
   }
@@ -349,7 +444,8 @@ async function main() {
 
   // Register CelerIMModule bridge
   // Uses Celer-specific chain ID for cross-chain identification
-  if (deployment.contracts.CelerIMModule) {
+  // Only register if Celer is supported on this network
+  if (deployment.contracts.CelerIMModule && chainConfig.protocols.celer) {
     const celerModuleAddress = deployment.contracts.CelerIMModule.proxy;
     const celerChainId = chainConfig.celer.celerChainId || chainId;
     await registerBridgeIfNeeded(celerChainId, celerModuleAddress, "CelerIMModule");
@@ -380,6 +476,18 @@ async function main() {
       console.log("✓ CrossChainRouter already registered with LookCoin");
     }
 
+    // Grant PROTOCOL_ADMIN_ROLE to deployer (needed for registerProtocol calls)
+    const PROTOCOL_ADMIN_ROLE_CCR = await crossChainRouter.PROTOCOL_ADMIN_ROLE();
+    const deployerHasProtocolAdminRole = await crossChainRouter.hasRole(PROTOCOL_ADMIN_ROLE_CCR, deployer.address);
+    if (!deployerHasProtocolAdminRole) {
+      console.log(`Granting PROTOCOL_ADMIN_ROLE on CrossChainRouter to deployer...`);
+      const tx = await crossChainRouter.grantRole(PROTOCOL_ADMIN_ROLE_CCR, deployer.address);
+      await tx.wait();
+      console.log(`✅ PROTOCOL_ADMIN_ROLE granted to deployer on CrossChainRouter`);
+    } else {
+      console.log(`✓ Deployer already has PROTOCOL_ADMIN_ROLE on CrossChainRouter`);
+    }
+
     // Grant OPERATOR_ROLE to Dev Team on CrossChainRouter
     if (chainConfig.devTeamAddress) {
       const OPERATOR_ROLE = await crossChainRouter.OPERATOR_ROLE();
@@ -392,13 +500,25 @@ async function main() {
       } else {
         console.log(`✓ Dev Team already has OPERATOR_ROLE on CrossChainRouter`);
       }
+      
+      // Also grant PROTOCOL_ADMIN_ROLE to Dev Team
+      const devHasProtocolAdminRole = await crossChainRouter.hasRole(PROTOCOL_ADMIN_ROLE_CCR, chainConfig.devTeamAddress);
+      if (!devHasProtocolAdminRole) {
+        console.log(`Granting PROTOCOL_ADMIN_ROLE on CrossChainRouter to Dev Team...`);
+        const tx = await crossChainRouter.grantRole(PROTOCOL_ADMIN_ROLE_CCR, chainConfig.devTeamAddress);
+        await tx.wait();
+        console.log(`✅ PROTOCOL_ADMIN_ROLE granted to Dev Team on CrossChainRouter`);
+      } else {
+        console.log(`✓ Dev Team already has PROTOCOL_ADMIN_ROLE on CrossChainRouter`);
+      }
     }
 
     // Register protocol modules with the CrossChainRouter
     // Each protocol is assigned a unique ID for routing
     if (deployment.protocolContracts) {
       // Register LayerZero module (Protocol ID: 0)
-      if (deployment.protocolContracts.layerZeroModule) {
+      // Only register if LayerZero is supported on this network
+      if (deployment.protocolContracts.layerZeroModule && chainConfig.protocols.layerZero) {
         try {
           const currentModule = await crossChainRouter.protocolModules(0); // Protocol.LayerZero
           if (currentModule === ethers.ZeroAddress || currentModule !== deployment.protocolContracts.layerZeroModule) {
@@ -425,7 +545,8 @@ async function main() {
       }
 
       // Register Celer module (Protocol ID: 1)
-      if (deployment.contracts.CelerIMModule) {
+      // Only register if Celer is supported on this network
+      if (deployment.contracts.CelerIMModule && chainConfig.protocols.celer) {
         try {
           const currentModule = await crossChainRouter.protocolModules(1); // Protocol.Celer
           if (currentModule === ethers.ZeroAddress || currentModule !== deployment.contracts.CelerIMModule.proxy) {
@@ -449,6 +570,8 @@ async function main() {
           await tx2.wait();
           console.log("✅ Celer module registered");
         }
+      } else if (deployment.contracts.CelerIMModule && !chainConfig.protocols.celer) {
+        console.log("⚠️  Skipping Celer module registration - Celer not supported on this network");
       }
 
       // Register Hyperlane module (Protocol ID: 2)
@@ -540,7 +663,8 @@ async function main() {
     // Grant OPERATOR_ROLE on protocol modules
     if (deployment.protocolContracts) {
       // LayerZeroModule
-      if (deployment.protocolContracts.layerZeroModule) {
+      // Only configure if LayerZero is supported on this network
+      if (deployment.protocolContracts.layerZeroModule && chainConfig.protocols.layerZero) {
         const layerZeroModule = await ethers.getContractAt(
           "LayerZeroModule",
           deployment.protocolContracts.layerZeroModule
@@ -577,7 +701,8 @@ async function main() {
     }
 
     // Grant OPERATOR_ROLE on CelerIMModule
-    if (deployment.contracts?.CelerIMModule) {
+    // Only configure if Celer is supported on this network
+    if (deployment.contracts?.CelerIMModule && chainConfig.protocols.celer) {
       const celerIMModule = await ethers.getContractAt(
         "CelerIMModule",
         deployment.contracts.CelerIMModule.proxy
@@ -596,10 +721,77 @@ async function main() {
   }
 
   // ============================================================================
-  // SECTION 3: CONFIGURATION SUMMARY
+  // SECTION 3: SUPPLY ORACLE OPERATIONAL CONFIGURATION
+  // Configure oracle parameters and grant operational roles
+  // ============================================================================
+  console.log("\n3. Configuring SupplyOracle operational parameters...");
+
+  // Set reconciliation parameters from centralized config
+  console.log("Setting reconciliation parameters...");
+  const currentInterval = await supplyOracle.reconciliationInterval();
+  const newInterval = BigInt(chainConfig.oracle.updateInterval);
+  const currentTolerance = await supplyOracle.toleranceThreshold();
+  const newTolerance = ethers.parseUnits(String(chainConfig.oracle.tolerance * 10), 8); // Convert basis points to LOOK tokens
+
+  if (currentInterval !== newInterval || currentTolerance !== newTolerance) {
+    const tx = await supplyOracle.updateReconciliationParams(
+      chainConfig.oracle.updateInterval,
+      newTolerance
+    );
+    await tx.wait();
+    console.log(`✅ Updated reconciliation parameters:`);
+    console.log(`   - Interval: ${chainConfig.oracle.updateInterval} seconds`);
+    console.log(`   - Tolerance: ${chainConfig.oracle.tolerance} basis points`);
+  } else {
+    console.log(`✓ Reconciliation parameters already configured correctly`);
+  }
+
+  // Grant oracle roles to deployer (for testing/initial setup)
+  // In production, these should be granted to actual oracle operators
+  console.log("\nGranting oracle operational roles...");
+  const ORACLE_ROLE = await supplyOracle.ORACLE_ROLE();
+  const OPERATOR_ROLE = await supplyOracle.OPERATOR_ROLE();
+
+  // Grant ORACLE_ROLE
+  const hasOracleRole = await supplyOracle.hasRole(ORACLE_ROLE, deployer.address);
+  if (!hasOracleRole) {
+    console.log(`Granting ORACLE_ROLE to deployer for testing...`);
+    const tx = await supplyOracle.grantRole(ORACLE_ROLE, deployer.address);
+    await tx.wait();
+    console.log(`✅ ORACLE_ROLE granted to deployer`);
+  } else {
+    console.log(`✓ Deployer already has ORACLE_ROLE`);
+  }
+
+  // Grant OPERATOR_ROLE
+  const hasOperatorRole = await supplyOracle.hasRole(OPERATOR_ROLE, deployer.address);
+  if (!hasOperatorRole) {
+    console.log(`Granting OPERATOR_ROLE to deployer for operations...`);
+    const tx = await supplyOracle.grantRole(OPERATOR_ROLE, deployer.address);
+    await tx.wait();
+    console.log(`✅ OPERATOR_ROLE granted to deployer`);
+  } else {
+    console.log(`✓ Deployer already has OPERATOR_ROLE`);
+  }
+
+  // Grant OPERATOR_ROLE to dev team if configured
+  if (chainConfig.devTeamAddress) {
+    const devHasOperatorRole = await supplyOracle.hasRole(OPERATOR_ROLE, chainConfig.devTeamAddress);
+    if (!devHasOperatorRole) {
+      console.log(`Granting OPERATOR_ROLE on SupplyOracle to Dev Team...`);
+      const tx = await supplyOracle.grantRole(OPERATOR_ROLE, chainConfig.devTeamAddress);
+      await tx.wait();
+      console.log(`✅ OPERATOR_ROLE granted to Dev Team on SupplyOracle`);
+    } else {
+      console.log(`✓ Dev Team already has OPERATOR_ROLE on SupplyOracle`);
+    }
+  }
+
+  // ============================================================================
+  // FINAL SUMMARY
   // Display the final configuration state after all setup operations
   // ============================================================================
-  console.log("\n3. Configuration Summary:");
+  console.log("\n=== Configuration Summary ===");
   console.log(`- Network: ${networkName} (Chain ID: ${chainId})`);
   console.log(`- Deployment Mode: ${deployment.deploymentMode || 'legacy'}`);
   console.log(`- Governance Vault: ${chainConfig.governanceVault}`);
@@ -609,16 +801,39 @@ async function main() {
   console.log(`- LookCoin: ${lookCoinAddress}`);
   console.log(`- SupplyOracle: ${deployment.contracts.SupplyOracle.proxy}`);
   
-  // Show protocol status
-  if (isHyperlaneReady(chainConfig)) {
-    console.log(`- Hyperlane: Ready (Domain ID: ${chainConfig.hyperlane?.hyperlaneDomainId})`);
-  } else {
-    console.log(`- Hyperlane: Not ready (missing mailbox or gas paymaster)`);
+  // Show protocol support vs deployment status
+  console.log("\nProtocol Support:");
+  console.log(`- LayerZero: ${chainConfig.protocols.layerZero ? '✅ Supported' : '❌ Not Supported'}`);
+  console.log(`- Celer: ${chainConfig.protocols.celer ? '✅ Supported' : '❌ Not Supported'}`);
+  console.log(`- Hyperlane: ${chainConfig.protocols.hyperlane ? '✅ Supported' : '❌ Not Supported'}`);
+  
+  if (chainConfig.protocols.hyperlane && isHyperlaneReady(chainConfig)) {
+    console.log(`  └─ Hyperlane Infrastructure: Ready (Domain ID: ${chainConfig.hyperlane?.hyperlaneDomainId})`);
+  } else if (chainConfig.protocols.hyperlane && !isHyperlaneReady(chainConfig)) {
+    console.log(`  └─ Hyperlane Infrastructure: Not Ready (missing mailbox or gas paymaster)`);
   }
   
-  // Display protocol modules
+  // Display deployed protocols
   if (deployment.protocolsDeployed && deployment.protocolsDeployed.length > 0) {
-    console.log(`- Protocols Deployed: ${deployment.protocolsDeployed.join(', ')}`);
+    console.log(`\nProtocols Deployed: ${deployment.protocolsDeployed.join(', ')}`);
+    
+    // Check for mismatches
+    const mismatches = [];
+    if (deployment.protocolsDeployed.includes('layerZero') && !chainConfig.protocols.layerZero) {
+      mismatches.push('LayerZero');
+    }
+    if (deployment.protocolsDeployed.includes('celer') && !chainConfig.protocols.celer) {
+      mismatches.push('Celer');
+    }
+    if (deployment.protocolsDeployed.includes('hyperlane') && !chainConfig.protocols.hyperlane) {
+      mismatches.push('Hyperlane');
+    }
+    
+    if (mismatches.length > 0) {
+      console.log(`\n⚠️  Warning: The following protocols were deployed but are not supported on ${networkName}:`);
+      console.log(`   ${mismatches.join(', ')}`);
+      console.log(`   Consider using the correct deployment configuration for this network.`);
+    }
   }
   
   // Display protocol contracts
@@ -644,6 +859,9 @@ async function main() {
   // Legacy format support
   if (deployment.contracts.CelerIMModule) {
     console.log(`- CelerIMModule: ${deployment.contracts.CelerIMModule.proxy}`);
+    if (!chainConfig.protocols.celer) {
+      console.log(`  ⚠️ Warning: Module deployed but Celer not supported on this network`);
+    }
   }
 
   // ============================================================================

@@ -461,6 +461,134 @@ Configuration includes:
 - Manual reconciliation tools for administrators
 - Oracle-based reporting across all chains
 - Circulating supply: totalMinted - totalBurned
+- Bridge registration with idempotency (prevents duplicate registrations)
+
+### Supply Reconciliation Process
+The system includes a dedicated reconciliation script for cross-chain supply monitoring:
+
+```bash
+# Run reconciliation from any deployed network
+npm run reconcile:bsc-testnet
+npm run reconcile:base-sepolia
+npm run reconcile:optimism-sepolia
+```
+
+**Reconciliation Features:**
+- Queries supply data from all deployed chains via RPC
+- Aggregates total minted, burned, and circulating supply
+- Compares against the 5 billion LOOK global cap
+- Updates SupplyOracle with multi-signature validation
+- Detects discrepancies beyond tolerance threshold (1000 LOOK)
+- Triggers automatic bridge pausing if unhealthy
+
+**Prerequisites:**
+- ORACLE_ROLE on SupplyOracle contract
+- RPC access to all deployed chains
+- Deployment artifacts in /deployments directory
+
+**Reconciliation Workflow:**
+1. Collect supply data from all chains
+2. Calculate aggregate supply metrics
+3. Check health against tolerance threshold
+4. Update SupplyOracle if needed (15-minute intervals)
+5. Generate comprehensive report
+
+**Supply Distribution:**
+- Home Chain (BSC): Mints the full 5 billion LOOK initially
+- Secondary Chains: Receive tokens only through bridges
+- SupplyOracle: Initialized with 5 billion expected supply, automatically updated by setup script if needed
+
+**Supply Oracle Management:**
+- The SupplyOracle is deployed with a 5 billion LOOK expected supply
+- The setup script automatically checks and updates the expected supply if it doesn't match
+- Admins can manually update using: `supplyOracle.updateExpectedSupply(newSupply)`
+
+### Multi-Signature Oracle Operations
+
+The SupplyOracle implements an on-chain multi-signature mechanism for supply updates to ensure data integrity and prevent single points of failure.
+
+**How It Works:**
+1. **Signature Collection**: Multiple oracle nodes with `ORACLE_ROLE` must independently report the same supply data
+2. **Threshold Requirement**: By default, 3 signatures are required before a supply update is executed
+3. **Automatic Execution**: When the threshold is reached, the supply update executes immediately
+4. **No Time Limits**: Signatures accumulate until the threshold is met, with no expiration
+
+**Supply Update Process:**
+```javascript
+// Oracle Node 1 reports supply
+await supplyOracle.updateSupply(
+  56,           // Chain ID (BSC)
+  1000000000,   // Total supply on chain
+  50000000,     // Locked supply in bridges
+  12345         // Nonce for this update
+);
+// Status: 1/3 signatures collected
+
+// Oracle Node 2 reports same data
+await supplyOracle.updateSupply(56, 1000000000, 50000000, 12345);
+// Status: 2/3 signatures collected
+
+// Oracle Node 3 reports same data
+await supplyOracle.updateSupply(56, 1000000000, 50000000, 12345);
+// Status: 3/3 signatures - Update executes automatically!
+```
+
+**Key Requirements:**
+- All oracles must use identical parameters (chainId, totalSupply, lockedSupply, nonce)
+- Each oracle can only sign once per unique update
+- The nonce ensures coordination between oracle nodes
+
+**Operational Setup:**
+
+For production deployments, the typical setup involves:
+
+1. **MPC Vault (Admin Team)**:
+   - Holds `DEFAULT_ADMIN_ROLE` for governance
+   - Can update signature thresholds via `updateRequiredSignatures()`
+   - Manages emergency procedures
+
+2. **Oracle Operators (Dev Team)**:
+   - 3+ independent addresses with `ORACLE_ROLE`
+   - Each runs an oracle service monitoring different RPC endpoints
+   - Coordinate on nonce values (typically using timestamps or block numbers)
+
+**Example Oracle Service:**
+```javascript
+// Each oracle node runs this independently
+async function reportSupplyData() {
+  // Gather supply data from chain
+  const totalSupply = await lookCoin.totalSupply();
+  const lockedInBridges = await calculateLockedSupply();
+  
+  // Use timestamp as nonce for coordination
+  const nonce = Math.floor(Date.now() / 1000);
+  
+  // Submit supply update (requires 3 signatures)
+  await supplyOracle.updateSupply(
+    chainId,
+    totalSupply,
+    lockedInBridges,
+    nonce
+  );
+  
+  console.log(`Oracle ${oracleId} submitted supply update with nonce ${nonce}`);
+}
+
+// Run every 15 minutes
+setInterval(reportSupplyData, 15 * 60 * 1000);
+```
+
+**Security Considerations:**
+- Multiple oracle nodes prevent single points of failure
+- Geographic distribution of nodes increases resilience
+- Different RPC providers reduce dependency risks
+- Threshold can be adjusted based on security requirements
+
+**Adjusting Signature Requirements:**
+```javascript
+// Only DEFAULT_ADMIN_ROLE (MPC Vault) can change this
+await supplyOracle.updateRequiredSignatures(5); // Increase to 5 signatures
+```
 
 ### Emergency Procedures
 1. **Pause All Operations**

@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import hre from "hardhat";
-import { ChainConfig } from "../../hardhat.config";
+import { ChainConfig, TOTAL_SUPPLY } from "../../hardhat.config";
 import { ProtocolDetector, ProtocolSupport, isHyperlaneReady } from "./protocolDetector";
 import { fetchDeployOrUpgradeProxy } from "./state";
 import { Deployment } from "./deployment";
@@ -68,7 +68,7 @@ export class DeploymentOrchestrator {
       "SupplyOracle",
       [
         config.deployer, 
-        ethers.parseEther("1000000000"), // 1 billion total supply
+        TOTAL_SUPPLY, // Total supply from hardhat config
         supportedChainIds
       ]
     );
