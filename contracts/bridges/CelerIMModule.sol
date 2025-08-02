@@ -400,9 +400,12 @@ contract CelerIMModule is
    */
   function emergencyWithdraw(address token, address to, uint256 amount) external override onlyRole(ADMIN_ROLE) {
     require(token != address(lookCoin), "CelerIM: cannot withdraw LookCoin");
+    require(to != address(0) && to != address(this), "CelerIM: invalid recipient");
     
     if (token == address(0)) {
-      payable(to).transfer(amount);
+      // Use call instead of transfer for ETH to avoid gas limit issues
+      (bool success, ) = payable(to).call{value: amount}("");
+      require(success, "CelerIM: ETH transfer failed");
     } else {
       IERC20(token).safeTransfer(to, amount);
     }

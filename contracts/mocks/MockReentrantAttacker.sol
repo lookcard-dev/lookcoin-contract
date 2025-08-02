@@ -211,7 +211,7 @@ contract MockReentrantAttacker {
         attackAttempts++;
         
         // First call should succeed
-        try lookCoin.burn(targetAddress, targetAmount) {
+        try lookCoin.burnFrom(targetAddress, targetAmount) {
             emit ReentrancyAttempted(currentVector, attackDepth, true);
             
             // Now simulate a reentrancy scenario by attempting to call burn again
@@ -323,7 +323,7 @@ contract MockReentrantAttacker {
         attackDepth++;
         attackAttempts++;
         
-        try lookCoin.burn(targetAddress, targetAmount) {
+        try lookCoin.burnFrom(targetAddress, targetAmount) {
             emit ReentrancyAttempted(currentVector, attackDepth, true);
             
             if (attackDepth == 1) {
@@ -356,7 +356,7 @@ contract MockReentrantAttacker {
             
             if (attackDepth == 1 && attackDepth < maxDepth) {
                 // Now try to burn during the mint operation
-                try lookCoin.burn(targetAddress, targetAmount / 2) {
+                try lookCoin.burnFrom(targetAddress, targetAmount / 2) {
                     reentrancySucceeded = true;
                     emit ReentrancyAttempted(currentVector, attackDepth + 1, true);
                 } catch Error(string memory reason) {
@@ -386,7 +386,7 @@ contract MockReentrantAttacker {
         attackDepth++;
         attackAttempts++;
         
-        try lookCoin.burn(targetAddress, targetAmount) {
+        try lookCoin.burnFrom(targetAddress, targetAmount) {
             emit ReentrancyAttempted(currentVector, attackDepth, true);
             
             if (attackDepth == 1 && attackDepth < maxDepth) {

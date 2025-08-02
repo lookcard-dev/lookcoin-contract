@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@hyperlane-xyz/core/contracts/interfaces/IMailbox.sol";
 import "@hyperlane-xyz/core/contracts/interfaces/IInterchainGasPaymaster.sol";
 import "@hyperlane-xyz/core/contracts/interfaces/IMessageRecipient.sol";
@@ -24,6 +25,8 @@ contract HyperlaneModule is
   ILookBridgeModule,
   IMessageRecipient
 {
+  using SafeERC20 for IERC20;
+
   bytes32 public constant BRIDGE_ADMIN_ROLE = keccak256("BRIDGE_ADMIN_ROLE");
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
   bytes32 public constant RELAYER_ROLE = keccak256("RELAYER_ROLE");
@@ -233,10 +236,14 @@ contract HyperlaneModule is
   }
 
   function emergencyWithdraw(address token, address to, uint256 amount) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    require(to != address(0) && to != address(this), "Hyperlane: invalid recipient");
+    
     if (token == address(0)) {
-      payable(to).transfer(amount);
+      // Use call instead of transfer for ETH to avoid gas limit issues
+      (bool success, ) = payable(to).call{value: amount}("");
+      require(success, "Hyperlane: ETH transfer failed");
     } else {
-      IERC20(token).transfer(to, amount);
+      IERC20(token).safeTransfer(to, amount);
     }
   }
 

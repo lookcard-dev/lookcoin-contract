@@ -159,9 +159,23 @@ contract CrossChainRouter is
     ) external payable whenNotPaused nonReentrant returns (bytes32 transferId) {
         require(protocolActive[protocol], "Protocol not active");
         require(chainProtocolSupport[destinationChain][protocol], "Protocol not supported for chain");
+        require(recipient != address(0), "Router: invalid recipient");
+        require(amount > 0, "Router: invalid amount");
+        
+        // Validate token approval
+        IERC20 token = IERC20(lookCoin);
+        require(token.allowance(msg.sender, address(this)) >= amount, 
+            "Router: insufficient allowance");
+        
+        // Transfer tokens to router first
+        require(token.transferFrom(msg.sender, address(this), amount), 
+            "Router: transfer failed");
         
         address module = protocolModules[protocol];
         require(module != address(0), "Protocol module not registered");
+
+        // Approve module to burn tokens
+        token.approve(module, amount);
 
         transferId = ILookBridgeModule(module).bridgeToken{value: msg.value}(
             destinationChain,
@@ -169,6 +183,10 @@ contract CrossChainRouter is
             amount,
             params
         );
+
+        // Verify tokens were burned
+        require(token.allowance(address(this), module) == 0, 
+            "Module did not burn tokens");
 
         transferProtocol[transferId] = protocol;
 

@@ -147,6 +147,17 @@ contract LookCoin is
   /// @param endpoint New LayerZero endpoint address
   event LayerZeroEndpointSet(address indexed endpoint);
 
+
+  /**
+   * @dev Modifier to ensure supply invariant is maintained
+   * @notice Verifies that totalSupply equals totalMinted minus totalBurned
+   */
+  modifier supplyInvariant() {
+    _;
+    require(totalSupply() == totalMinted - totalBurned, 
+        "LookCoin: supply invariant violated");
+  }
+
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
@@ -206,7 +217,7 @@ contract LookCoin is
    * @param to Address to mint tokens to
    * @param amount Amount to mint
    */
-  function mint(address to, uint256 amount) public whenNotPaused nonReentrant {
+  function mint(address to, uint256 amount) public whenNotPaused nonReentrant supplyInvariant {
     require(to != address(0), "LookCoin: mint to zero address");
     require(hasRole(MINTER_ROLE, msg.sender) || hasRole(BRIDGE_ROLE, msg.sender), "LookCoin: unauthorized minter");
 
@@ -215,16 +226,31 @@ contract LookCoin is
   }
 
   /**
-   * @dev Burn tokens from address. Only role-based burning supported
+   * @dev Burn tokens from address
    * @param from Address to burn tokens from
    * @param amount Amount to burn
+   * @notice Only BURNER_ROLE or BRIDGE_ROLE can burn from other addresses
    */
-  function burn(address from, uint256 amount) public whenNotPaused nonReentrant {
+  function burnFrom(address from, uint256 amount) public whenNotPaused nonReentrant supplyInvariant {
     require(from != address(0), "LookCoin: burn from zero address");
     require(hasRole(BURNER_ROLE, msg.sender) || hasRole(BRIDGE_ROLE, msg.sender), "LookCoin: unauthorized burner");
+    
+    // For upgrade safety, only allow burning from self or with proper role
+    if (from != msg.sender) {
+      require(hasRole(BURNER_ROLE, msg.sender) || hasRole(BRIDGE_ROLE, msg.sender), 
+          "LookCoin: must have BURNER_ROLE to burn from other addresses");
+    }
 
     totalBurned += amount;
     _burn(from, amount);
+  }
+
+  /**
+   * @dev Burn function - burns tokens from caller
+   * @param amount Amount to burn from caller's balance
+   */
+  function burn(uint256 amount) public whenNotPaused nonReentrant {
+    burnFrom(msg.sender, amount);
   }
 
   /**
@@ -314,15 +340,23 @@ contract LookCoin is
       // Decode recipient address from bytes
       address recipient;
       if (_toAddress.length == 20) {
+        // Decode 20-byte address
+        recipient = abi.decode(_toAddress, (address));
+      } else if (_toAddress.length == 32) {
+        // Handle bytes32 format
         recipient = abi.decode(_toAddress, (address));
       } else {
         revert("LookCoin: invalid recipient format");
       }
+      require(recipient != address(0), "LookCoin: recipient is zero address");
+
+      // Check balance before external call
+      require(balanceOf(msg.sender) >= _amount, "LookCoin: insufficient balance");
 
       // Approve router to spend tokens
       _approve(msg.sender, address(crossChainRouter), _amount);
 
-      // Delegate to router for optimal protocol selection
+      // Delegate to router for optimal protocol selection with checks-effects-interactions pattern
       crossChainRouter.bridgeToken{value: msg.value}(
         uint256(_dstChainId),
         recipient,
@@ -330,6 +364,10 @@ contract LookCoin is
         ICrossChainRouter.Protocol.LayerZero, // Default to LayerZero for compatibility
         _toAddress
       );
+      
+      // Verify approval was consumed
+      require(allowance(msg.sender, address(crossChainRouter)) == 0, 
+          "LookCoin: router did not consume allowance");
     } else {
       // Fallback to direct OFT send - inline the logic
       require(address(lzEndpoint) != address(0), "LookCoin: LayerZero not configured");
@@ -451,7 +489,7 @@ contract LookCoin is
    * @dev Set LayerZero endpoint address
    * @param _endpoint New endpoint address
    * @notice Updates the LayerZero endpoint for cross-chain messaging
-   * @dev Critical function that affects all LayerZero operations
+   * @dev Critical function that should be executed through timelock
    */
   function setLayerZeroEndpoint(address _endpoint) external onlyRole(DEFAULT_ADMIN_ROLE) {
     require(_endpoint != address(0), "LookCoin: invalid endpoint");
@@ -526,14 +564,6 @@ contract LookCoin is
     enforcedOptions[_dstChainId] = _minGas;
   }
 
-  /**
-   * @dev Set the cross-chain router contract
-   * @param _router Address of the CrossChainRouter contract
-   */
-  function setCrossChainRouter(address _router) external onlyRole(ROUTER_ADMIN_ROLE) {
-    require(_router != address(0), "LookCoin: invalid router");
-    crossChainRouter = ICrossChainRouter(_router);
-  }
 
   /**
    * @dev Pause all token operations. Only callable by PAUSER_ROLE
@@ -584,5 +614,24 @@ contract LookCoin is
    */
   function supportsInterface(bytes4 interfaceId) public view override(AccessControlUpgradeable) returns (bool) {
     return super.supportsInterface(interfaceId);
+  }
+
+  /**
+   * @dev Check if a nonce has been processed (backward compatibility)
+   * @param _srcChainId Source chain ID
+   * @param _nonce Nonce to check
+   * @return bool True if processed on current chain
+   */
+  function isNonceProcessed(uint16 _srcChainId, uint64 _nonce) public view returns (bool) {
+    return processedNonces[_srcChainId][_nonce];
+  }
+
+  /**
+   * @dev Set cross-chain router address
+   * @param _router Cross-chain router address
+   * @notice Should be executed through external timelock contract
+   */
+  function setCrossChainRouter(address _router) external onlyRole(ROUTER_ADMIN_ROLE) {
+    crossChainRouter = ICrossChainRouter(_router);
   }
 }

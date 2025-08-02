@@ -46,6 +46,7 @@
     "setup:sapphire-mainnet": "hardhat run scripts/setup.ts --network sapphire",
     "setup:sapphire-testnet": "hardhat run scripts/setup.ts --network sapphireTestnet",
     "setup:akashic-mainnet": "hardhat run scripts/setup.ts --network akashic",
+    "deploy:timelock": "hardhat run scripts/deployTimelock.ts",
     "reconcile": "hardhat run scripts/reconcile.ts",
     "reconcile:bsc-testnet": "hardhat run scripts/reconcile.ts --network bscTestnet",
     "reconcile:bsc-mainnet": "hardhat run scripts/reconcile.ts --network bsc",

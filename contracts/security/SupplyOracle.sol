@@ -56,6 +56,10 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
     mapping(bytes32 => mapping(address => bool)) public updateSignatures;
     mapping(bytes32 => uint256) public updateSignatureCount;
     
+    // Nonce tracking to prevent replay attacks
+    mapping(uint256 => bool) private usedNonces;
+    uint256 public constant NONCE_VALIDITY_PERIOD = 1 hours;
+    
     // Events
     event SupplyUpdated(
         uint32 indexed chainId,
@@ -129,6 +133,11 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
         uint256 _lockedSupply,
         uint256 _nonce
     ) external onlyRole(ORACLE_ROLE) whenNotPaused {
+        // Validate nonce to prevent replay attacks
+        require(!usedNonces[_nonce], "SupplyOracle: nonce already used");
+        require(_nonce > block.timestamp - NONCE_VALIDITY_PERIOD, "SupplyOracle: nonce too old");
+        require(_nonce <= block.timestamp + 5 minutes, "SupplyOracle: nonce too far in future");
+        
         bytes32 updateHash = keccak256(
             abi.encodePacked(_chainId, _totalSupply, _lockedSupply, _nonce)
         );
@@ -139,6 +148,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
         updateSignatureCount[updateHash]++;
         
         if (updateSignatureCount[updateHash] >= requiredSignatures) {
+            usedNonces[_nonce] = true;
             _executeSupplyUpdate(_chainId, _totalSupply, _lockedSupply);
             _resetSignatures(updateHash);
         }
@@ -153,6 +163,11 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
         BatchSupplyUpdate[] calldata updates,
         uint256 nonce
     ) external onlyRole(ORACLE_ROLE) whenNotPaused {
+        // Validate nonce to prevent replay attacks
+        require(!usedNonces[nonce], "SupplyOracle: nonce already used");
+        require(nonce > block.timestamp - NONCE_VALIDITY_PERIOD, "SupplyOracle: nonce too old");
+        require(nonce <= block.timestamp + 5 minutes, "SupplyOracle: nonce too far in future");
+        
         bytes32 updateHash = keccak256(abi.encode(updates, nonce));
         
         require(!updateSignatures[updateHash][msg.sender], "SupplyOracle: already signed");
@@ -161,6 +176,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
         updateSignatureCount[updateHash]++;
         
         if (updateSignatureCount[updateHash] >= requiredSignatures) {
+            usedNonces[nonce] = true;
             _executeBatchUpdate(updates);
             _resetSignatures(updateHash);
         }
@@ -450,8 +466,10 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
      * @dev Reset signatures for update hash
      */
     function _resetSignatures(bytes32 _updateHash) internal {
-        // Note: In production, implement proper cleanup of mapping
-        updateSignatureCount[_updateHash] = 0;
+        // Clear the signature count
+        delete updateSignatureCount[_updateHash];
+        // Note: Without enumerable roles, we cannot efficiently clear individual oracle signatures
+        // In production, consider maintaining a separate array of oracle addresses for cleanup
     }
 
     /**

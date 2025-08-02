@@ -4,43 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-LookCoin Contract is the smart contract repository for LookCoin (LOOK), the omnichain fungible token that serves as the primary payment method for LookCard's crypto-backed credit/debit card system. The token implements a multi-bridge architecture for cross-chain transfers using LayerZero OFT V2, Celer IM, and Hyperlane protocols.
+LookCoin Contract is the smart contract repository for LookCoin (LOOK), the omnichain fungible token that serves as the primary payment method for LookCard's crypto-backed credit/debit card system. The token implements native LayerZero OFT V2 with support for multiple bridge protocols through modular architecture.
 
-## Architecture
+## Key Features
 
-### Contract Structure
+- **Native LayerZero OFT V2**: Direct integration for gas-efficient cross-chain transfers
+- **Multi-Protocol Support**: LayerZero, Celer IM, and Hyperlane (planned)
+- **Unified Burn-and-Mint**: All protocols use consistent token mechanics
+- **5 Billion Supply Cap**: Maximum supply limit with cross-chain tracking
+- **UUPS Upgradeable**: Future-proof with secure upgrade mechanism
+- **MPC Governance**: External multi-party computation vault for security
 
-```
-contracts/
-├── LookCoin.sol              # Main ERC20 token contract with LayerZero OFT V2 (UUPS upgradeable)
-├── bridges/                  # Cross-chain bridge implementations
-│   ├── LayerZeroModule.sol   # LayerZero V2 bridge module (burn-and-mint)
-│   ├── CelerIMModule.sol     # Celer Inter-chain Messaging (burn-and-mint)
-│   └── HyperlaneModule.sol   # Hyperlane bridge module (burn-and-mint)
-├── xchain/                   # Cross-chain infrastructure
-│   ├── CrossChainRouter.sol  # Unified router for multi-protocol bridging
-│   ├── FeeManager.sol        # Protocol-specific fee management
-│   ├── SecurityManager.sol   # Security controls
-│   └── ProtocolRegistry.sol  # Protocol registration and tracking
-└── security/                 # Security infrastructure
-    └── SupplyOracle.sol      # Cross-chain supply monitoring and reconciliation
-```
+## Quick Start
 
-### Key Technical Features
+### Prerequisites
 
-- **Upgradeable Design**: UUPS proxy pattern with OpenZeppelin contracts
-- **Native OFT V2**: LookCoin implements LayerZero OFT V2 standard directly for optimal gas efficiency
-- **Multi-Bridge Architecture**: All protocols use burn-and-mint mechanism for unified liquidity
-- **Dual-Path Support**: LayerZero can be used directly via LookCoin or through CrossChainRouter
-- **Role-Based Access Control**: Granular permissions with AccessControl
-- **Production Safety**: Validates remote addresses and reverts if destination chain not configured
-- **Enforced Gas Options**: Configurable minimum gas per destination chain
-- **Emergency Controls**: Pause capability with emergency recovery procedures
-- **Supply Reconciliation**: 15-minute monitoring cycles to detect cross-chain anomalies
+- Node.js 20+ with npm
+- Hardhat environment
+- `.env` file with required variables (see `.env.example`)
 
-## Development Commands
-
-### Core Development
+### Basic Commands
 
 ```bash
 # Install dependencies
@@ -52,194 +35,190 @@ npm run compile
 # Run tests
 npm test
 
-# Run tests with gas reporting
-npm run test:gas
-
-# Generate test coverage report
-npm run coverage
-
-# Check contract sizes
-npm run size
-
-# Run linter
-npm run lint
-
-# Format code
-npm run format
+# Deploy (see deployment guide for network-specific commands)
+npm run deploy:<network>
 ```
 
-### Deployment Commands
+## Architecture
 
-LookCoin uses a three-stage deployment process:
+### Contract Structure
 
-#### Stage 1: Deploy
+```text
+contracts/
+├── LookCoin.sol              # Main token with native LayerZero OFT V2
+├── bridges/                  # Protocol modules (Celer, future Hyperlane)
+├── xchain/                   # Multi-protocol infrastructure (BSC only)
+└── security/                 # SupplyOracle for cross-chain monitoring
+```
 
-Creates contracts and deployment artifacts on a single network:
+### Deployment Architecture
+
+- **Standard Mode**: Single protocol deployments (Base, Optimism, Sapphire)
+- **Multi-Protocol Mode**: Full infrastructure (BSC mainnet/testnet only)
+- **Simple Mode**: Development optimization (skip infrastructure)
+
+## Three-Stage Deployment Process
+
+### Stage 1: Deploy
+
+Creates contracts on a single network:
 
 ```bash
-# Deploy to specific networks (full infrastructure)
-npm run deploy:bsc-testnet
-npm run deploy:bsc-mainnet
-npm run deploy:base-sepolia
-npm run deploy:base-mainnet
-npm run deploy:op-sepolia
-npm run deploy:op-mainnet
-npm run deploy:akashic-mainnet
-
-# Standalone LookCoin deployment (OFT only, no additional infrastructure)
-npm run deploy:lookcoin-only        # Deploy only LookCoin contract as OFT
-npm run configure:lookcoin-only     # Configure trusted remotes for standalone deployment
+npm run deploy:bsc-mainnet       # Multi-protocol deployment
+npm run deploy:base-sepolia      # Standard deployment
+npm run deploy:sapphire-mainnet  # Celer-only deployment
 ```
 
-#### Stage 2: Setup
+### Stage 2: Setup
 
-Configures local roles and settings post-deployment:
+Configures roles and local settings:
 
 ```bash
-# Setup after deployment (available for all networks)
-npm run setup:bsc-testnet
-npm run setup:base-sepolia
-npm run setup:op-sepolia
-npm run setup:sapphire-mainnet
+npm run setup:<network>
 ```
 
-#### Stage 3: Configure
+### Stage 3: Configure
 
-Establishes cross-chain connections between multiple networks:
+Establishes cross-chain connections (requires other networks deployed):
 
 ```bash
-# Configure cross-chain connections (only available for networks with deployment artifacts)
-npm run configure:bsc-testnet          # BSC Testnet
-npm run configure:base-sepolia         # Base Sepolia
-npm run configure:optimism-sepolia     # Optimism Sepolia
-npm run configure:sapphire-mainnet     # Oasis Sapphire Mainnet
+npm run configure:<network>
 ```
 
-**Note**: Configure scripts are only available for networks that have deployment artifacts from other networks. The `configure.ts` script requires deployment JSON files from other networks to establish LayerZero trusted remotes, Celer IM remote modules, and cross-chain bridge registrations.
+**Important**: Always follow Deploy → Setup → Configure sequence
 
-#### Contract Verification
+## Network Support
 
-```bash
-# Verify contracts on block explorers
-npm run verify
-```
+| Network | Chain ID | Status | Protocols | Mode |
+|---------|----------|--------|-----------|------|
+| BSC Mainnet | 56 | ✅ Deployed | LayerZero, Celer | Multi-protocol |
+| BSC Testnet | 97 | ✅ Deployed | LayerZero, Celer | Multi-protocol |
+| Base Sepolia | 84532 | ✅ Deployed | LayerZero | Standard |
+| Optimism Sepolia | 11155420 | ✅ Deployed | LayerZero | Standard |
+| Sapphire Mainnet | 23295 | ✅ Deployed | Celer | Standard |
+| Base Mainnet | 8453 | ⏳ Planned | LayerZero, Hyperlane | Standard |
+| Optimism Mainnet | 10 | ⏳ Planned | LayerZero, Celer, Hyperlane | Multi-protocol |
+| Akashic | 9070 | ⏳ Planned | Hyperlane (self-hosted) | Standard |
 
-**Execution Order**: Always follow this sequence: **Deploy → Setup → Configure**
+## Token Supply Management
 
-### Testing Specific Contracts
+### Global Supply Cap
 
-```bash
-# Test specific contract
-npx hardhat test test/LookCoin.test.ts
-
-# Test with specific network fork
-npx hardhat test --network hardhat
-
-# Run integration tests
-npm run test:integration
-
-# Run security tests
-npm run test:security
-```
-
-## Technology Stack
-
-- **Smart Contract Language**: Solidity 0.8.28
-- **Development Framework**: Hardhat with TypeScript
-- **Testing**: Chai, Hardhat test helpers, TypeChain for type safety
-- **Security**: OpenZeppelin contracts, custom security modules
-- **Cross-chain**: LayerZero OFT V2, Celer IM SDK, Hyperlane SDK
-- **Tools**: Solidity coverage, gas reporter, contract sizer, Slither for static analysis
-
-## Multi-Chain Architecture
-
-### Supported Networks
-
-- **BSC** (Chain ID: 56) - Home chain with full token supply
-- **Base** (Chain ID: 8453) - LayerZero and Hyperlane deployment
-- **Optimism** (Chain ID: 10) - LayerZero, Celer IM, and Hyperlane deployment
-- **Akashic** (Chain ID: 9070) - Hyperlane deployment
-
-### Bridge Operations
-
-1. **LayerZero OFT V2**: Native burn-and-mint with dual-path support (direct OFT or via CrossChainRouter)
-2. **Celer IM**: Burn-and-mint mechanism via CelerIMModule
-3. **Hyperlane**: Burn-and-mint mechanism via HyperlaneModule
-
-## Security Patterns
-
-### Governance Model
-
-- **MPC Vault Wallet**: External MPC vault provides secure off-chain governance
-- **Direct Execution**: Administrative operations execute immediately without on-chain delays
-- **Role Separation**: Distinct roles for bridge operators, security admins, and supply monitors
-- **Security**: Multi-party computation ensures no single point of failure
+- **Maximum**: 5,000,000,000 LOOK
+- **Home Chain**: BSC (only chain where minting occurs)
+- **Current Minted**: 20,000 LOOK (BSC Mainnet)
 
 ### Supply Monitoring
 
-- Real-time cross-chain balance tracking
+- SupplyOracle deployed on every chain
 - 15-minute reconciliation cycles
-- Automatic pause on 1% supply deviation
-- Manual reconciliation tools for administrators
+- Multi-signature validation (3 signatures required)
+- Automatic pause on 1% deviation
 
-## Development Workflow
+### Manual Minting (BSC Only)
 
-### Setting Up Environment
-
-1. Clone repository and install dependencies
-2. Copy `.env.example` to `.env` and configure:
-   - GOVERNANCE_VAULT address for MPC vault wallet
-   - Private keys for deployment accounts
-   - RPC endpoints for each network
-   - Block explorer API keys
-   - LayerZero and Celer configuration
-
-### Making Changes
-
-1. Modify contracts in `contracts/` directory
-2. Update tests in `test/` directory
-3. Run `npm run compile` to ensure compilation
-4. Run `npm test` to verify functionality
-5. Check gas usage with `npm run test:gas`
-6. Verify contract sizes with `npm run size`
-
-### Deployment Process
-
-1. Test thoroughly on testnets first
-2. **Deploy Stage**: Run deployment script for target network (`npm run deploy:<network>`)
-3. **Setup Stage**: Configure local roles and settings (`npm run setup:<network>`)
-4. **Configure Stage**: Establish cross-chain connections (`npm run configure:<network>` - only for networks with deployment artifacts)
-5. Verify contracts on block explorer
-6. Test bridge operations end-to-end
-7. Monitor supply reconciliation
-
-## Contract Verification
-
-After deployment, verify contracts:
-
-```bash
-npx hardhat verify --network <network-name> <contract-address> <constructor-args>
+```javascript
+// Minting is NOT automatic - must be done manually after deployment
+const lookCoin = await ethers.getContractAt("LookCoin", "0x...");
+await lookCoin.mint("0xMpcVault...", ethers.parseEther("20000"));
 ```
 
-For upgradeable contracts, verify both proxy and implementation.
+## Security Architecture
 
-## Important Considerations
+### Role-Based Access Control
 
-### Gas Optimization
-
-- Optimizer enabled with 9999 runs for deployment efficiency
-- Batch operations available for governance actions
-
-### Upgrade Process
-
-1. Deploy new implementation contract
-2. Authorize upgrade through MPC vault wallet
-3. Execute upgrade transaction
-4. Verify new implementation
+- **DEFAULT_ADMIN_ROLE**: Full administrative control (MPC Vault)
+- **MINTER_ROLE**: Token minting (MPC Vault + Bridge modules)
+- **BURNER_ROLE**: Token burning (MPC Vault + Bridge modules + LookCoin)
+- **PAUSER_ROLE**: Emergency pause (MPC Vault)
+- **UPGRADER_ROLE**: Contract upgrades (MPC Vault + Dev Team)
+- **OPERATOR_ROLE**: Operational tasks (Dev Team)
+- **ORACLE_ROLE**: Supply updates (3+ Oracle operators)
 
 ### Emergency Procedures
 
-- Pause all operations: Call `pause()` with EMERGENCY_ROLE
-- Disable specific bridge: Call `disableBridge()`
-- Force supply reconciliation: Call `forceReconcile()`
-- Recovery requires MPC vault wallet authorization
+```solidity
+// Pause all operations
+lookCoin.pause()
+
+// Disable specific bridge
+crossChainRouter.pauseProtocol(Protocol.Celer)
+
+// Force supply reconciliation
+supplyOracle.forceReconcile()
+```
+
+## Bridge Operations
+
+### Dual-Path Architecture
+
+1. **Direct OFT Path** (LayerZero only): `LookCoin.sendFrom()`
+2. **Router Path** (All protocols): `CrossChainRouter.bridgeToken()`
+
+### Fee Structure
+
+- **LayerZero**: Native token fees only (~0.01 ETH/BNB)
+- **Celer IM**: 0.5% bridge fee (10-1000 LOOK) + native token fees
+- **Hyperlane**: (Planned) Native token fees only
+
+## Development Workflow
+
+### Testing
+
+```bash
+npm test                    # All tests
+npm run test:unit          # Unit tests only
+npm run test:integration   # Integration tests
+npm run test:gas           # With gas reporting
+npm run coverage           # Coverage report
+```
+
+### Contract Verification
+
+```bash
+npm run verify             # Verify on block explorer
+```
+
+### Debug Options
+
+```bash
+DEBUG_DEPLOYMENT=true npm run deploy:<network>    # Verbose logging
+SKIP_UPGRADE_CHECK=true npm run deploy:<network>  # Skip upgrade checks
+npm run deploy:<network> -- --simple-mode         # Simple deployment
+```
+
+## Configuration Management
+
+All network and protocol configurations are centralized in `hardhat.config.ts`:
+
+- Network RPC endpoints and chain IDs
+- Protocol endpoints and parameters
+- DVN settings for LayerZero
+- Fee structures and limits
+
+## Common Issues & Solutions
+
+| Issue | Solution |
+|-------|----------|
+| "No deployment found" | Run deploy script first |
+| "Cross-tier configuration detected" | Use `--force-cross-tier` flag |
+| "Destination chain not configured" | Run configure script on both chains |
+| "Supply mismatch causes bridge pause" | Admin intervention required |
+
+## Important Notes
+
+1. **No automatic minting**: All token minting must be done manually
+2. **BSC is home chain**: Only chain where new tokens can be minted
+3. **Deployment order matters**: Deploy → Setup → Configure
+4. **CrossChainRouter**: Only deployed on BSC (multi-protocol mode)
+5. **Hyperlane**: Infrastructure planned but not yet deployed
+
+## References
+
+For detailed information, see:
+
+- `docs/TECHNICAL.md` - Complete technical architecture
+- `docs/DEPLOYMENT.md` - Detailed deployment guide
+- `docs/SECURITY.md` - Security procedures and audit results
+- `docs/USER_FLOW.md` - Bridge usage instructions
+- `docs/ADDRESSES.md` - Deployed contract addresses
