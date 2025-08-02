@@ -1,0 +1,23 @@
+FROM public.ecr.aws/docker/library/node:22-alpine AS base
+WORKDIR /app
+RUN apk add --no-cache --update python3 make gcc g++
+
+FROM base AS builder_dependencies
+COPY package*.json ./
+RUN npm ci
+
+FROM builder_dependencies AS builder
+COPY . .
+RUN npm run build
+
+FROM base AS packager
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+FROM --platform=linux/amd64 public.ecr.aws/lambda/nodejs:22
+ENV AWS_NODEJS_CONNECTION_REUSE_ENABLED=1
+WORKDIR ${LAMBDA_TASK_ROOT}
+COPY --from=builder /app/dist ${LAMBDA_TASK_ROOT}/src
+COPY --from=packager /app/node_modules ${LAMBDA_TASK_ROOT}/node_modules
+COPY package*.json ${LAMBDA_TASK_ROOT}
+CMD ["src/handlers/reconcile.handler"]

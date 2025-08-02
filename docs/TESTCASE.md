@@ -76,7 +76,6 @@ Unit tests focus on individual contract functionality in isolation.
 
 - **securityManager.test.ts**: Daily limits (global/chain/user), whitelist/blacklist, suspicious activity detection
 - **supplyOracle.test.ts**: Multi-signature supply updates, deviation detection, chain management, reconciliation
-- **rateLimiter.test.ts**: Per-transaction/hourly/daily limits, sliding window algorithm, custom user tiers
 
 ### 2. Integration Tests (`/test/integration/`)
 
@@ -161,7 +160,7 @@ npm run test:unit
 npm run test:unit:lookcoin    # Core LookCoin tests (ERC20Security, OFT, Permit)
 npm run test:unit:bridges     # All bridge tests (LayerZero, Celer, Hyperlane)
 npm run test:unit:router      # Router tests (Configuration, Operations)
-npm run test:unit:security    # Security component tests (RateLimiter, SecurityManager, SupplyOracle)
+npm run test:unit:security    # Security component tests (SecurityManager, SupplyOracle)
 ```
 
 ### Integration Tests
@@ -310,7 +309,7 @@ The test suite implements systematic boolean combination testing using the `test
 ## Known Limitations
 
 1. **Mock Limitations**: Bridge protocol mocks may not capture all edge cases of real protocols
-2. **Time-Dependent Tests**: Rate limiting tests use time manipulation helpers
+2. **Time-Dependent Tests**: Time-sensitive tests use time manipulation helpers
 3. **Upgrade Testing**: UUPS upgrade testing requires specific proxy setup patterns
 
 ## Future Enhancements

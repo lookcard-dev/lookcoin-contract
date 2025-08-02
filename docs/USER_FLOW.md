@@ -110,7 +110,6 @@ sequenceDiagram
 2. **Check Requirements**
    - LOOK balance: Your desired transfer amount
    - Native token balance: ~0.01 ETH/BNB for gas fees
-   - Rate limits: Maximum 500,000 LOOK per hour, 3 transactions per hour
 
 3. **Initiate Bridge Transfer**
 
@@ -168,7 +167,6 @@ sequenceDiagram
 | "Endpoint not configured" | The destination chain is not yet configured. Contact support. |
 | "Destination not trusted" | The path between chains is not established. Contact support.  |
 | "Insufficient balance"    | Ensure you have enough LOOK and native tokens.                |
-| "Rate limit exceeded"     | Wait for the cooldown period (1 hour) before next transfer.   |
 
 ## Celer IM Bridge (Burn-and-Mint)
 
@@ -475,7 +473,6 @@ Always keep extra for safety.
 
 Yes, with these security measures:
 
-- Rate limiting prevents large-scale attacks
 - MPC vault wallet governance for secure operations
 - Automatic supply reconciliation every 15 minutes
 - Emergency pause capability

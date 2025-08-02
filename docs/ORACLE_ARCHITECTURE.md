@@ -128,7 +128,7 @@ function pauseRemoteBridge(uint32 chainId, address bridge) external {
 ### 3. Fallback Mechanism
 
 If BSC is down:
-- Bridges can have local rate limits
+- Bridges can have local security limits
 - Emergency pause mechanisms
 - Manual intervention procedures
 
@@ -213,7 +213,7 @@ If you've already deployed SupplyOracle on multiple chains:
 4. **Security**:
    - Rotate oracle keys regularly
    - Use hardware wallets for production
-   - Implement rate limiting
+   - Implement security controls
 
 ## Conclusion
 

@@ -26,7 +26,6 @@ The centralized configuration system supports LookCoin's three-stage deployment 
 **How it works**:
 
 - `scripts/setup.ts` uses centralized config to determine which roles to assign to which contracts
-- Configures rate limiting parameters from `CHAIN_CONFIG.rateLimiter`
 - Registers only local bridges with SupplyOracle based on network's supported bridge types
 - Operates on single network using centralized config + local deployment artifacts
 
@@ -81,9 +80,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     oracle: {
       /* Supply oracle config */
     },
-    rateLimiter: {
-      /* Rate limiting config */
-    },
   },
   // ... other networks
 };
@@ -126,10 +122,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
    - Update intervals
    - Tolerance thresholds
 
-5. **Rate Limiter Configuration**
-   - Per-account transaction limits
-   - Time windows
-   - Global daily limits
 
 ### Bridge Support Matrix
 
@@ -325,7 +317,6 @@ Cross-tier configuration can lead to severe security vulnerabilities:
 
 - **Supply Manipulation**: Testnet contracts could mint unlimited tokens and affect mainnet supply calculations
 - **Oracle Deception**: Supply oracle could be tricked by testnet transactions into incorrect reconciliation
-- **Rate Limit Bypass**: Attackers could use testnet tokens to bypass mainnet rate limits
 - **Trust Exploitation**: Mainnet contracts trusting testnet addresses could be exploited
 
 ### Default Protection
@@ -437,7 +428,6 @@ cat deployments/bsc-testnet.json | grep chainId
 This network tier isolation feature was added after discovering a critical vulnerability where the configuration script could establish trust relationships between mainnet and testnet contracts without any warnings. This could have allowed attackers to:
 
 - Mint tokens on testnet and affect mainnet supply calculations
-- Bypass rate limits using testnet transactions
 - Manipulate oracle data through testnet activity
 
 The protection system now ensures such misconfigurations are caught early and require explicit, conscious override decisions.

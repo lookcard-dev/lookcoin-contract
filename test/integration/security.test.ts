@@ -11,8 +11,7 @@ import {
   FeeManager,
   ProtocolRegistry,
   SecurityManager,
-  SupplyOracle,
-  RateLimiter
+  SupplyOracle
 } from "../../typechain-types";
 import { deployComprehensiveFixture, ComprehensiveFixture } from "../utils/comprehensiveTestHelpers";
 
@@ -46,8 +45,7 @@ describe("Security Integration Tests", function () {
       hyperlaneMailbox: owner,
       treasury: vault,
       securityManager: true,
-      supplyOracle: true,
-      rateLimiter: true
+      supplyOracle: true
     });
 
     await setupSecurityEnvironment();
@@ -87,11 +85,6 @@ describe("Security Integration Tests", function () {
     // Setup security manager
     if (fixture.securityManager) {
       await fixture.securityManager.grantRole(SECURITY_ADMIN_ROLE, operators[0].address);
-    }
-
-    // Enable rate limiter on LookCoin
-    if (fixture.rateLimiter) {
-      await fixture.lookCoin.setRateLimiter(fixture.rateLimiter.target);
     }
 
     // Mint initial tokens
@@ -139,64 +132,6 @@ describe("Security Integration Tests", function () {
     });
   });
 
-  describe("Rate Limiting Attack Prevention", function () {
-    it("Should prevent rate limit bypass attempts", async function () {
-      if (!fixture.rateLimiter) {
-        this.skip();
-      }
-
-      const amount = ethers.parseEther("400000");
-      
-      // Configure router for bridge operations
-      await fixture.layerZeroModule.grantRole(
-        ethers.keccak256(ethers.toUtf8Bytes("BRIDGE_OPERATOR_ROLE")),
-        fixture.crossChainRouter.target
-      );
-
-      // First transfer should succeed
-      await fixture.lookCoin.connect(user1).approve(fixture.crossChainRouter.target, amount);
-      const [, , fee1] = await fixture.crossChainRouter.estimateBridgeFee(0, 10, amount);
-      
-      await fixture.crossChainRouter.connect(user1).bridge(
-        0, 10, attacker.address, amount, ethers.ZeroAddress, { value: fee1 }
-      );
-
-      // Second transfer from different user but within rate limit window should fail
-      await fixture.lookCoin.connect(user2).approve(fixture.crossChainRouter.target, amount);
-      const [, , fee2] = await fixture.crossChainRouter.estimateBridgeFee(0, 10, amount);
-
-      // This should fail due to rate limiting on the recipient
-      await expect(
-        fixture.crossChainRouter.connect(user2).bridge(
-          0, 10, attacker.address, amount, ethers.ZeroAddress, { value: fee2 }
-        )
-      ).to.be.reverted;
-    });
-
-    it("Should enforce tier-based rate limits", async function () {
-      if (!fixture.rateLimiter) {
-        this.skip();
-      }
-
-      const LIMITER_ADMIN_ROLE = ethers.keccak256(ethers.toUtf8Bytes("LIMITER_ADMIN_ROLE"));
-      
-      // Verify vault can configure tiers
-      expect(await fixture.rateLimiter.hasRole(LIMITER_ADMIN_ROLE, vault.address)).to.be.true;
-      
-      // Set custom limits for VIP user
-      await fixture.rateLimiter.setUserLimits(
-        user1.address,
-        ethers.parseEther("1000000"), // 1M per transaction
-        ethers.parseEther("3000000"), // 3M per hour
-        ethers.parseEther("20000000") // 20M per day
-      );
-      
-      // Verify custom limits are applied
-      const limits = await fixture.rateLimiter.getUserLimits(user1.address);
-      expect(limits.isCustom).to.be.true;
-      expect(limits.maxPerTransaction).to.equal(ethers.parseEther("1000000"));
-    });
-  });
 
   describe("Emergency Response System", function () {
     it("Should allow immediate pause without timelock", async function () {

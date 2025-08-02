@@ -883,7 +883,6 @@ LookCoin deployment follows a three-stage process to ensure proper contract setu
 - Assigns MINTER_ROLE to bridge modules (CelerIMModule, HyperlaneModule)
 - Grants BURNER_ROLE to LookCoin contract for LayerZero burns
 - Registers local bridges with SupplyOracle for the current network only
-- Configures rate limiting parameters
 - Operates on a single network using only local deployment artifacts
 
 #### Stage 3: Configure
@@ -970,13 +969,6 @@ LookCard plans to deploy a complete self-hosted Hyperlane infrastructure across 
 - Sets initial supply baselines
 - Configures monitoring intervals (15 minutes)
 - Sets deviation thresholds (1% for automatic pause)
-
-### 5. Rate Limiting Configuration
-
-- Per-account limits: 500K tokens per transaction
-- Hourly limits: 3 transactions per hour per account
-- Global daily limit: 20% of total supply
-- Tier-based limits for different user categories
 
 ## Contract Verification
 

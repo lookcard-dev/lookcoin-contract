@@ -20,10 +20,9 @@ contracts/
 ├── xchain/                   # Cross-chain infrastructure
 │   ├── CrossChainRouter.sol  # Unified router for multi-protocol bridging
 │   ├── FeeManager.sol        # Protocol-specific fee management
-│   ├── SecurityManager.sol   # Rate limiting and security controls
+│   ├── SecurityManager.sol   # Security controls
 │   └── ProtocolRegistry.sol  # Protocol registration and tracking
 └── security/                 # Security infrastructure
-    ├── RateLimiter.sol       # Rate limiting with sliding window algorithm
     └── SupplyOracle.sol      # Cross-chain supply monitoring and reconciliation
 ```
 
@@ -176,13 +175,6 @@ npm run test:security
 - **Role Separation**: Distinct roles for bridge operators, security admins, and supply monitors
 - **Security**: Multi-party computation ensures no single point of failure
 
-### Rate Limiting
-
-- Per-account limits: 500K tokens per transaction, 3 transactions per hour
-- Global daily limit: 20% of total supply
-- Sliding window algorithm for accurate rate tracking
-- Emergency bypass for critical operations
-
 ### Supply Monitoring
 
 - Real-time cross-chain balance tracking
@@ -236,7 +228,6 @@ For upgradeable contracts, verify both proxy and implementation.
 ### Gas Optimization
 
 - Optimizer enabled with 9999 runs for deployment efficiency
-- Rate limiter uses efficient storage patterns
 - Batch operations available for governance actions
 
 ### Upgrade Process

@@ -148,7 +148,7 @@ This document contains the deployed contract addresses for LookCoin across all n
 ### Infrastructure Contracts (BSC Only)
 - **CrossChainRouter**: Unified interface for multi-protocol bridging
 - **FeeManager**: Protocol-specific fee management
-- **SecurityManager**: Rate limiting and security controls
+- **SecurityManager**: Security controls
 - **ProtocolRegistry**: Protocol registration and metadata
 
 ## Network Status

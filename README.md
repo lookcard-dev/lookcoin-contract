@@ -8,7 +8,7 @@ LookCoin (LOOK) is an omnichain fungible token implementing LayerZero OFT V2, se
 
 - **Omnichain Compatibility**: Seamless transfers across BSC, Base, Optimism, Oasis Sapphire, and Akashic Chain
 - **Multi-Bridge Architecture**: Redundancy and flexibility with three distinct bridge mechanisms
-- **Fintech-Grade Security**: Rate limiting, supply reconciliation, and emergency controls
+- **Fintech-Grade Security**: Supply reconciliation and emergency controls
 - **UUPS Upgradeable**: Future-proof design with proxy pattern implementation
 - **MPC Vault Governance**: External MPC vault wallet for secure off-chain governance
 
@@ -28,13 +28,12 @@ LookCoin (LOOK) is an omnichain fungible token implementing LayerZero OFT V2, se
 
 ```
 contracts/
-├── LookCoin.sol              # Main token (OFTV2Upgradeable, RateLimiter)
+├── LookCoin.sol              # Main token (OFTV2Upgradeable)
 ├── bridges/
 │   ├── CelerIMModule.sol     # Celer IM bridge (burn-and-mint)
 │   ├── HyperlaneModule.sol   # Hyperlane bridge (burn-and-mint)
 │   └── LayerZeroModule.sol   # LayerZero module (burn-and-mint)
 └── security/
-    ├── RateLimiter.sol       # Sliding window rate limiting
     └── SupplyOracle.sol      # Cross-chain supply monitoring
 ```
 
@@ -59,14 +58,6 @@ contracts/
 - Supports BSC, Base, Optimism, and Akashic
 
 ## Security Features
-
-### Rate Limiting
-
-- **Per-Transaction Limit**: 500K LOOK maximum
-- **Per-Account Hourly Limit**: 1.5M LOOK (3 transactions)
-- **Global Daily Limit**: 20% of total supply
-- **Sliding Window Algorithm**: Accurate rate tracking
-- **Emergency Bypass**: Available for authorized operations
 
 ### Supply Reconciliation
 

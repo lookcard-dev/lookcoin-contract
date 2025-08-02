@@ -177,7 +177,6 @@ contract CelerIMModule is
     __Pausable_init();
     __ReentrancyGuard_init();
     __UUPSUpgradeable_init();
-    // RateLimiter initialization removed
 
     require(_messageBus != address(0), "CelerIM: invalid message bus");
     require(_lookCoin != address(0), "CelerIM: invalid LookCoin");
@@ -188,7 +187,6 @@ contract CelerIMModule is
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     _grantRole(ADMIN_ROLE, _admin);
     _grantRole(OPERATOR_ROLE, _admin);
-    // Rate limit admin role removed
 
     // Initialize defaults
     feePercentage = 50; // 0.5%

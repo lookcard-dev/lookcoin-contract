@@ -176,7 +176,6 @@ const config: HardhatUserConfig = {
       "LookCoin",
       "CelerIMModule",
       "SupplyOracle",
-      "RateLimiter",
       "CrossChainRouter",
       "HyperlaneModule",
       "LayerZeroModule",

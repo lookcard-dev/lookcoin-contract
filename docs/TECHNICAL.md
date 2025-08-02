@@ -163,7 +163,7 @@ Multi-Chain Deployment
 ├── Infrastructure (Multi-protocol chains only)
 │   ├── CrossChainRouter.sol (Protocol selection & routing)
 │   ├── FeeManager.sol (Unified fee management)
-│   ├── SecurityManager.sol (Rate limiting & security)
+│   ├── SecurityManager.sol (Security controls)
 │   └── ProtocolRegistry.sol (Module registration)
 │
 └── External Integrations
@@ -361,7 +361,7 @@ sequenceDiagram
             SM->>SM: Check anomaly thresholds
             SM->>Router: Pause affected protocol
             SM->>Alert: Notify operators
-        else Rate limit exceeded
+        else Security threshold exceeded
             SM->>Modules: Enforce protocol limits
         end
     end
@@ -410,7 +410,6 @@ Setup includes:
 - Granting operational roles (MINTER, BURNER, BRIDGE)
 - Registering bridge modules with CrossChainRouter
 - Setting initial protocol fees
-- Configuring rate limits
 
 #### Stage 3: Configure
 Establishes cross-chain connections between networks:
@@ -444,13 +443,6 @@ Configuration includes:
 - **OPERATOR_ROLE**: Operational tasks and configuration (Dev Team only)
 
 ## Security Considerations
-
-### Rate Limiting (via SecurityManager)
-- Per-transaction limit: 500,000 LOOK
-- Per-account hourly limit: 1,500,000 LOOK (3 transactions)
-- Global daily limit: 20% of total supply
-- Sliding window algorithm for accurate tracking
-- Emergency bypass for authorized operations
 
 ### Supply Monitoring
 - Real-time tracking via totalMinted and totalBurned
@@ -714,7 +706,7 @@ The multi-protocol system implements carefully orchestrated role dependencies:
 
 2. **Router Integration**: The CrossChainRouter requires registration in LookCoin via `setCrossChainRouter()` to enable protocol routing.
 
-3. **Security Integration**: Protocol modules must be registered with SecurityManager for rate limiting and anomaly detection.
+3. **Security Integration**: Protocol modules must be registered with SecurityManager for anomaly detection.
 
 4. **Fee Management**: FeeManager requires protocol module addresses for accurate fee estimation across protocols.
 

@@ -9,8 +9,7 @@ import {
   FeeManager,
   ProtocolRegistry,
   SecurityManager,
-  SupplyOracle,
-  RateLimiter
+  SupplyOracle
 } from "../../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
@@ -41,8 +40,7 @@ describe("Cross-Chain Integration Flows", function () {
       hyperlaneMailbox: owner,
       treasury,
       securityManager: true,
-      supplyOracle: true,
-      rateLimiter: true
+      supplyOracle: true
     });
 
     // Setup comprehensive environment
@@ -192,13 +190,8 @@ describe("Cross-Chain Integration Flows", function () {
       await expect(tx).to.emit(fixture.celerIMModule, "MessageSent");
     });
 
-    it("Should complete Hyperlane bridge flow with rate limiting", async function () {
+    it("Should complete Hyperlane bridge flow", async function () {
       const amount = ethers.parseEther("400000"); // 400K tokens
-      
-      // Configure rate limiter
-      if (fixture.rateLimiter) {
-        await fixture.lookCoin.setRateLimiter(fixture.rateLimiter.target);
-      }
       
       // Approve and bridge
       await fixture.lookCoin.connect(user).approve(fixture.crossChainRouter.target, amount);
@@ -218,12 +211,6 @@ describe("Cross-Chain Integration Flows", function () {
         { value: totalFee }
       );
       
-      // Verify rate limiting was applied
-      if (fixture.rateLimiter) {
-        const userStats = await fixture.rateLimiter.getUserStats(user.address);
-        expect(userStats.totalTransactions).to.equal(1);
-        expect(userStats.dailyVolume).to.equal(amount);
-      }
     });
   });
 
