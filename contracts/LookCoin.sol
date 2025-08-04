@@ -254,6 +254,15 @@ contract LookCoin is
   }
 
   /**
+   * @dev Interface-compatible burn function (required by ILookCoin)
+   * @param from Address to burn tokens from
+   * @param amount Amount to burn
+   */
+  function burn(address from, uint256 amount) external whenNotPaused {
+    burnFrom(from, amount);
+  }
+
+  /**
    * @dev LayerZero OFT V2 send function for cross-chain transfers
    * @param _dstChainId Destination chain ID
    * @param _toAddress Recipient address on destination chain (encoded as bytes)
@@ -357,7 +366,7 @@ contract LookCoin is
       _approve(msg.sender, address(crossChainRouter), _amount);
 
       // Delegate to router for optimal protocol selection with checks-effects-interactions pattern
-      crossChainRouter.bridgeToken{value: msg.value}(
+      crossChainRouter.bridge{value: msg.value}(
         uint256(_dstChainId),
         recipient,
         _amount,
@@ -526,6 +535,31 @@ contract LookCoin is
     bytes memory adapterParams = abi.encodePacked(uint16(1), gasForDestinationLzReceive);
 
     return lzEndpoint.estimateFees(_dstChainId, address(this), payload, false, adapterParams);
+  }
+
+  /**
+   * @dev Standard OFT method for estimating send fees
+   * @param _dstChainId Destination chain ID
+   * @param _toAddress Recipient address (encoded)
+   * @param _amount Amount to transfer
+   * @param _payInZRO Whether to pay in ZRO token
+   * @param _adapterParam Adapter parameters
+   * @return nativeFee Fee in native token
+   * @return zroFee Fee in ZRO token
+   */
+  function estimateSendFee(
+    uint16 _dstChainId,
+    bytes calldata _toAddress,
+    uint256 _amount,
+    bool _payInZRO,
+    bytes calldata _adapterParam
+  ) external view returns (uint nativeFee, uint zroFee) {
+    require(address(lzEndpoint) != address(0), "LookCoin: LayerZero not configured");
+
+    bytes memory payload = abi.encode(PT_SEND, msg.sender, _toAddress, _amount);
+    bytes memory adapterParams = _adapterParam.length > 0 ? _adapterParam : abi.encodePacked(uint16(1), gasForDestinationLzReceive);
+
+    return lzEndpoint.estimateFees(_dstChainId, address(this), payload, _payInZRO, adapterParams);
   }
 
   /**

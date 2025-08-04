@@ -1,28 +1,18 @@
 import { ethers, upgrades } from "hardhat";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { expect } from "chai";
-import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import {
   LookCoin,
-  LookCoin__factory,
   CrossChainRouter,
-  CrossChainRouter__factory,
   LayerZeroModule,
-  LayerZeroModule__factory,
   CelerIMModule,
-  CelerIMModule__factory,
   HyperlaneModule,
-  HyperlaneModule__factory,
   MockLayerZeroEndpoint,
-  MockLayerZeroEndpoint__factory,
   MockMessageBus,
-  MockMessageBus__factory,
   MockHyperlaneMailbox,
-  MockHyperlaneMailbox__factory,
-  IERC20,
-  ILayerZeroUserApplicationConfig,
 } from "../../typechain-types";
-import { TEST_CHAINS } from "../utils/testConfig";
+import { deployLookCoinFixture as helperDeployLookCoinFixture } from "../helpers/fixtures";
 
 // Type for contracts that can receive cross-chain messages
 export type CrossChainReceiver = LookCoin | LayerZeroModule | CelerIMModule | HyperlaneModule;
@@ -40,29 +30,8 @@ export const BOOLEAN_COMBINATIONS: BooleanCombination[] = [
   { from: true, to: true, description: "true → true" },
 ];
 
-export interface DeploymentFixture {
-  lookCoin: LookCoin;
-  crossChainRouter: CrossChainRouter;
-  layerZeroModule: LayerZeroModule;
-  celerIMModule: CelerIMModule;
-  hyperlaneModule: HyperlaneModule;
-  mockLayerZero: MockLayerZeroEndpoint;
-  mockCeler: MockMessageBus;
-  mockHyperlane: MockHyperlaneMailbox;
-  owner: SignerWithAddress;
-  admin: SignerWithAddress;
-  operator: SignerWithAddress;
-  user: SignerWithAddress;
-  user2: SignerWithAddress;
-  minter: SignerWithAddress;
-  burner: SignerWithAddress;
-  pauser: SignerWithAddress;
-  upgrader: SignerWithAddress;
-  bridgeOperator: SignerWithAddress;
-  protocolAdmin: SignerWithAddress;
-  securityAdmin: SignerWithAddress;
-  feeCollector: SignerWithAddress;
-}
+// Re-export the complete DeploymentFixture interface from fixtures
+export type { DeploymentFixture } from "../helpers/fixtures";
 
 // Boolean Combination Testing Utilities
 export async function testBooleanCombinations(
@@ -98,11 +67,11 @@ export async function testRoleBasedFunction(
   unauthorizedSigner: SignerWithAddress
 ) {
   // Test with authorized signer
-  await expect(contract.connect(authorizedSigner)[functionName](...args))
+  await expect((contract.connect(authorizedSigner) as any)[functionName](...args))
     .to.not.be.reverted;
 
   // Test with unauthorized signer
-  await expect(contract.connect(unauthorizedSigner)[functionName](...args))
+  await expect((contract.connect(unauthorizedSigner) as any)[functionName](...args))
     .to.be.revertedWithCustomError(contract, "AccessControlUnauthorizedAccount")
     .withArgs(unauthorizedSigner.address, requiredRole);
 }
@@ -114,20 +83,20 @@ export async function testPausableFunction(
   pauserSigner: SignerWithAddress
 ) {
   // Test function works when not paused
-  await expect(contract[functionName](...args)).to.not.be.reverted;
+  await expect((contract as any)[functionName](...args)).to.not.be.reverted;
 
   // Pause the contract
   await contract.connect(pauserSigner).pause();
   
   // Test function reverts when paused
-  await expect(contract[functionName](...args))
+  await expect((contract as any)[functionName](...args))
     .to.be.revertedWithCustomError(contract, "EnforcedPause");
 
   // Unpause the contract
   await contract.connect(pauserSigner).unpause();
 
   // Test function works again when unpaused
-  await expect(contract[functionName](...args)).to.not.be.reverted;
+  await expect((contract as any)[functionName](...args)).to.not.be.reverted;
 }
 
 export async function testConfigurationDependency(
@@ -140,38 +109,42 @@ export async function testConfigurationDependency(
 ) {
   // Test function fails without configuration
   await unconfigureFunction();
-  await expect(contract[functionName](...args))
-    .to.be.revertedWithCustomError(contract, expectedError);
+  await expect((contract as any)[functionName](...args))
+    .to.be.revertedWith(expectedError);
 
   // Configure
   await configureFunction();
 
   // Test function works with configuration
-  await expect(contract[functionName](...args)).to.not.be.reverted;
+  await expect((contract as any)[functionName](...args)).to.not.be.reverted;
 
   // Unconfigure again
   await unconfigureFunction();
   
   // Test function fails again
-  await expect(contract[functionName](...args))
-    .to.be.revertedWithCustomError(contract, expectedError);
+  await expect((contract as any)[functionName](...args))
+    .to.be.revertedWith(expectedError);
 }
 
 // Contract Deployment Helpers
-export async function deployLookCoinFixture(): Promise<DeploymentFixture> {
+// Re-export the deployLookCoinFixture from fixtures to maintain consistency
+export const deployLookCoinFixture = helperDeployLookCoinFixture;
+
+// Legacy deployment function (kept for reference, but use deployLookCoinFixture instead)
+export async function deployLookCoinFixtureLegacy(): Promise<any> {
   const [owner, admin, operator, user, user2, minter, burner, pauser, upgrader, bridgeOperator, protocolAdmin, securityAdmin, feeCollector] = await ethers.getSigners();
 
   // Deploy mocks
   const MockLayerZero = await ethers.getContractFactory("MockLayerZeroEndpoint");
-  const mockLayerZero = await MockLayerZero.deploy() as MockLayerZeroEndpoint;
+  const mockLayerZero = await MockLayerZero.deploy() as unknown as MockLayerZeroEndpoint;
   await mockLayerZero.waitForDeployment();
 
   const MockCeler = await ethers.getContractFactory("MockMessageBus");
-  const mockCeler = await MockCeler.deploy() as MockMessageBus;
+  const mockCeler = await MockCeler.deploy() as unknown as MockMessageBus;
   await mockCeler.waitForDeployment();
 
   const MockHyperlane = await ethers.getContractFactory("MockHyperlaneMailbox");
-  const mockHyperlane = await MockHyperlane.deploy() as MockHyperlaneMailbox;
+  const mockHyperlane = await MockHyperlane.deploy() as unknown as MockHyperlaneMailbox;
   await mockHyperlane.waitForDeployment();
 
   // Deploy LookCoin with proxy
@@ -284,17 +257,34 @@ export async function configureLookCoinForTesting(
   trustedRemote: string,
   gasAmount: number = 200000
 ) {
-  // Set trusted remote for destination chain
+  // Set trusted remote for destination chain (requires PROTOCOL_ADMIN_ROLE)
   await lookCoin.connect(protocolAdmin).setTrustedRemote(
     destinationChainId,
     trustedRemote
   );
 
-  // Set gas for destination
-  await lookCoin.connect(protocolAdmin).setGasForDestinationLzReceive(
+  // Set gas for destination (requires DEFAULT_ADMIN_ROLE - use the owner/admin)
+  // Get the admin/owner signer (should be the first signer)
+  const [governance] = await ethers.getSigners();
+  await lookCoin.connect(governance).setGasForDestinationLzReceive(gasAmount);
+}
+
+export async function configureLookCoinForTestingWithGovernance(
+  lookCoin: LookCoin,
+  protocolAdmin: SignerWithAddress,
+  governance: SignerWithAddress,
+  destinationChainId: number,
+  trustedRemote: string,
+  gasAmount: number = 200000
+) {
+  // Set trusted remote for destination chain (requires PROTOCOL_ADMIN_ROLE)
+  await lookCoin.connect(protocolAdmin).setTrustedRemote(
     destinationChainId,
-    gasAmount
+    trustedRemote
   );
+
+  // Set gas for destination (requires DEFAULT_ADMIN_ROLE - use provided governance)
+  await lookCoin.connect(governance).setGasForDestinationLzReceive(gasAmount);
 }
 
 export async function configureLayerZeroModule(
@@ -304,7 +294,7 @@ export async function configureLayerZeroModule(
   remoteAddress: string
 ) {
   await module.connect(admin).setTrustedRemote(destinationChainId, remoteAddress);
-  await module.connect(admin).setDestinationGas(destinationChainId, 200000);
+  // Note: LayerZeroModule doesn't have setDestinationGas function
 }
 
 export async function configureCelerModule(
@@ -328,23 +318,23 @@ export async function configureHyperlaneModule(
 ) {
   await module.connect(admin).setDomainMapping(destinationDomain, destinationChainId);
   await module.connect(admin).setTrustedSender(destinationDomain, trustedSender);
-  await module.connect(admin).setRequiredGasAmount(destinationDomain, 200000);
+  await module.connect(admin).setRequiredGasAmount(BigInt(200000));
 }
 
 export async function configureAllBridges(
-  fixture: DeploymentFixture,
+  fixture: any,
   destinationChainId: number,
   destinationDomain: number = 2 // Default for Hyperlane
 ) {
   const remoteAddress = "0x" + "1".repeat(40);
-  const trustedRemote = ethers.solidityPacked(["address", "address"], [remoteAddress, await fixture.lookCoin.getAddress()]);
 
-  // Configure LookCoin OFT
-  await configureLookCoinForTesting(
+  // Configure LookCoin OFT (expects just the remote address)
+  await configureLookCoinForTestingWithGovernance(
     fixture.lookCoin,
     fixture.protocolAdmin,
+    fixture.governance || fixture.owner, // Use governance from fixture
     destinationChainId,
-    trustedRemote
+    remoteAddress
   );
 
   // Configure LayerZero module
@@ -381,9 +371,9 @@ export async function configureAllBridges(
 
 // Mock Management Helpers
 export async function setupMockLayerZero(
-  mock: MockLayerZeroEndpoint,
-  successMode: boolean = true,
-  estimatedFee: bigint = ethers.parseEther("0.01")
+  _mock: MockLayerZeroEndpoint,
+  _successMode: boolean = true,
+  _estimatedFee: bigint = ethers.parseEther("0.01")
 ) {
   // Mock doesn't have these methods - just return for now
   // The mock always returns 0.01 ether as fee
@@ -391,7 +381,7 @@ export async function setupMockLayerZero(
 
 export async function setupMockCeler(
   mock: MockMessageBus,
-  successMode: boolean = true,
+  _successMode: boolean = true,
   messageFee: bigint = ethers.parseEther("0.005")
 ) {
   // Set fee parameters on the mock
@@ -399,9 +389,9 @@ export async function setupMockCeler(
 }
 
 export async function setupMockHyperlane(
-  mock: MockHyperlaneMailbox,
-  successMode: boolean = true,
-  gasPayment: bigint = ethers.parseEther("0.008")
+  _mock: MockHyperlaneMailbox,
+  _successMode: boolean = true,
+  _gasPayment: bigint = ethers.parseEther("0.008")
 ) {
   // Mock doesn't have these methods - just return for now
   // The mock has basic dispatch functionality
@@ -414,7 +404,7 @@ export async function simulateCrossChainMessage(
   protocol: "layerzero" | "celer" | "hyperlane"
 ) {
   switch (protocol) {
-    case "layerzero":
+    case "layerzero": {
       // Simulate LayerZero message
       const packet = ethers.AbiCoder.defaultAbiCoder().encode(
         ["uint16", "bytes"],
@@ -424,14 +414,17 @@ export async function simulateCrossChainMessage(
         await (targetContract as LookCoin | LayerZeroModule).lzReceive(sourceChainId, "0x", 0, packet);
       }
       break;
+    }
     case "celer":
       // Simulate Celer message
       if ('executeMessageWithTransfer' in targetContract) {
         await (targetContract as CelerIMModule).executeMessageWithTransfer(
           "0x", // sender
           await targetContract.getAddress(),
+          BigInt(0), // amount
+          sourceChainId,
           messageData,
-          0 // messageId
+          ethers.ZeroAddress // executor
         );
       }
       break;
@@ -493,7 +486,7 @@ export async function testRolePermissions(
   authorizedSigner: SignerWithAddress,
   unauthorizedSigner: SignerWithAddress
 ) {
-  const role = await contract[roleName]();
+  const role = await (contract as any)[roleName]();
   await testRoleBasedFunction(
     contract,
     roleFunction,
@@ -505,14 +498,14 @@ export async function testRolePermissions(
 }
 
 // State Manipulation Helpers
-export async function pauseAllContracts(fixture: DeploymentFixture) {
+export async function pauseAllContracts(fixture: any) {
   await fixture.lookCoin.connect(fixture.pauser).pause();
   await fixture.crossChainRouter.connect(fixture.admin).pause();
   await fixture.celerIMModule.connect(fixture.admin).pause();
   await fixture.hyperlaneModule.connect(fixture.admin).pause();
 }
 
-export async function unpauseAllContracts(fixture: DeploymentFixture) {
+export async function unpauseAllContracts(fixture: any) {
   await fixture.lookCoin.connect(fixture.pauser).unpause();
   await fixture.crossChainRouter.connect(fixture.admin).unpause();
   await fixture.celerIMModule.connect(fixture.admin).unpause();
@@ -556,12 +549,11 @@ export async function executeCrossChainTransfer(
   }
 
   // Estimate fee
-  const [nativeFee] = await lookCoin.estimateSendFee(
+  const recipientBytes = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [recipient]);
+  const [nativeFee] = await lookCoin.estimateBridgeFee(
     destinationChainId,
-    recipient,
-    amount,
-    false,
-    adapterParams
+    recipientBytes,
+    amount
   );
 
   // Execute transfer
@@ -580,8 +572,8 @@ export async function executeCrossChainTransfer(
 }
 
 export async function simulateTransferFailure(
-  mock: MockLayerZeroEndpoint | MockMessageBus | MockHyperlaneMailbox,
-  protocol: "layerzero" | "celer" | "hyperlane"
+  _mock: MockLayerZeroEndpoint | MockMessageBus | MockHyperlaneMailbox,
+  _protocol: "layerzero" | "celer" | "hyperlane"
 ) {
   // The current mocks don't have failure simulation methods
   // This would need to be implemented in the mock contracts
@@ -590,7 +582,7 @@ export async function simulateTransferFailure(
 
 // Assertion and Validation Helpers
 export async function assertRoleBasedAccess(
-  contract: LookCoin,
+  contract: any,
   functionName: string,
   args: any[],
   role: string,
@@ -599,19 +591,19 @@ export async function assertRoleBasedAccess(
 ) {
   // Should succeed with authorized signer
   await expect(
-    contract.connect(authorizedSigner)[functionName](...args)
+    (contract.connect(authorizedSigner) as any)[functionName](...args)
   ).to.not.be.reverted;
 
   // Should fail with unauthorized signer
   await expect(
-    contract.connect(unauthorizedSigner)[functionName](...args)
+    (contract.connect(unauthorizedSigner) as any)[functionName](...args)
   ).to.be.revertedWithCustomError(contract, "AccessControlUnauthorizedAccount")
     .withArgs(unauthorizedSigner.address, role);
 }
 
 export async function assertEventEmission(
   tx: any,
-  contract: LookCoin,
+  contract: any,
   eventName: string,
   expectedArgs: any[]
 ) {
@@ -659,7 +651,7 @@ export async function advanceTimeAndBlock(seconds: number) {
 // Error and Exception Helpers
 export async function expectSpecificRevert(
   operation: () => Promise<any>,
-  contract: LookCoin,
+  contract: any,
   errorName: string,
   ...errorArgs: any[]
 ) {
@@ -680,7 +672,7 @@ export async function testAllRevertScenarios(
   scenarios: Array<{
     name: string;
     operation: () => Promise<any>;
-    contract: LookCoin;
+    contract: any;
     errorName: string;
     errorArgs?: any[];
   }>
@@ -783,7 +775,7 @@ export const coverageTracker = new CoverageTracker();
 
 // Integration Testing Helpers
 export async function testProtocolInteroperability(
-  fixture: DeploymentFixture,
+  fixture: any,
   amount: bigint,
   destinationChainId: number
 ) {
@@ -792,7 +784,7 @@ export async function testProtocolInteroperability(
   // Test all protocols can bridge
   for (const protocol of [0, 1, 2]) { // LayerZero, Celer, Hyperlane
     const options = await fixture.crossChainRouter.getBridgeOptions(destinationChainId);
-    const protocolOption = options.find(o => o.protocol === protocol);
+    const protocolOption = options.find((o: any) => o.protocol === protocol);
     
     expect(protocolOption).to.not.be.undefined;
     expect(protocolOption!.available).to.be.true;
@@ -800,7 +792,7 @@ export async function testProtocolInteroperability(
     // Execute bridge via router
     await fixture.lookCoin.connect(fixture.user).approve(await fixture.crossChainRouter.getAddress(), amount);
     
-    const tx = await fixture.crossChainRouter.connect(fixture.user).bridgeToken(
+    const tx = await fixture.crossChainRouter.connect(fixture.user).bridge(
       protocol,
       destinationChainId,
       recipient,
@@ -813,7 +805,7 @@ export async function testProtocolInteroperability(
 }
 
 export async function validateCrossContractInteractions(
-  fixture: DeploymentFixture,
+  fixture: any,
   operation: () => Promise<any>
 ) {
   // Track state before operation
@@ -833,3 +825,9 @@ export async function validateCrossContractInteractions(
     pauseStateChanged: routerPausedAfter !== routerPausedBefore,
   };
 }
+
+// Export fixtures and types to fix import errors
+export type ComprehensiveFixture = any;
+
+// Create an alias for deployLookCoinFixture to match expected import
+export const deployComprehensiveFixture = helperDeployLookCoinFixture;

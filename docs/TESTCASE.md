@@ -2,107 +2,162 @@
 
 This document provides a comprehensive overview of the LookCoin contract test suite, including test organization, coverage, and execution guidelines.
 
-## Test Structure
+## Test Structure Overview
 
-The test suite is organized into two main categories:
+The test suite has been consolidated from scattered files into a more coherent, maintainable structure. The reorganization provides comprehensive coverage while maintaining clarity and performance.
+
+### Test Organization Philosophy
+
+The consolidated test suite follows these principles:
+- **Comprehensive Coverage**: Each test file covers all aspects of a single contract/component
+- **Security First**: Security testing is prominently featured across all test categories
+- **Maintainability**: Related tests are grouped together to reduce duplication
+- **Performance**: Strategic use of fixtures and efficient test patterns
+
+## Consolidated Test Structure
 
 ### 1. Unit Tests (`/test/unit/`)
 
-Unit tests focus on individual contract functionality in isolation.
+Unit tests focus on individual contract functionality with comprehensive security coverage.
 
-#### LookCoin Core Tests (`/test/unit/lookcoin/`)
+#### Core Contract Tests
 
-- **erc20Security.test.ts**: Comprehensive ERC20 security features including:
-  - **Role-Based Access Control Tests**: MINTER_ROLE, BURNER_ROLE, PAUSER_ROLE, UPGRADER_ROLE, BRIDGE_ROLE validation
-  - **Mint/Burn Security Tests**: Zero address/amount validation, supply tracking, authorization checks
-  - **Pause Mechanism Tests**: All pausable functions (transfer, transferFrom, mint, burn, approve)
-  - **Reentrancy Protection Tests**: Mock attacker contract testing for mint/burn operations
-  - **Transfer and Approval Tests**: Standard ERC20 functionality with edge cases
-  - **Supply Tracking Tests**: totalMinted, totalBurned, circulatingSupply validation
-  - **Boolean Combination Testing**: Comprehensive state transition testing
-  - **Edge Cases**: Maximum values, zero amounts, overflow protection
+- **LookCoin.test.ts** (consolidated from 6 files):
+  - **ERC20 Security Features**: Role-based access control, mint/burn authorization, transfer validation
+  - **LayerZero OFT V2 Integration**: Cross-chain transfers, trusted remotes, gas configuration
+  - **EIP-2612 Permit Functionality**: Signature validation, deadline enforcement, nonce management
+  - **Reentrancy Protection**: Advanced reentrancy attack prevention testing
+  - **Pause Mechanisms**: Comprehensive pausable function testing
+  - **Supply Tracking**: totalMinted, totalBurned, circulatingSupply validation
+  - **Edge Cases**: Zero values, boundary conditions, overflow protection
+  - **Boolean Combination Testing**: Systematic state transition testing
 
-- **permit.test.ts**: EIP-2612 permit functionality:
-  - **Domain Separator**: Correct EIP-712 domain configuration
-  - **Permit Execution**: Valid signature processing and allowance setting
-  - **Security Validations**: Expired deadlines, invalid signatures, nonce management
-  - **Integration**: permit + transferFrom workflows
+#### Bridge Module Tests
 
-- **oft.test.ts**: LayerZero OFT V2 integration:
-  - **OFT Configuration**: Trusted remote setup, gas configuration, DVN settings
-  - **Cross-chain Transfer Validation**: Chain configuration checks, parameter validation
-  - **Supply Tracking**: Mint/burn tracking across chains
-  - **Bridge Convenience Functions**: estimateBridgeFee, bridgeToken helpers
-  - **Access Control**: PROTOCOL_ADMIN_ROLE and DEFAULT_ADMIN_ROLE enforcement
+- **LayerZeroModule.test.ts** (consolidated from 3 files):
+  - **Configuration Management**: Endpoints, trusted remotes, gas limits, DVN settings
+  - **Bridge Operations**: sendFrom, lzReceive, fee estimation, nonce tracking
+  - **Security Validations**: Access control, trusted source verification, packet validation
+  - **Integration Testing**: CrossChainRouter compatibility, event emission validation
 
-#### Bridge Module Tests (`/test/unit/bridges/`)
+- **CelerIMModule.test.ts** (consolidated from 3 files):
+  - **MessageBus Integration**: Configuration, remote modules, fee parameters
+  - **Token Bridging**: Message handling, transfer ID tracking, fee management
+  - **Security Controls**: Access control, message validation, transfer limits
 
-**LayerZero (`/layerzero/`)**
+- **HyperlaneModule.test.ts** (consolidated from 3 files):
+  - **Mailbox Configuration**: Domain mapping, ISM settings, gas oracles
+  - **Cross-chain Operations**: Message dispatching, fee estimation, domain validation
+  - **Security Framework**: Trusted sender validation, message authentication
 
-- **configuration.test.ts**: Configuration management including endpoints, trusted remotes, gas limits, DVN settings
-- **operations.test.ts**: Comprehensive bridge operations including:
-  - **Outbound Transfer Tests**: sendFrom with various parameters, self-transfers, allowance validation
-  - **Bridge Token Tests**: Direct LayerZero bridging vs CrossChainRouter integration
-  - **Inbound Transfer Tests**: lzReceive validation, nonce tracking, packet type handling
-  - **Fee Estimation Tests**: estimateSendFee, estimateBridgeFee with custom adapter params
-  - **Configuration Integration**: Complete vs partial configuration validation
-  - **Event Emission Tests**: SendToChain, CrossChainTransferInitiated, ReceiveFromChain events
-  - **Boolean Combination Testing**: Authorized caller, trusted source, nonce processing combinations
+#### Cross-Chain Infrastructure Tests
 
-**Celer (`/celer/`)**
+- **CrossChainRouter.test.ts** (consolidated from 3 files):
+  - **Protocol Management**: Module registration, chain support, security levels
+  - **Multi-Protocol Bridging**: Automatic route selection, failover mechanisms
+  - **Transfer Tracking**: Comprehensive transfer lifecycle management
+  - **Emergency Controls**: Pause functionality, protocol disabling
 
-- **configuration.test.ts**: MessageBus setup, remote modules, fee parameters, access control
-- **operations.test.ts**: Token bridging, message handling, transfer ID tracking, fee management
+- **SupplyOracle.test.ts** (consolidated from 4 files):
+  - **Multi-Signature Updates**: Supply tracking, deviation detection, reconciliation
+  - **Chain Management**: Cross-chain balance monitoring, anomaly detection
+  - **Security Monitoring**: 15-minute reconciliation cycles, emergency pause triggers
+  - **Governance Integration**: MPC vault integration, administrative controls
 
-**Hyperlane (`/hyperlane/`)**
+#### Security and Governance Tests
 
-- **configuration.test.ts**: Mailbox configuration, domain mapping, ISM settings, gas oracles
-- **operations.test.ts**: Cross-chain transfers, message dispatching, fee estimation, domain validation
+- **SecurityManager.test.ts** (consolidated from 2 files):
+  - **Rate Limiting**: Daily limits (global/chain/user), transaction throttling
+  - **Access Control**: Whitelist/blacklist management, suspicious activity detection
+  - **Emergency Response**: Automatic pause triggers, security incident handling
 
-#### Router Tests (`/test/unit/router/`)
+- **MinimalTimelock.test.ts** (new governance test):
+  - **Timelock Operations**: Delay enforcement, proposal queuing, execution validation
+  - **Access Control**: Multi-role governance, emergency override capabilities
+  - **Integration Security**: Cross-contract governance validation
 
-- **configuration.test.ts**: Protocol module registration, chain support, security levels
-- **operations.test.ts**: Multi-protocol bridging, automatic route selection, transfer tracking, pause functionality
+#### Advanced Security Tests
 
-#### Fee Management (`/test/unit/feeManager/`)
+- **bridges/comprehensive/bridgeSecurity.test.ts**:
+  - **Multi-Protocol Security**: Comprehensive security testing across all bridge protocols
+  - **Attack Vector Testing**: Sophisticated attack scenario simulation
+  - **Cross-Bridge Validation**: Inter-protocol security consistency
+  - **Advanced Reentrancy**: Complex reentrancy attack patterns
+  - **Authorization Bypass**: Comprehensive authorization testing
 
-- **feeManager.test.ts**: Protocol fees, chain multipliers, gas price management, fee collection/withdrawal
-
-#### Protocol Registry (`/test/unit/protocolRegistry/`)
-
-- **protocolRegistry.test.ts**: Protocol registration, chain support mapping, status management, emergency functions
-
-#### Security Components (`/test/unit/security/`)
-
-- **securityManager.test.ts**: Daily limits (global/chain/user), whitelist/blacklist, suspicious activity detection
-- **supplyOracle.test.ts**: Multi-signature supply updates, deviation detection, chain management, reconciliation
+- **security/securityEdgeCases.test.ts**:
+  - **Recent Security Fixes**: Tests for recently patched vulnerabilities
+  - **Edge Case Validation**: Boundary condition security testing
+  - **Integration Security**: Cross-contract security validation
+  - **Advanced Attack Patterns**: Sophisticated exploit prevention testing
 
 ### 2. Integration Tests (`/test/integration/`)
 
 Integration tests verify end-to-end functionality and component interactions.
 
-- **crossChainFlows.test.ts**: Complete bridge flows, multi-protocol failover, security integration, fee distribution
-- **security.test.ts**: Access control across contracts, attack prevention, emergency response, governance security
-- **consolidatedDeployment.test.ts**: Deployment script testing, artifact management, configuration validation
+- **CrossChainTransfers.test.ts**: Complete cross-chain transfer workflows, multi-protocol coordination, end-to-end validation
+- **DeploymentFlow.test.ts**: Deployment script testing, artifact management, configuration validation, upgrade procedures
+- **EmergencyScenarios.test.ts**: Emergency response testing, system-wide pause mechanisms, recovery procedures
+- **GovernanceFlow.test.ts**: Governance workflow testing, timelock integration, multi-signature operations
+
+### 3. Test Helpers and Utilities (`/test/helpers/` and `/test/utils/`)
+
+Comprehensive testing infrastructure supporting the consolidated test suite:
+
+- **fixtures.ts**: Deployment fixtures with proper role assignments and configuration
+- **constants.ts**: Test constants including roles, amounts, addresses, chains, and error messages
+- **security.ts**: Security-focused testing utilities and validation functions
+- **utils.ts**: General testing utilities and assertion helpers
+- **comprehensiveTestHelpers.ts**: Advanced testing utilities for complex scenarios
+- **enhancedTestUtils.ts**: Enhanced utilities for comprehensive test coverage
+- **securityAudit.ts**: Security audit tooling and validation functions
+- **testConfig.ts**: Test configuration management and network-specific settings
 
 ## Test Coverage Areas
 
-### 1. Security Testing
+### 1. Security Testing (Primary Focus)
 
-- **Access Control**:
-  - Role-based permissions (MINTER, BURNER, PAUSER, UPGRADER, BRIDGE, PROTOCOL_ADMIN)
-  - Privilege escalation prevention with comprehensive role testing
-  - Boolean combination testing for all role states
-- **Reentrancy Protection**: Mock attacker contracts testing mint/burn operations
-- **Supply Security**:
-  - Multi-signature requirements for supply oracle updates
-  - Deviation detection and anomaly response
-  - Supply tracking validation (totalMinted, totalBurned, circulatingSupply)
-- **Message Security**:
-  - EIP-2612 permit signature validation and replay prevention
-  - LayerZero trusted remote validation and nonce tracking
-  - Cross-chain message authentication
-- **Pause Mechanisms**: Comprehensive pausable function testing across all operations
+The consolidated test suite places security as the highest priority, with dedicated security tests throughout:
+
+#### Core Security Validations
+- **Role-Based Access Control**:
+  - Comprehensive testing of all roles (MINTER, BURNER, PAUSER, UPGRADER, BRIDGE, PROTOCOL_ADMIN, DEFAULT_ADMIN)
+  - Privilege escalation prevention with exhaustive role combination testing
+  - Authorization bypass prevention across all contract interactions
+  - Boolean combination testing for all possible role states
+
+#### Advanced Security Features
+- **Reentrancy Protection**:
+  - Sophisticated reentrancy attack simulation using multiple attack vectors
+  - Advanced attacker contracts testing complex exploitation patterns
+  - Cross-function reentrancy protection validation
+  - Integration with ReentrancyGuard testing across all vulnerable functions
+
+- **Cross-Chain Security**:
+  - Multi-protocol bridge security validation (LayerZero, Celer, Hyperlane)
+  - Trusted remote validation and message authentication
+  - Cross-chain supply reconciliation and anomaly detection
+  - Bridge authorization and packet validation
+
+#### Supply and Oracle Security
+- **Supply Oracle Security**:
+  - Multi-signature requirements for supply updates
+  - 15-minute reconciliation cycle testing with deviation thresholds
+  - Cross-chain balance monitoring and automatic pause triggers
+  - Supply manipulation attack prevention
+
+- **Message and Signature Security**:
+  - EIP-2612 permit signature validation and replay attack prevention
+  - LayerZero nonce tracking and duplicate message prevention
+  - Cross-chain message authentication and trusted source validation
+  - Deadline enforcement and signature expiration testing
+
+#### Emergency and Governance Security
+- **Emergency Response**:
+  - System-wide pause mechanisms with role-based activation
+  - Emergency recovery procedures and governance override capabilities
+  - Incident response testing and automatic threat detection
+  - Multi-level security controls with escalation procedures
 
 ### 2. Functional Testing
 
@@ -145,176 +200,279 @@ Integration tests verify end-to-end functionality and component interactions.
 ### All Tests
 
 ```bash
-npm test
+npm test                        # Runs entire consolidated test suite
 ```
 
-### Unit Tests Only
+### Unit Tests (Consolidated)
 
 ```bash
-npm run test:unit
+npm run test:unit              # All unit tests (consolidated structure)
 ```
 
-### Specific Unit Test Categories
+### Individual Contract Tests
+
+The consolidated test structure allows testing specific contracts/components:
 
 ```bash
-npm run test:unit:lookcoin    # Core LookCoin tests (ERC20Security, OFT, Permit)
-npm run test:unit:bridges     # All bridge tests (LayerZero, Celer, Hyperlane)
-npm run test:unit:router      # Router tests (Configuration, Operations)
-npm run test:unit:security    # Security component tests (SecurityManager, SupplyOracle)
+# Core contract tests
+npx hardhat test test/unit/LookCoin.test.ts                    # Complete LookCoin functionality
+npx hardhat test test/unit/MinimalTimelock.test.ts             # Governance timelock testing
+
+# Bridge module tests
+npx hardhat test test/unit/LayerZeroModule.test.ts             # LayerZero bridge operations
+npx hardhat test test/unit/CelerIMModule.test.ts               # Celer Inter-chain Messaging
+npx hardhat test test/unit/HyperlaneModule.test.ts             # Hyperlane bridge operations
+
+# Cross-chain infrastructure tests
+npx hardhat test test/unit/CrossChainRouter.test.ts            # Multi-protocol routing
+npx hardhat test test/unit/SupplyOracle.test.ts                # Supply monitoring & reconciliation
+npx hardhat test test/unit/SecurityManager.test.ts             # Security controls & rate limiting
+
+# Security-focused tests
+npx hardhat test test/unit/bridges/comprehensive/bridgeSecurity.test.ts    # Multi-protocol security
+npx hardhat test test/unit/security/securityEdgeCases.test.ts              # Security edge cases
 ```
 
 ### Integration Tests
 
 ```bash
 npm run test:integration                   # All integration tests
-npm run test:integration:flows            # Cross-chain flow tests
-npm run test:integration:security         # Security integration tests
-npm run test:integration:deployment       # Deployment tests
+npm run test:integration:flows            # Cross-chain transfer workflows
+npm run test:integration:security         # Security integration testing
+npm run test:integration:deployment       # Deployment flow validation
 ```
 
-### With Gas Reporting
+### Security-Focused Testing
 
 ```bash
-npm run test:gas
+npm run security:test          # Security-specific test suite
+npm run audit                  # Run comprehensive security audit
+npm run security:scan          # Vulnerability scanning
 ```
 
-### Coverage Reports
+### Performance and Analysis
 
 ```bash
-npm run coverage                # Full coverage
-npm run coverage:unit          # Unit test coverage
-npm run coverage:integration   # Integration test coverage
+npm run test:gas              # Gas usage reporting
+npm run coverage              # Full coverage analysis
+npm run coverage:unit         # Unit test coverage only
+npm run coverage:integration  # Integration test coverage only
+npm run size                  # Contract size analysis
 ```
 
-## Test Helpers
+## Test Infrastructure
 
-The test suite uses comprehensive helper utilities located in `/test/utils/comprehensiveTestHelpers.ts`:
+### Consolidated Test Helpers
 
-### Core Fixtures and Deployment
+The consolidated test suite utilizes a comprehensive testing infrastructure across multiple helper files:
 
-- **deployLookCoinFixture**: Deploys complete test environment with all contracts and proper role assignments
-- **DeploymentFixture Interface**: Standardized fixture structure with all contracts and signers
-- **Mock Contracts**: MockLayerZeroEndpoint, MockMessageBus, MockHyperlaneMailbox with realistic behavior
+#### Core Testing Framework (`/test/helpers/`)
 
-### Configuration Helpers
+- **fixtures.ts**: Standardized deployment fixtures supporting the consolidated test structure
+  - `deployLookCoinFixture`: Complete test environment with all contracts and proper role assignments
+  - `deployLookCoinOnlyFixture`: Minimal LookCoin deployment for focused testing
+  - Automated configuration setup for all bridge protocols
 
-- **configureLookCoinForTesting**: Sets up trusted remotes and gas configurations for OFT
-- **configureLayerZeroModule**: Module-specific LayerZero configuration
-- **configureCelerModule**: Celer MessageBus and fee configuration
-- **configureHyperlaneModule**: Domain mapping and trusted sender setup
-- **configureAllBridges**: One-command setup for all bridge protocols
+- **constants.ts**: Centralized test constants supporting all test categories
+  - Role definitions (MINTER, BURNER, PAUSER, UPGRADER, BRIDGE, PROTOCOL_ADMIN, DEFAULT_ADMIN)
+  - Standard test amounts, addresses, and chain configurations
+  - Error messages and event definitions for comprehensive validation
 
-### Testing Utilities
+- **security.ts**: Security-focused testing utilities
+  - Advanced reentrancy attack simulation functions
+  - Access control validation across all contract interactions
+  - Security pattern testing for complex attack vectors
 
-- **testBooleanCombinations**: Systematic testing of all boolean state combinations
-- **testRoleBasedFunction**: Automated role-based access control testing
-- **testPausableFunction**: Pause mechanism validation across functions
-- **testConfigurationDependency**: Configuration requirement validation
+- **utils.ts**: General testing utilities and assertion helpers
+  - Event emission validation with parameter checking
+  - Balance and supply change tracking
+  - Custom error and revert message validation
 
-### Assertion Helpers
+#### Advanced Testing Utilities (`/test/utils/`)
 
-- **assertBalanceChanges**: Validates token balance changes during operations
-- **assertSupplyChanges**: Tracks totalMinted and totalBurned changes
-- **assertEventEmission**: Event emission validation with parameter checking
-- **expectSpecificRevert**: Custom error and revert message validation
+- **comprehensiveTestHelpers.ts**: Advanced utilities for complex testing scenarios
+  - Boolean combination testing for systematic state validation
+  - Multi-protocol bridge configuration and testing
+  - Cross-chain message simulation and validation
+  - Coverage tracking for comprehensive test reporting
 
-### Coverage Tracking
+- **enhancedTestUtils.ts**: Enhanced utilities supporting the consolidated structure
+  - Role-based function testing automation
+  - Pausable function validation across all contracts
+  - Configuration dependency testing
 
-- **CoverageTracker Class**: Tracks function, branch, and boolean combination coverage
-- **coverageTracker**: Global instance for comprehensive test coverage reporting
-- **Coverage Validation**: Ensures all expected test scenarios are covered
+- **securityAudit.ts**: Security audit tooling and validation
+  - Automated security pattern detection
+  - Vulnerability scanning integration
+  - Security metric collection and reporting
 
-### State Management
+- **testConfig.ts**: Test configuration management
+  - Network-specific testing configurations
+  - Mock contract behavior configuration
+  - Test environment setup and teardown
 
-- **pauseAllContracts/unpauseAllContracts**: System-wide pause state management
-- **enableAllProtocols/disableAllProtocols**: Protocol status management
-- **grantAllRoles/revokeAllRoles**: Bulk role management for testing
+#### Mock Contract Framework
 
-## Best Practices
+Sophisticated mock contracts providing realistic protocol behavior:
+- **MockLayerZeroEndpoint**: Complete LayerZero V2 endpoint simulation
+- **MockMessageBus**: Celer Inter-chain Messaging simulation
+- **MockHyperlaneMailbox**: Hyperlane protocol simulation
+- **Advanced Attack Contracts**: Sophisticated reentrancy and attack pattern simulation
 
-1. **Isolation**: Each test uses `loadFixture(deployLookCoinFixture)` for complete isolation
-2. **Completeness**:
-   - Test both success and failure cases with `expectSpecificRevert`
-   - Use boolean combination testing for comprehensive state coverage
-   - Validate all event emissions and state changes
-3. **Clarity**:
-   - Descriptive test names explaining the specific scenario
-   - Organized test suites by functionality (Role-Based Access Control, Mint/Burn Security, etc.)
-4. **Performance**:
-   - Strategic use of `beforeEach` for common setup
-   - Efficient fixture loading with proper cleanup
-5. **Assertions**:
-   - Use specialized helpers (`assertBalanceChanges`, `assertSupplyChanges`)
-   - Validate specific custom errors with parameters
-   - Track coverage with `coverageTracker` for comprehensive reporting
+## Best Practices for the Consolidated Test Suite
 
-## Adding New Tests
+### 1. Test Organization and Structure
 
-When adding new functionality:
+- **Consolidated Approach**: Each test file comprehensively covers all aspects of a single contract/component
+- **Security-First**: Security testing is integrated throughout, not relegated to separate files
+- **Maintainability**: Related functionality is grouped together to reduce duplication and improve maintainability
 
-1. **Unit Tests First**:
-   - Create unit tests for new contract functions using the established patterns
-   - Use `deployLookCoinFixture` for consistent test environment
-   - Follow the boolean combination testing approach for state transitions
+### 2. Test Isolation and Environment
 
-2. **Integration Tests**:
-   - Add integration tests for cross-contract interactions
-   - Use `configureAllBridges` helper for multi-protocol testing
-   - Validate cross-contract state consistency
+- **Complete Isolation**: Each test uses `loadFixture(deployLookCoinFixture)` for complete environmental isolation
+- **Standardized Fixtures**: Use consistent deployment fixtures across all test files
+- **Proper Cleanup**: Efficient fixture loading with automatic cleanup between tests
 
-3. **Security Considerations**:
-   - Include comprehensive access control testing with role-based helpers
-   - Test all revert scenarios with `expectSpecificRevert`
-   - Add reentrancy protection tests where applicable
+### 3. Comprehensive Coverage Standards
 
-4. **Coverage Tracking**:
-   - Use `coverageTracker` to track function, branch, and boolean combination coverage
-   - Ensure all expected scenarios are tested and documented
+- **Security and Functionality**: Test both security controls and functional requirements in every test file
+- **Boolean Combination Testing**: Use systematic boolean combination testing for comprehensive state coverage
+- **Success and Failure Cases**: Test both success paths and all possible failure scenarios with `expectSpecificRevert`
+- **Event Validation**: Validate all event emissions and state changes using specialized assertion helpers
 
-5. **Documentation**:
-   - Update this file with new test descriptions and patterns
-   - Document any new helper functions or testing utilities
+### 4. Security Testing Requirements
+
+- **Access Control**: Comprehensive role-based access control testing in every relevant test
+- **Reentrancy Protection**: Include reentrancy attack simulation where applicable
+- **Input Validation**: Validate all input parameters and boundary conditions
+- **Cross-Protocol Security**: Test security implications across multiple bridge protocols
+
+### 5. Performance and Clarity
+
+- **Descriptive Naming**: Test names should clearly explain the specific scenario being tested
+- **Logical Organization**: Group tests by functionality (Security, Configuration, Operations, etc.)
+- **Strategic Setup**: Use `beforeEach` for common setup while maintaining test independence
+- **Specialized Assertions**: Use helper functions (`assertBalanceChanges`, `assertSupplyChanges`, `expectSpecificRevert`)
+
+## Adding New Tests to the Consolidated Structure
+
+### 1. Determine Test Location
+
+- **New Contract**: Create a new consolidated test file in `/test/unit/`
+- **Existing Contract**: Add to the appropriate existing consolidated test file
+- **Security Focus**: Consider adding to `bridgeSecurity.test.ts` or `securityEdgeCases.test.ts`
+- **Integration**: Add to appropriate integration test file
+
+### 2. Follow Consolidation Patterns
+
+- **Comprehensive Coverage**: Ensure your test covers all aspects of the functionality (security, configuration, operations)
+- **Use Standard Helpers**: Leverage existing helpers from `/test/helpers/` and `/test/utils/`
+- **Security Integration**: Include security testing alongside functional testing
+- **Documentation**: Update test descriptions to reflect comprehensive coverage
+
+### 3. Security Testing Requirements
+
+- **Access Control**: Include comprehensive role-based access control testing
+- **Attack Vectors**: Test relevant attack scenarios (reentrancy, authorization bypass, etc.)
+- **Input Validation**: Validate all input parameters and edge cases
+- **Emergency Controls**: Test pause mechanisms and emergency procedures where applicable
+
+### 4. Integration with Test Infrastructure
+
+- **Use Standard Fixtures**: Leverage `deployLookCoinFixture` and other standard fixtures
+- **Leverage Helpers**: Use existing testing utilities from the helper files
+- **Coverage Tracking**: Ensure your tests contribute to overall coverage metrics
+- **Performance**: Consider gas usage and test execution time
+
+### 5. Documentation and Maintenance
+
+- **Update This Documentation**: Add new test descriptions to this file
+- **Helper Documentation**: Document any new helper functions or testing utilities
+- **Security Notes**: Document any new security patterns or attack vectors tested
 
 ## CI/CD Integration
 
-The test suite is designed to run in CI/CD pipelines:
+The consolidated test suite is optimized for CI/CD pipeline execution:
 
-- All tests must pass before merging
-- Coverage thresholds should be maintained (aim for >90%)
-- Gas reports should be reviewed for optimization opportunities
-- Security tests run on every commit
+### Pipeline Requirements
+- **Complete Test Execution**: All consolidated tests must pass before merging
+- **Coverage Thresholds**: Maintain >90% coverage across all test categories
+- **Security Gate**: Security-focused tests must pass on every commit
+- **Gas Optimization**: Gas reports reviewed for optimization opportunities
+- **Performance Monitoring**: Test execution time tracked and optimized
 
-## Test Architecture Highlights
+### Automated Testing Workflows
+- **Unit Test Validation**: Consolidated unit tests run on every pull request
+- **Integration Testing**: Full integration suite runs on main branch commits
+- **Security Scanning**: Automated security tests and vulnerability scanning
+- **Coverage Reporting**: Comprehensive coverage analysis with trend tracking
 
-### Boolean Combination Testing
+## Consolidated Test Architecture Highlights
 
-The test suite implements systematic boolean combination testing using the `testBooleanCombinations` helper:
+### 1. Test Consolidation Benefits
 
-- Tests all possible state transitions (false→true, true→false, false→false, true→true)
-- Ensures comprehensive coverage of configuration states
-- Validates role-based access control across all combinations
+- **Reduced Duplication**: Elimination of scattered, redundant test files
+- **Improved Maintainability**: Single source of truth for each contract's testing
+- **Enhanced Security Coverage**: Security testing integrated throughout, not isolated
+- **Better Performance**: Optimized fixture usage and reduced test setup overhead
 
-### Coverage Tracking System
+### 2. Advanced Testing Patterns
 
-- **CoverageTracker Class**: Tracks function calls, branch coverage, and boolean combinations
-- **Automated Reporting**: Generates coverage reports showing tested scenarios
-- **Validation**: Ensures all expected test combinations are covered
+- **Boolean Combination Testing**: Systematic validation of all possible state transitions
+- **Multi-Protocol Validation**: Consistent security testing across all bridge protocols  
+- **Comprehensive Role Testing**: Exhaustive access control validation across all role combinations
+- **Integrated Attack Simulation**: Advanced reentrancy and attack vector testing
 
-### Mock Integration
+### 3. Security-First Architecture
 
-- **Realistic Mocks**: MockLayerZeroEndpoint, MockMessageBus, MockHyperlaneMailbox simulate real protocol behavior
-- **Configurable Behavior**: Mocks support success/failure modes and custom parameters
-- **Cross-Chain Simulation**: Helper functions simulate cross-chain message delivery
+- **Embedded Security Testing**: Security validations integrated into functional tests
+- **Advanced Attack Vectors**: Sophisticated reentrancy and authorization bypass testing
+- **Cross-Protocol Security**: Multi-bridge security consistency validation
+- **Emergency Response Testing**: Comprehensive emergency control and recovery testing
 
-## Known Limitations
+### 4. Mock Framework Excellence
 
-1. **Mock Limitations**: Bridge protocol mocks may not capture all edge cases of real protocols
-2. **Time-Dependent Tests**: Time-sensitive tests use time manipulation helpers
-3. **Upgrade Testing**: UUPS upgrade testing requires specific proxy setup patterns
+- **Protocol-Accurate Mocks**: MockLayerZeroEndpoint, MockMessageBus, MockHyperlaneMailbox with realistic behavior
+- **Configurable Attack Scenarios**: Advanced mock attackers for sophisticated security testing
+- **Cross-Chain Simulation**: Comprehensive cross-chain message delivery simulation
+- **State Management**: Advanced mock state management for complex testing scenarios
 
-## Future Enhancements
+## Test Suite Evolution and Future Enhancements
 
-1. **Fuzzing Integration**: Add property-based testing for complex scenarios using foundry
-2. **Performance Benchmarking**: Gas optimization tests with detailed reporting
-3. **Chain-Specific Testing**: Network-specific tests for each supported blockchain
-4. **Advanced Coverage**: Integration with solidity-coverage for line-by-line analysis
+### Current Strengths
+1. **Comprehensive Consolidation**: From 20+ scattered files to 11 focused, comprehensive test files
+2. **Security Integration**: Security testing embedded throughout, not segregated
+3. **Advanced Infrastructure**: Sophisticated helper framework supporting complex testing scenarios
+4. **Performance Optimization**: Optimized fixture usage and test execution patterns
+
+### Future Enhancement Opportunities
+1. **Fuzzing Integration**: Property-based testing integration for advanced edge case discovery
+2. **Performance Benchmarking**: Advanced gas optimization analysis and reporting
+3. **Chain-Specific Testing**: Network-specific test suites for each supported blockchain
+4. **Formal Verification**: Integration with formal verification tools for mathematical proof of correctness
+
+### Maintenance Considerations
+1. **Documentation Currency**: Keep this documentation synchronized with test structure changes
+2. **Helper Evolution**: Continuously improve helper functions based on testing patterns
+3. **Security Updates**: Regular updates to security testing patterns based on new attack vectors
+4. **Performance Monitoring**: Ongoing monitoring and optimization of test execution performance
+
+## Migration Notes
+
+### From Scattered to Consolidated Structure
+
+The test suite has been reorganized from a scattered structure with 20+ files into a consolidated structure:
+
+**Previous Structure** (scattered):
+- Multiple small files per contract component
+- Separated security and functional testing
+- Duplicated setup and configuration code
+- Inconsistent testing patterns
+
+**Current Structure** (consolidated):
+- Comprehensive test files covering entire contracts
+- Integrated security and functional testing
+- Shared infrastructure and helper functions
+- Consistent testing patterns and standards
+
+This consolidation provides better maintainability, comprehensive coverage, and improved developer experience while maintaining the same level of security and functional validation.

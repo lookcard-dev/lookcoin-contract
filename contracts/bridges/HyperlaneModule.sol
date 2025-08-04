@@ -72,7 +72,7 @@ contract HyperlaneModule is
     // This allows for flexible chain support without hardcoded values
   }
 
-  function bridgeToken(
+  function bridge(
     uint256 destinationChain,
     address recipient,
     uint256 amount,
@@ -196,6 +196,11 @@ contract HyperlaneModule is
   function setRequiredGasAmount(uint256 _amount) external onlyRole(BRIDGE_ADMIN_ROLE) {
     requiredGasAmount = _amount;
     emit GasAmountUpdated(_amount);
+  }
+
+  function updateMailbox(address _mailbox) external onlyRole(BRIDGE_ADMIN_ROLE) {
+    require(_mailbox != address(0), "HyperlaneModule: invalid mailbox");
+    mailbox = IMailbox(_mailbox);
   }
 
   function estimateFee(

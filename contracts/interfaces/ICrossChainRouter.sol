@@ -67,7 +67,7 @@ interface ICrossChainRouter {
   function getOptimalRoute(uint256 chainId, uint256 amount, RoutePreference preference) external view returns (Protocol protocol);
 
   /**
-   * @dev Bridge tokens to another chain
+   * @dev Bridge tokens to another chain using atomic naming
    * @param chainId Destination chain ID
    * @param to Recipient address
    * @param amount Amount to transfer
@@ -75,13 +75,14 @@ interface ICrossChainRouter {
    * @param data Additional protocol-specific data
    * @return transferId Unique transfer identifier
    */
-  function bridgeToken(
+  function bridge(
     uint256 chainId,
     address to,
     uint256 amount,
     Protocol protocol,
     bytes calldata data
   ) external payable returns (bytes32 transferId);
+
 
   /**
    * @dev Get transfer status

@@ -39,7 +39,7 @@ interface ILookBridgeModule {
    * @param params Protocol-specific parameters
    * @return transferId Unique transfer identifier
    */
-  function bridgeToken(
+  function bridge(
     uint256 destinationChain,
     address recipient,
     uint256 amount,

@@ -90,20 +90,11 @@ contract LayerZeroModule is
     // Initialize default gas limit
     defaultGasLimit = 200000;
 
-    // Initialize common endpoint mappings (V2 endpoint IDs)
-    eidToChainId[30101] = 1; // Ethereum
-    chainIdToEid[1] = 30101;
-    eidToChainId[30102] = 56; // BSC
-    chainIdToEid[56] = 30102;
-    eidToChainId[30111] = 10; // Optimism
-    chainIdToEid[10] = 30111;
-    eidToChainId[30109] = 137; // Polygon
-    chainIdToEid[137] = 30109;
-    eidToChainId[30184] = 8453; // Base
-    chainIdToEid[8453] = 30184;
+    // Note: Chain mappings (eid/chainId) are now configured via updateChainMapping() after deployment
+    // This allows for flexible chain support without hardcoded values in different environments
   }
 
-  function bridgeToken(
+  function bridge(
     uint256 destinationChain,
     address recipient,
     uint256 amount,
@@ -167,14 +158,14 @@ contract LayerZeroModule is
   function lzReceive(
     uint32 _srcEid,
     bytes32 _sender,
-    uint64 _nonce,
+    uint64 /* _nonce */,
     bytes calldata _message
   ) external {
     require(msg.sender == address(lzEndpoint), "LayerZero: unauthorized");
     require(trustedRemotes[_srcEid] == _sender, "LayerZero: untrusted sender");
 
     // Decode message
-    (address recipient, uint256 amount, bytes32 originalTransferId) = abi.decode(_message, (address, uint256, bytes32));
+    (address recipient, uint256 amount, /* bytes32 originalTransferId */) = abi.decode(_message, (address, uint256, bytes32));
 
     // Get standard chain ID
     uint256 sourceChain = eidToChainId[_srcEid];
@@ -205,7 +196,7 @@ contract LayerZeroModule is
     address sender,
     address recipient,
     uint256 amount,
-    bytes calldata data
+    bytes calldata /* data */
   ) external override onlyRole(OPERATOR_ROLE) {
     // Manual handling if needed
     lookCoin.mint(recipient, amount);
