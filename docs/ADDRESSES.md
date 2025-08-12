@@ -33,27 +33,10 @@ This document contains the deployed contract addresses for LookCoin across all n
 - **Initial Supply**: 20,000 LOOK (manually minted)
 - **Max Supply**: 5,000,000,000 LOOK
 
-### Oasis Sapphire Mainnet (Chain ID: 23295)
-
-#### Core Contracts
-| Contract | Address |
-|----------|---------|
-| **LookCoin** | `0xe71BEF0472C96c0D255Bd4ec40CB4A0618B53A2C` |
-| **SupplyOracle** | `0x7Cb7AaA5C7098BaF3BE1E6649d64b1e236E98ca8` |
-
-#### Protocol Modules
-| Contract | Address |
-|----------|---------|
-| **CelerIMModule** | `0x12EbF0ca24831d0553C073289F13E1cc014B29fF` |
-
-#### Deployment Details
-- **Deployment Mode**: Standard
-- **Protocols**: Celer IM only
-- **Deployer**: `0x0beC539Fd761caE579802072d9eE7fde86ED05A3`
-
 ### Planned Mainnet Deployments
 - Base Mainnet
-- Optimism Mainnet  
+- Optimism Mainnet
+- Oasis Sapphire Mainnet
 - Akashic Mainnet
 
 ## Testnet Contracts
@@ -116,8 +99,25 @@ This document contains the deployed contract addresses for LookCoin across all n
 - **Protocols**: LayerZero only
 - **Deployer**: `0x0beC539Fd761caE579802072d9eE7fde86ED05A3`
 
+### Oasis Sapphire Testnet (Chain ID: 23295)
+
+#### Core Contracts
+| Contract | Address |
+|----------|---------|
+| **LookCoin** | `0xe71BEF0472C96c0D255Bd4ec40CB4A0618B53A2C` |
+| **SupplyOracle** | `0x7Cb7AaA5C7098BaF3BE1E6649d64b1e236E98ca8` |
+
+#### Protocol Modules
+| Contract | Address |
+|----------|---------|
+| **CelerIMModule** | `0x12EbF0ca24831d0553C073289F13E1cc014B29fF` |
+
+#### Deployment Details
+- **Deployment Mode**: Standard
+- **Protocols**: Celer IM only
+- **Deployer**: `0x0beC539Fd761caE579802072d9eE7fde86ED05A3`
+
 ### Planned Testnet Deployments
-- Oasis Sapphire Testnet
 - Akashic Testnet
 
 ## Contract Details
@@ -158,11 +158,11 @@ This document contains the deployed contract addresses for LookCoin across all n
 - **BSC Testnet**: ✅ (Multi-protocol)
 - **Base Sepolia**: ✅ (LayerZero only)
 - **Optimism Sepolia**: ✅ (LayerZero only)
-- **Oasis Sapphire Mainnet**: ✅ (Celer only)
+- **Oasis Sapphire Testnet**: ✅ (Celer only)
 
 ### Cross-Chain Configuration
 - BSC Testnet ↔ Base Sepolia ↔ Optimism Sepolia: ✅ Configured
-- Sapphire Mainnet: Awaiting other mainnet deployments for configuration
+- Sapphire Testnet: Standalone deployment (Celer only)
 
 ## Notes
 

@@ -1,6 +1,13 @@
 # LookCoin - Omnichain Fungible Token
 
-LookCoin (LOOK) is an omnichain fungible token implementing LayerZero OFT V2, serving as the primary payment method for LookCard's crypto-backed credit/debit card system. The token features a multi-bridge architecture supporting cross-chain transfers via LayerZero OFT V2, Celer IM, and Hyperlane.
+> **LookCoin (LOOK)** is an advanced omnichain fungible token implementing native LayerZero OFT V2 with multi-protocol bridge support, serving as the primary payment method for LookCard's crypto-backed credit/debit card ecosystem.
+
+**Quick Links:**
+- 🚀 [Quick Start Guide](docs/QUICK_START.md) - Get running in 5 minutes
+- 👨‍💻 [Developer Onboarding](docs/DEVELOPER_ONBOARDING.md) - Complete setup guide
+- 📖 [Technical Architecture](docs/TECHNICAL.md) - Deep dive into the system
+- 🔐 [Security Framework](docs/SECURITY.md) - Security model and audits
+- 🛠 [API Reference](docs/API_REFERENCE.md) - Complete contract interface
 
 ## Overview
 
@@ -12,15 +19,18 @@ LookCoin (LOOK) is an omnichain fungible token implementing LayerZero OFT V2, se
 - **UUPS Upgradeable**: Future-proof design with proxy pattern implementation
 - **MPC Vault Governance**: External MPC vault wallet for secure off-chain governance
 
-### Supported Chains
+### Supported Networks
 
-| Chain          | Chain ID | Bridge Support              |
-| -------------- | -------- | --------------------------- |
-| BSC            | 56       | LayerZero, Celer IM, Hyperlane |
-| Base           | 8453     | LayerZero, Hyperlane        |
-| Optimism       | 10       | LayerZero, Celer IM, Hyperlane |
-| Oasis Sapphire | 23295    | Celer IM                    |
-| Akashic        | 9070     | Hyperlane                   |
+| Network | Status | Chain ID | Bridge Protocols | Documentation |
+|---------|--------|----------|------------------|---------------|
+| **BSC Mainnet** | ✅ Live | 56 | LayerZero, Celer IM | [Addresses](docs/ADDRESSES.md#bsc-mainnet) |
+| **BSC Testnet** | ✅ Live | 97 | LayerZero, Celer IM | [Addresses](docs/ADDRESSES.md#bsc-testnet) |
+| **Base Sepolia** | ✅ Live | 84532 | LayerZero | [Addresses](docs/ADDRESSES.md#base-sepolia) |
+| **Optimism Sepolia** | ✅ Live | 11155420 | LayerZero | [Addresses](docs/ADDRESSES.md#optimism-sepolia) |
+| **Oasis Sapphire Testnet** | ✅ Live | 23295 | Celer IM | [Addresses](docs/ADDRESSES.md#oasis-sapphire-testnet) |
+| **Base Mainnet** | 🔄 Planned | 8453 | LayerZero, Hyperlane | [Deployment Guide](docs/DEPLOYMENT.md) |
+| **Optimism Mainnet** | 🔄 Planned | 10 | LayerZero, Celer IM, Hyperlane | [Deployment Guide](docs/DEPLOYMENT.md) |
+| **Akashic Chain** | 🔄 Planned | 9070 | Hyperlane | [Deployment Guide](docs/DEPLOYMENT.md) |
 
 ## Architecture
 
@@ -427,37 +437,83 @@ Akashic: https://rpc.akashic.city
 | Optimism | 0x3c2269811836af69497E5F486A85D7316753cf62 | 0x0D71D18126E03646eb09FEc929e2ae87b7CAE69d |
 | Sapphire | Not Supported                              | 0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5 |
 
-## References and Documentation
+## Documentation
 
-### Technical Documentation
+### For New Users
+- 🚀 **[Quick Start Guide](docs/QUICK_START.md)** - Get running in 5 minutes
+- 📋 **[User Flow Guide](docs/guides/user-flow.md)** - Step-by-step bridging instructions
+- 📝 **[Contract Addresses](docs/ADDRESSES.md)** - Live contract addresses
 
-- [TECHNICAL.md](docs/TECHNICAL.md) - Detailed technical specifications
-- [TIMELINE.md](docs/TIMELINE.md) - Deployment timeline and milestones
-- [USER_FLOW.md](docs/USER_FLOW.md) - User guide for cross-chain bridging operations
-- [CLAUDE.md](CLAUDE.md) - AI assistant guidance
+### For Developers
+- 👨‍💻 **[Developer Onboarding](docs/DEVELOPER_ONBOARDING.md)** - Complete setup guide
+- 🛠 **[API Reference](docs/API_REFERENCE.md)** - Contract interfaces and functions
+- 📖 **[Technical Architecture](docs/TECHNICAL.md)** - System design deep dive
+- ⚙️ **[Deployment Guide](docs/DEPLOYMENT.md)** - Three-stage deployment process
+- 🧨 **[Testing Guide](docs/TESTING.md)** - Comprehensive testing procedures
+
+### For Operators
+- 🔐 **[Security Framework](docs/SECURITY.md)** - Security model and audits
+- 👁️ **[Oracle System](docs/ORACLE.md)** - Supply monitoring system
+- 🚑 **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- ✅ **[Best Practices](docs/BEST_PRACTICES.md)** - Development and operational guidelines
+
+### Security & Compliance
+- 🔍 **[Audit Report](docs/security/audit-report.md)** - Professional security audit results
 
 ### External Resources
-
 - [LayerZero OFT V2 Documentation](https://layerzero.gitbook.io/docs/)
 - [Celer IM Documentation](https://celer.network/docs/)
-- [Hyperlane Documentation](https://docs.hyperlane.xyz/)
+- [OpenZeppelin Security Guidelines](https://docs.openzeppelin.com/contracts/)
+- [Hardhat Development Environment](https://hardhat.org/docs)
 
-### Security Best Practices
+## Getting Started
 
-- [OpenZeppelin Security](https://docs.openzeppelin.com/contracts/)
-- [Smart Contract Security Verification Standard](https://github.com/securing/SCSVS)
+{% tabs %}
+{% tab title="New to LookCoin?" %}
+**Start here** if you're new to the project:
+
+1. 🚀 Read the [Quick Start Guide](docs/QUICK_START.md)
+2. 📝 Check [Contract Addresses](docs/ADDRESSES.md) for live deployments
+3. 📋 Follow the [User Flow Guide](docs/guides/user-flow.md) to bridge tokens
+4. ❓ Need help? See [Troubleshooting](docs/TROUBLESHOOTING.md)
+{% endtab %}
+
+{% tab title="Developer?" %}
+**Perfect** for developers integrating LookCoin:
+
+1. 👨‍💻 Complete [Developer Onboarding](docs/DEVELOPER_ONBOARDING.md)
+2. 📖 Study [Technical Architecture](docs/TECHNICAL.md)
+3. 🛠 Reference [API Documentation](docs/API_REFERENCE.md)
+4. ✅ Follow [Best Practices](docs/BEST_PRACTICES.md)
+5. 🧨 Write tests using [Testing Guide](docs/TESTCASE.md)
+{% endtab %}
+
+{% tab title="DevOps/Operations?" %}
+**Essential** for deployment and operations:
+
+1. ⚙️ Master [Deployment Guide](docs/DEPLOYMENT.md)
+2. 🔐 Review [Security Framework](docs/SECURITY.md)
+3. 👁️ Understand [Oracle System](docs/ORACLE.md)
+4. 🚑 Bookmark [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
+5. 🔍 Check [Audit Reports](docs/security/audit-report.md)
+{% endtab %}
+{% endtabs %}
 
 ## Community and Support
 
-### Resources
-
-- GitHub: [github.com/lookcard/lookcoin-contract](https://github.com/lookcard/lookcoin-contract)
-- Documentation: [docs.lookcard.io](https://docs.lookcard.io)
-- Support: support@lookcard.io
+- **GitHub**: [github.com/lookcard/lookcoin-contract](https://github.com/lookcard/lookcoin-contract)
+- **Issues**: [Report bugs and request features](https://github.com/lookcard/lookcoin-contract/issues)
+- **Documentation**: [Complete documentation site](https://docs.lookcard.io)
+- **Support**: support@lookcard.io
 
 ### Contributing
 
-Please read our contributing guidelines before submitting PRs. All contributions must pass security review and maintain test coverage above 90%.
+We welcome contributions! Please:
+
+1. Read [Developer Onboarding](docs/DEVELOPER_ONBOARDING.md) first
+2. Follow [Best Practices](docs/BEST_PRACTICES.md) guidelines
+3. Ensure test coverage remains above 90%
+4. All contributions require security review approval
 
 ## License
 

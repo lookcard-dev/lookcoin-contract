@@ -623,7 +623,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     },
   },
   sapphiremainnet: {
-    chainId: 23295,
+    chainId: 23294,
     name: "Sapphire Mainnet",
     tier: "mainnet",
     totalSupply: TOTAL_SUPPLY,
@@ -900,22 +900,15 @@ export function getNetworkTier(chainId: number): "mainnet" | "testnet" | "dev" |
     // Continue with fallback logic
   }
 
-  // Special handling for Sapphire (both mainnet and testnet use same chainId)
-  if (chainId === 23295) {
-    // Without additional context, we can't distinguish Sapphire mainnet from testnet
-    // This is a known limitation that should be handled at a higher level
-    return "unknown";
-  }
-
   // Fallback: try to determine from chain ID patterns
   // Mainnet chain IDs
-  const mainnetChainIds = [56, 8453, 10, 9070]; // BSC, Base, Optimism, Akashic
+  const mainnetChainIds = [56, 8453, 10, 23294, 9070]; // BSC, Base, Optimism, Sapphire, Akashic
   if (mainnetChainIds.includes(chainId)) {
     return "mainnet";
   }
 
   // Testnet chain IDs
-  const testnetChainIds = [97, 84532, 11155420]; // BSC Testnet, Base Sepolia, Optimism Sepolia
+  const testnetChainIds = [97, 84532, 11155420, 23295]; // BSC Testnet, Base Sepolia, Optimism Sepolia, Sapphire Testnet
   if (testnetChainIds.includes(chainId)) {
     return "testnet";
   }

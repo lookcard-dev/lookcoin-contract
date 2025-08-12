@@ -1,5 +1,5 @@
 {
-  "network": "sapphiremainnet",
+  "network": "sapphiretestnet",
   "chainId": 23295,
   "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
   "timestamp": "2025-08-01T15:28:24.176Z",

@@ -1,40 +1,79 @@
 # LookCoin Technical Architecture
 
+> **Overview**: LookCoin (LOOK) is an omnichain fungible token implementing native LayerZero OFT V2 with multi-protocol bridge support for seamless cross-chain transfers.
+>
+> **Related Documents**:
+> - [Quick Start Guide](QUICK_START.md) - Get up and running quickly
+> - [API Reference](API_REFERENCE.md) - Complete contract interfaces
+> - [Security Overview](security/overview.md) - Security model and controls
+> - [User Flow Guide](guides/user-flow.md) - End-user bridging instructions
+
 ## Executive Summary
 
-LookCoin (LOOK) is the native platform token of the LookCard ecosystem, designed as a native multi-protocol omnichain fungible token. The token implements a unified cross-chain architecture through the CrossChainRouter (when deployed in multi-protocol mode), supporting multiple bridge protocols: LayerZero's OFT V2 standard (BSC, Base, Optimism), Celer IM's cross-chain messaging (BSC, Optimism, Oasis Sapphire), with Hyperlane planned for future deployment. The architecture employs protocol abstraction through a modular design where each bridge protocol implements the ILookBridgeModule interface, enabling seamless protocol selection based on destination chain, cost optimization, speed requirements, or security preferences. The system maintains a unified global supply model with burn-and-mint mechanics for all protocols, ensuring consistent token supply across all deployments while providing redundancy, optimal routing, and enhanced cross-chain capabilities.
+LookCoin (LOOK) serves as the native platform token of the LookCard ecosystem, designed as a multi-protocol omnichain fungible token. The architecture provides:
+
+- **Unified Cross-Chain Operations**: Native LayerZero OFT V2 integration with multi-protocol router support
+- **Protocol Abstraction**: Modular design implementing ILookBridgeModule interface for seamless protocol selection
+- **Global Supply Management**: Burn-and-mint mechanics across all protocols ensuring consistent token supply
+- **Enhanced Security**: Supply oracle monitoring, role-based access control, and emergency pause mechanisms
+
+**Supported Protocols**:
+- LayerZero OFT V2 (BSC, Base, Optimism)
+- Celer IM (BSC, Optimism, Oasis Sapphire) 
+- Hyperlane (planned deployment)
+
+**Key Benefits**: Redundancy, optimal routing, cost optimization, and enhanced cross-chain capabilities.
 
 ## Token Specification
 
 ### Basic Properties
-- **Name**: LookCoin
-- **Symbol**: LOOK
-- **Decimals**: 18
-- **Total Supply Cap**: 5,000,000,000 LOOK
-- **Current Minted**: 20,000 LOOK (BSC Mainnet only)
-- **Circulating Supply**: totalMinted - totalBurned
-- **Token Standard**: ERC20 with native cross-chain support
-- **Deployment Status**: ✅ Live on BSC Mainnet, BSC Testnet, Base Sepolia, Optimism Sepolia, Oasis Sapphire Mainnet
+
+| Property | Value |
+|----------|-------|
+| **Name** | LookCoin |
+| **Symbol** | LOOK |
+| **Decimals** | 18 |
+| **Total Supply Cap** | 5,000,000,000 LOOK |
+| **Current Minted** | 20,000 LOOK (BSC Mainnet only) |
+| **Circulating Supply** | totalMinted - totalBurned |
+| **Token Standard** | ERC20 with native cross-chain support |
+
+### Deployment Status
+
+| Network | Status | Chain ID | Bridge Protocols |
+|---------|--------|----------|-----------------|
+| BSC Mainnet | ✅ Live | 56 | LayerZero, Celer IM |
+| BSC Testnet | ✅ Live | 97 | LayerZero, Celer IM |
+| Base Sepolia | ✅ Live | 84532 | LayerZero |
+| Optimism Sepolia | ✅ Live | 11155420 | LayerZero |
+| Oasis Sapphire Mainnet | ✅ Live | 23295 | Celer IM |
 
 ### Technical Standards
-- **Base**: OpenZeppelin ERC20Upgradeable v5.1.0
-- **Extensions**: ERC20PermitUpgradeable (EIP-2612 gasless approvals)
-- **Proxy Pattern**: UUPS (Universal Upgradeable Proxy Standard)
-- **Cross-chain**: Native LayerZero OFT V2 integration + modular bridge architecture
-- **Security**: Pausable, ReentrancyGuard, AccessControl with granular roles
-- **Solidity Version**: 0.8.28 with optimizer (9999 runs)
+
+| Component | Implementation |
+|-----------|----------------|
+| **Base Contract** | OpenZeppelin ERC20Upgradeable v5.1.0 |
+| **Extensions** | ERC20PermitUpgradeable (EIP-2612) |
+| **Proxy Pattern** | UUPS (Universal Upgradeable Proxy Standard) |
+| **Cross-chain** | Native LayerZero OFT V2 + modular bridges |
+| **Security** | Pausable, ReentrancyGuard, AccessControl |
+| **Solidity Version** | 0.8.28 with optimizer (9999 runs) |
 
 ## Cross-Chain Architecture
 
 ### Native OFT V2 Integration
-LookCoin implements LayerZero OFT V2 natively within the token contract:
-- **sendFrom()**: Full OFT V2 send functionality with adapter params
-- **bridgeToken()**: Simplified bridge interface for user convenience
-- **lzReceive()**: Direct endpoint integration for receiving transfers
-- **Trusted Remotes**: Per-chain peer contract configuration
-- **Gas Management**: Configurable gas limits per destination chain
 
-### Bridge Protocols
+LookCoin implements LayerZero OFT V2 natively within the token contract:
+
+| Function | Purpose | Implementation |
+|----------|---------|----------------|
+| `sendFrom()` | Full OFT V2 send functionality | Native adapter params support |
+| `bridgeToken()` | Simplified bridge interface | User convenience wrapper |
+| `lzReceive()` | Receiving transfers | Direct endpoint integration |
+| Trusted Remotes | Per-chain peer contracts | Configuration management |
+| Gas Management | Destination chain limits | Configurable gas parameters |
+
+### Bridge Protocol Overview
 
 ### Multi-Protocol Router Architecture
 
@@ -67,35 +106,55 @@ graph TB
 ```
 
 #### 1. LayerZero OFT V2 (Native)
-- **Mechanism**: Burn-and-mint
-- **Networks**: All supported chains
-- **Security**: DVN (Decentralized Verifier Network) support
-- **Features**: 
-  - Native integration in LookCoin contract
-  - Enforced options for minimum gas
-  - Nonce-based replay protection
-  - Trusted remote verification
+
+**Status**: ✅ Active across all supported chains
+
+| Attribute | Details |
+|-----------|----------|
+| **Mechanism** | Burn-and-mint |
+| **Networks** | BSC, Base, Optimism (all supported chains) |
+| **Security** | DVN (Decentralized Verifier Network) |
+| **Integration** | Native in LookCoin contract |
+
+**Key Features**:
+- Enforced options for minimum gas configuration
+- Nonce-based replay protection
+- Trusted remote verification
+- Direct endpoint communication
 
 #### 2. Celer IM (Inter-chain Messaging)
-- **Mechanism**: Burn-and-mint
-- **Networks**: BSC ⟷ Optimism, Sapphire
-- **Security**: SGN (State Guardian Network) validators
-- **Features**: 
-  - Message-based transfers with executor pattern
-  - Configurable chain support (no hardcoded chain IDs)
-  - Remote module registration
-  - Fee refund mechanism
 
-#### 3. Hyperlane (Planned - Not Yet Deployed)
-- **Mechanism**: Burn-and-mint (planned)
-- **Networks**: To be configured via domain mappings
-- **Security**: Will use Modular ISM (Interchain Security Modules)
-- **Features**: 
-  - Domain-based routing (no hardcoded chain IDs)
-  - Configurable domain-to-chain mappings
-  - Gas oracle integration
-  - Message-based architecture
-- **Status**: Infrastructure deployment pending
+**Status**: ✅ Active on BSC ⟷ Optimism, Sapphire
+
+| Attribute | Details |
+|-----------|----------|
+| **Mechanism** | Burn-and-mint |
+| **Networks** | BSC, Optimism, Oasis Sapphire |
+| **Security** | SGN (State Guardian Network) validators |
+| **Integration** | Separate CelerIMModule contract |
+
+**Key Features**:
+- Message-based transfers with executor pattern
+- Configurable chain support (no hardcoded chain IDs)
+- Remote module registration system
+- Automatic fee refund mechanism
+
+#### 3. Hyperlane (Planned)
+
+**Status**: 🔍 Infrastructure deployment pending
+
+| Attribute | Details |
+|-----------|----------|
+| **Mechanism** | Burn-and-mint (planned) |
+| **Networks** | Domain-based configuration |
+| **Security** | Modular ISM (Interchain Security Modules) |
+| **Integration** | Separate HyperlaneModule contract |
+
+**Planned Features**:
+- Domain-based routing (no hardcoded chain IDs)
+- Configurable domain-to-chain mappings
+- Gas oracle integration
+- Message-based architecture
 
 - **Custom Mailboxes**: LookCard-deployed mailbox contracts on each chain
 - **Self-Operated Relayers**: Dedicated relayer infrastructure for all routes
