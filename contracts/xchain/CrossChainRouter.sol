@@ -47,6 +47,11 @@ contract CrossChainRouter is
         address _securityManager,
         address _admin
     ) public initializer {
+        require(_lookCoin != address(0), "Router: invalid lookCoin");
+        require(_feeManager != address(0), "Router: invalid feeManager");
+        require(_securityManager != address(0), "Router: invalid securityManager");
+        require(_admin != address(0), "Router: invalid admin");
+
         __AccessControl_init();
         __Pausable_init();
         __ReentrancyGuard_init();
@@ -68,7 +73,8 @@ contract CrossChainRouter is
         uint8 count = 0;
         for (uint8 i = 0; i < 3; i++) {
             Protocol protocol = Protocol(i);
-            if (protocolActive[protocol] && chainProtocolSupport[destinationChain][protocol]) {
+            // Include all protocols that have modules registered, regardless of active status
+            if (protocolModules[protocol] != address(0) && chainProtocolSupport[destinationChain][protocol]) {
                 count++;
             }
         }
@@ -78,9 +84,11 @@ contract CrossChainRouter is
 
         for (uint8 i = 0; i < 3; i++) {
             Protocol protocol = Protocol(i);
-            if (protocolActive[protocol] && chainProtocolSupport[destinationChain][protocol]) {
+            if (protocolModules[protocol] != address(0) && chainProtocolSupport[destinationChain][protocol]) {
                 address module = protocolModules[protocol];
-                if (module != address(0)) {
+                
+                // Check if protocol is active and available
+                if (protocolActive[protocol]) {
                     try ILookBridgeModule(module).estimateFee(destinationChain, amount, "") 
                     returns (uint256 fee, uint256 estimatedTime) {
                         options[index] = BridgeOption({
@@ -105,6 +113,18 @@ contract CrossChainRouter is
                         });
                         index++;
                     }
+                } else {
+                    // Protocol is disabled, include it but mark as unavailable
+                    options[index] = BridgeOption({
+                        protocol: protocol,
+                        fee: 0,
+                        estimatedTime: 0,
+                        securityLevel: _getSecurityLevel(protocol),
+                        available: false,
+                        minAmount: 0,
+                        maxAmount: 0
+                    });
+                    index++;
                 }
             }
         }
@@ -150,7 +170,7 @@ contract CrossChainRouter is
         return options[bestIndex].protocol;
     }
 
-    function bridgeToken(
+    function bridge(
         uint256 destinationChain,
         address recipient,
         uint256 amount,
@@ -159,16 +179,34 @@ contract CrossChainRouter is
     ) external payable whenNotPaused nonReentrant returns (bytes32 transferId) {
         require(protocolActive[protocol], "Protocol not active");
         require(chainProtocolSupport[destinationChain][protocol], "Protocol not supported for chain");
+        require(recipient != address(0), "Router: invalid recipient");
+        require(amount > 0, "Router: invalid amount");
+        
+        // Validate token approval
+        IERC20 token = IERC20(lookCoin);
+        require(token.allowance(msg.sender, address(this)) >= amount, 
+            "Router: insufficient allowance");
+        
+        // Transfer tokens to router first
+        require(token.transferFrom(msg.sender, address(this), amount), 
+            "Router: transfer failed");
         
         address module = protocolModules[protocol];
         require(module != address(0), "Protocol module not registered");
 
-        transferId = ILookBridgeModule(module).bridgeToken{value: msg.value}(
+        // Approve module to burn tokens
+        token.approve(module, amount);
+
+        transferId = ILookBridgeModule(module).bridge{value: msg.value}(
             destinationChain,
             recipient,
             amount,
             params
         );
+
+        // Verify tokens were burned
+        require(token.allowance(address(this), module) == 0, 
+            "Module did not burn tokens");
 
         transferProtocol[transferId] = protocol;
 
@@ -243,57 +281,6 @@ contract CrossChainRouter is
     function unpause() external onlyRole(ROUTER_ADMIN_ROLE) {
         _unpause();
     }
-
-    /**
-     * @dev Check if a destination chain is properly configured for a specific protocol
-     * @param destinationChain The destination chain ID
-     * @param protocol The protocol to check
-     * @return isConfigured True if the chain is properly configured for the protocol
-     */
-    function isChainConfigured(uint256 destinationChain, Protocol protocol) 
-        external 
-        view 
-        returns (bool isConfigured) 
-    {
-        // Check if protocol is active
-        if (!protocolActive[protocol]) {
-            return false;
-        }
-        
-        // Check if protocol is supported on destination chain
-        if (!chainProtocolSupport[destinationChain][protocol]) {
-            return false;
-        }
-        
-        // Check if protocol module is registered
-        if (protocolModules[protocol] == address(0)) {
-            return false;
-        }
-        
-        return true;
-    }
-
-    function _getSecurityLevel(Protocol protocol) private pure returns (uint8) {
-        if (protocol == Protocol.LayerZero) return 9;
-        if (protocol == Protocol.Hyperlane) return 8;
-        if (protocol == Protocol.Celer) return 7;
-        return 5;
-    }
-
-    function estimateFee(
-        uint256 destinationChain,
-        uint256 amount,
-        Protocol protocol,
-        bytes calldata params
-    ) external view returns (uint256 fee) {
-        require(protocolActive[protocol], "Protocol not active");
-        require(chainProtocolSupport[destinationChain][protocol], "Protocol not supported on chain");
-        
-        address module = protocolModules[protocol];
-        require(module != address(0), "Protocol module not registered");
-        
-        (fee, ) = ILookBridgeModule(module).estimateFee(destinationChain, amount, params);
-    }
     
     function getTransfer(bytes32 transferId) external view returns (CrossChainTransfer memory transfer) {
         Protocol protocol = transferProtocol[transferId];
@@ -319,5 +306,72 @@ contract CrossChainRouter is
         });
     }
 
+    /**
+     * @dev Estimate total fee for cross-chain transfer
+     * @param chainId Destination chain ID
+     * @param amount Amount to transfer
+     * @param protocol Protocol to use
+     * @param data Protocol-specific data
+     * @return fee Total fee in native token
+     */
+    function estimateFee(
+        uint256 chainId,
+        uint256 amount,
+        Protocol protocol,
+        bytes calldata data
+    ) external view returns (uint256 fee) {
+        require(protocolActive[protocol], "Protocol not active");
+        require(chainProtocolSupport[chainId][protocol], "Protocol not supported for chain");
+        
+        address module = protocolModules[protocol];
+        require(module != address(0), "Protocol module not registered");
+        
+        (fee, ) = ILookBridgeModule(module).estimateFee(chainId, amount, data);
+    }
+
+    /**
+     * @dev Check if a chain is configured for a specific protocol
+     * @param chainId Chain ID to check
+     * @param protocol Protocol to check
+     * @return true if chain is configured and protocol is active
+     */
+    function isChainConfigured(uint256 chainId, Protocol protocol) external view returns (bool) {
+        return chainProtocolSupport[chainId][protocol] && protocolActive[protocol];
+    }
+
+    /**
+     * @dev Get available bridge options for a destination chain (overload)
+     * @param chainId Destination chain ID
+     * @return options Array of available bridge options
+     */
+    function getBridgeOptions(uint256 chainId) external view returns (BridgeOption[] memory options) {
+        return this.getBridgeOptions(chainId, 0);
+    }
+
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    /**
+     * @dev Get security level for a protocol
+     * @param protocol The protocol to check
+     * @return Security level (1-3, where 3 is most secure)
+     */
+    function _getSecurityLevel(Protocol protocol) internal pure returns (uint8) {
+        if (protocol == Protocol.LayerZero) {
+            return 3; // Highest security with proven track record
+        } else if (protocol == Protocol.Celer) {
+            return 2; // Good security with SGN network
+        } else if (protocol == Protocol.Hyperlane) {
+            return 2; // Good security with validator set
+        }
+        return 1; // Default security level
+    }
+
+    /**
+     * @dev Accept ETH refunds from bridge modules
+     * @notice Bridge modules may refund excess ETH sent for cross-chain fees
+     */
+    receive() external payable {
+        // Accept ETH refunds from bridge operations
+        // ETH can later be withdrawn by admin if needed
+    }
 }

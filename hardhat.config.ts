@@ -1,12 +1,12 @@
+import "dotenv/config";
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
-import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
-import * as dotenv from "dotenv";
+import { HardhatUserConfig } from "hardhat/config";
 
-dotenv.config();
+export const TOTAL_SUPPLY = "5000000000000000000000000000"; // 5 billion tokens
 
 // Network RPC URLs
 const BSC_RPC_URL = process.env.BSC_RPC_URL || "https://bsc-rpc.publicnode.com";
@@ -176,8 +176,9 @@ const config: HardhatUserConfig = {
       "LookCoin",
       "CelerIMModule",
       "SupplyOracle",
-      "RateLimiter",
       "CrossChainRouter",
+      "HyperlaneModule",
+      "LayerZeroModule",
       "FeeManager",
       "SecurityManager",
       "ProtocolRegistry",
@@ -197,7 +198,6 @@ const CELER_CHAIN_IDS = {
   bsc: 56,
   bscTestnet: 97,
   optimism: 10,
-  opSepolia: 11155420,
   sapphire: 23294,
   sapphireTestnet: 23295,
 };
@@ -222,12 +222,6 @@ const CELER_FEES = {
     maxFee: "100000000000000000000",
     feeCollector: "0x0000000000000000000000000000000000000000",
   },
-  opSepolia: {
-    feePercentage: 10,
-    minFee: "1000000000000000000",
-    maxFee: "100000000000000000000",
-    feeCollector: "0x0000000000000000000000000000000000000000",
-  },
   sapphire: {
     feePercentage: 10,
     minFee: "1000000000000000000",
@@ -242,33 +236,6 @@ const CELER_FEES = {
   },
 };
 
-// Supported chains per module type
-const SUPPORTED_CHAINS = {
-  layerZero: ["bsc", "bscTestnet", "base", "baseSepolia", "optimism", "opSepolia"],
-  celer: ["bsc", "bscTestnet", "optimism", "opSepolia", "sapphire", "sapphireTestnet"],
-};
-
-// Remote modules configuration for cross-chain communication
-const REMOTE_MODULES = {
-  bsc: {
-    base: "0x0000000000000000000000000000000000000000", // To be filled after deployment
-    optimism: "0x0000000000000000000000000000000000000000",
-    sapphire: "0x0000000000000000000000000000000000000000",
-    akashic: "0x0000000000000000000000000000000000000000",
-  },
-  base: {
-    bsc: "0x0000000000000000000000000000000000000000",
-  },
-  optimism: {
-    bsc: "0x0000000000000000000000000000000000000000",
-  },
-  sapphire: {
-    bsc: "0x0000000000000000000000000000000000000000",
-  },
-  akashic: {
-    bsc: "0x0000000000000000000000000000000000000000",
-  },
-};
 
 // Oracle bridge registrations per network
 const ORACLE_BRIDGE_REGISTRATIONS = {
@@ -301,6 +268,9 @@ const GOVERNANCE_VAULTS = {
   akashic: process.env.GOVERNANCE_VAULT || "0x0000000000000000000000000000000000000000",
 };
 
+// Dev team address for technical roles
+const DEV_TEAM_ADDRESS = process.env.DEV_TEAM_ADDRESS || undefined;
+
 // LayerZero Chain IDs
 const LZ_CHAIN_IDS = {
   bsc: 30102,
@@ -330,6 +300,7 @@ export interface ChainConfig {
   tier: "mainnet" | "testnet" | "dev";
   totalSupply: string;
   governanceVault: string;
+  devTeamAddress?: string; // Optional dev team address for technical roles
   layerZero: {
     endpoint: string;
     lzChainId: number;
@@ -358,7 +329,6 @@ export interface ChainConfig {
     updateInterval: number;
     tolerance: number;
   };
-  remoteModules: { [network: string]: string };
   hyperlane: {
     mailbox: string;
     gasPaymaster: string;
@@ -383,8 +353,9 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     chainId: 56,
     name: "BSC Mainnet",
     tier: "mainnet",
-    totalSupply: "10000000000000000000000000000", // 10 billion tokens
+    totalSupply: TOTAL_SUPPLY,
     governanceVault: GOVERNANCE_VAULTS.bsc,
+    devTeamAddress: DEV_TEAM_ADDRESS,
     layerZero: {
       endpoint: LZ_ENDPOINTS.bsc,
       lzChainId: LZ_CHAIN_IDS.bsc,
@@ -404,7 +375,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900, // 15 minutes
       tolerance: 100, // 1%
     },
-    remoteModules: REMOTE_MODULES.bsc || {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.bsc,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.bsc,
@@ -426,8 +396,9 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     chainId: 97,
     name: "BSC Testnet",
     tier: "testnet",
-    totalSupply: "10000000000000000000000000000",
+    totalSupply: TOTAL_SUPPLY,
     governanceVault: GOVERNANCE_VAULTS.bscTestnet,
+    devTeamAddress: DEV_TEAM_ADDRESS,
     layerZero: {
       endpoint: LZ_ENDPOINTS.bscTestnet,
       lzChainId: LZ_CHAIN_IDS.bscTestnet,
@@ -447,7 +418,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.bscTestnet,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.bscTestnet,
@@ -471,6 +441,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     tier: "mainnet",
     totalSupply: "0", // Minted via bridge
     governanceVault: GOVERNANCE_VAULTS.base,
+    devTeamAddress: DEV_TEAM_ADDRESS,
     layerZero: {
       endpoint: LZ_ENDPOINTS.base,
       lzChainId: LZ_CHAIN_IDS.base,
@@ -495,7 +466,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: REMOTE_MODULES.base || {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.base,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.base,
@@ -517,8 +487,9 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     chainId: 84532,
     name: "Base Sepolia",
     tier: "testnet",
-    totalSupply: "0",
+    totalSupply: TOTAL_SUPPLY,
     governanceVault: GOVERNANCE_VAULTS.baseSepolia,
+    devTeamAddress: DEV_TEAM_ADDRESS,
     layerZero: {
       endpoint: LZ_ENDPOINTS.baseSepolia,
       lzChainId: LZ_CHAIN_IDS.baseSepolia,
@@ -543,7 +514,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.baseSepolia,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.baseSepolia,
@@ -565,8 +535,9 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     chainId: 10,
     name: "Optimism Mainnet",
     tier: "mainnet",
-    totalSupply: "0",
+    totalSupply: TOTAL_SUPPLY,
     governanceVault: GOVERNANCE_VAULTS.optimism,
+    devTeamAddress: DEV_TEAM_ADDRESS,
     layerZero: {
       endpoint: LZ_ENDPOINTS.optimism,
       lzChainId: LZ_CHAIN_IDS.optimism,
@@ -586,7 +557,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: REMOTE_MODULES.optimism || {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.optimism,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.optimism,
@@ -608,8 +578,9 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     chainId: 11155420,
     name: "Optimism Sepolia",
     tier: "testnet",
-    totalSupply: "0",
+    totalSupply: TOTAL_SUPPLY,
     governanceVault: GOVERNANCE_VAULTS.opSepolia,
+    devTeamAddress: DEV_TEAM_ADDRESS,
     layerZero: {
       endpoint: LZ_ENDPOINTS.opSepolia,
       lzChainId: LZ_CHAIN_IDS.opSepolia,
@@ -620,16 +591,20 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       confirmations: 1,
     },
     celer: {
-      messageBus: CELER_MESSAGEBUS.opSepolia,
-      celerChainId: CELER_CHAIN_IDS.opSepolia,
-      fees: CELER_FEES.opSepolia,
+      messageBus: "0x0000000000000000000000000000000000000000", // Not supported by Celer
+      celerChainId: 0, // Not supported by Celer
+      fees: {
+        feePercentage: 0,
+        minFee: "0",
+        maxFee: "0",
+        feeCollector: "0x0000000000000000000000000000000000000000",
+      },
     },
     oracle: {
       bridges: {},
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.opSepolia,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.opSepolia,
@@ -639,7 +614,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     },
     protocols: {
       layerZero: true,
-      celer: true,
+      celer: false,
       hyperlane: true,
     },
     rateLimiter: {
@@ -648,11 +623,12 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     },
   },
   sapphiremainnet: {
-    chainId: 23295,
+    chainId: 23294,
     name: "Sapphire Mainnet",
     tier: "mainnet",
-    totalSupply: "0",
+    totalSupply: TOTAL_SUPPLY,
     governanceVault: GOVERNANCE_VAULTS.sapphire,
+    devTeamAddress: DEV_TEAM_ADDRESS,
     layerZero: {
       endpoint: LZ_ENDPOINTS.sapphire,
       lzChainId: 0,
@@ -672,7 +648,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: REMOTE_MODULES.sapphire || {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.sapphire,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.sapphire,
@@ -683,7 +658,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     protocols: {
       layerZero: false, // Not supported by LayerZero
       celer: true,
-      hyperlane: false, // Not supported by Hyperlane
+      hyperlane: true,
     },
     rateLimiter: {
       perAccountLimit: "500000000000000000000000", // 500K tokens
@@ -694,8 +669,9 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     chainId: 23295,
     name: "Sapphire Testnet",
     tier: "testnet",
-    totalSupply: "0",
+    totalSupply: TOTAL_SUPPLY,
     governanceVault: GOVERNANCE_VAULTS.sapphireTestnet,
+    devTeamAddress: DEV_TEAM_ADDRESS,
     layerZero: {
       endpoint: LZ_ENDPOINTS.sapphireTestnet,
       lzChainId: 0,
@@ -715,7 +691,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.sapphireTestnet,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.sapphireTestnet,
@@ -726,7 +701,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     protocols: {
       layerZero: false,
       celer: true,
-      hyperlane: false,
+      hyperlane: true,
     },
     rateLimiter: {
       perAccountLimit: "500000000000000000000000", // 500K tokens
@@ -737,8 +712,9 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     chainId: 9070,
     name: "Akashic Mainnet",
     tier: "mainnet",
-    totalSupply: "0",
+    totalSupply: TOTAL_SUPPLY,
     governanceVault: GOVERNANCE_VAULTS.akashic,
+    devTeamAddress: DEV_TEAM_ADDRESS,
     layerZero: {
       endpoint: LZ_ENDPOINTS.akashic,
       lzChainId: 0,
@@ -763,7 +739,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: REMOTE_MODULES.akashic || {},
     hyperlane: {
       mailbox: HYPERLANE_MAILBOX.akashic,
       gasPaymaster: HYPERLANE_GAS_PAYMASTER.akashic,
@@ -774,7 +749,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     protocols: {
       layerZero: false, // Not supported by LayerZero
       celer: false, // Not supported by Celer
-      hyperlane: false, // Custom deployment needed
+      hyperlane: true,
     },
     rateLimiter: {
       perAccountLimit: "500000000000000000000000", // 500K tokens
@@ -785,7 +760,7 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
     chainId: 31337,
     name: "Hardhat Network",
     tier: "dev",
-    totalSupply: "10000000000000000000000000000",
+    totalSupply: TOTAL_SUPPLY,
     governanceVault: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // First hardhat account
     layerZero: {
       endpoint: "0x0000000000000000000000000000000000000000",
@@ -811,7 +786,6 @@ export const CHAIN_CONFIG: { [network: string]: ChainConfig } = {
       updateInterval: 900,
       tolerance: 100,
     },
-    remoteModules: {},
     hyperlane: {
       mailbox: "0x0000000000000000000000000000000000000000",
       gasPaymaster: "0x0000000000000000000000000000000000000000",
@@ -926,22 +900,15 @@ export function getNetworkTier(chainId: number): "mainnet" | "testnet" | "dev" |
     // Continue with fallback logic
   }
 
-  // Special handling for Sapphire (both mainnet and testnet use same chainId)
-  if (chainId === 23295) {
-    // Without additional context, we can't distinguish Sapphire mainnet from testnet
-    // This is a known limitation that should be handled at a higher level
-    return "unknown";
-  }
-
   // Fallback: try to determine from chain ID patterns
   // Mainnet chain IDs
-  const mainnetChainIds = [56, 8453, 10, 9070]; // BSC, Base, Optimism, Akashic
+  const mainnetChainIds = [56, 8453, 10, 23294, 9070]; // BSC, Base, Optimism, Sapphire, Akashic
   if (mainnetChainIds.includes(chainId)) {
     return "mainnet";
   }
 
   // Testnet chain IDs
-  const testnetChainIds = [97, 84532, 11155420]; // BSC Testnet, Base Sepolia, Optimism Sepolia
+  const testnetChainIds = [97, 84532, 11155420, 23295]; // BSC Testnet, Base Sepolia, Optimism Sepolia, Sapphire Testnet
   if (testnetChainIds.includes(chainId)) {
     return "testnet";
   }
@@ -961,8 +928,6 @@ export { LZ_ENDPOINTS, CELER_MESSAGEBUS, LZ_DVN };
 export {
   CELER_CHAIN_IDS,
   CELER_FEES,
-  SUPPORTED_CHAINS,
-  REMOTE_MODULES,
   ORACLE_BRIDGE_REGISTRATIONS,
   GOVERNANCE_VAULTS,
   LZ_CHAIN_IDS,

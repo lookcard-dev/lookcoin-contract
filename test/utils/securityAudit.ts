@@ -44,7 +44,7 @@ export class SecurityAudit {
         // Test with authorized signer
         let authorized = true;
         try {
-            await contract.connect(authorizedSigner)[functionName](...args);
+            await (contract.connect(authorizedSigner) as any)[functionName](...args);
         } catch (error: any) {
             if (error.message.includes("reverted")) {
                 authorized = false;
@@ -54,7 +54,7 @@ export class SecurityAudit {
         // Test with unauthorized signer
         let unauthorized = false;
         try {
-            await contract.connect(unauthorizedSigner)[functionName](...args);
+            await (contract.connect(unauthorizedSigner) as any)[functionName](...args);
             unauthorized = false; // Should have failed
         } catch (error: any) {
             if (error.message.includes(role) || error.message.includes("AccessControl")) {
@@ -71,7 +71,7 @@ export class SecurityAudit {
     static async testIntegerOverflow(
         contract: Contract,
         functionName: string,
-        normalValue: bigint,
+        _normalValue: bigint,
         overflowValue: bigint
     ): Promise<boolean> {
         try {
@@ -152,7 +152,7 @@ export class SecurityAudit {
         // Test pause
         let pauseWorks = false;
         try {
-            await contract.connect(pauserSigner)[pauseFunction]();
+            await (contract.connect(pauserSigner) as any)[pauseFunction]();
             await expect(contract[testFunction](...testArgs)).to.be.reverted;
             pauseWorks = true;
         } catch (error) {
@@ -162,7 +162,7 @@ export class SecurityAudit {
         // Test unpause
         let unpauseWorks = false;
         try {
-            await contract.connect(pauserSigner)[unpauseFunction]();
+            await (contract.connect(pauserSigner) as any)[unpauseFunction]();
             await contract[testFunction](...testArgs);
             unpauseWorks = true;
         } catch (error) {
@@ -212,7 +212,7 @@ ${results.testDetails.map(detail => `- ${detail.name}: ${detail.status}`).join('
      * Analyze contract for common vulnerability patterns
      */
     static async analyzeVulnerabilities(
-        contractAddress: string,
+        _contractAddress: string,
         contractABI: any[]
     ): Promise<VulnerabilityAnalysis> {
         const vulnerabilities: VulnerabilityAnalysis = {
@@ -377,9 +377,9 @@ export class AttackSimulator {
      * Simulate a sandwich attack on DEX operations
      */
     static async simulateSandwichAttack(
-        targetContract: Contract,
-        victimTransaction: any,
-        attackerSigner: Signer
+        _targetContract: Contract,
+        _victimTransaction: any,
+        _attackerSigner: Signer
     ): Promise<boolean> {
         // This is a placeholder for sandwich attack simulation
         // In a real implementation, this would front-run and back-run a transaction
@@ -390,9 +390,9 @@ export class AttackSimulator {
      * Simulate a flash loan attack
      */
     static async simulateFlashLoanAttack(
-        targetContract: Contract,
-        loanAmount: bigint,
-        attackerSigner: Signer
+        _targetContract: Contract,
+        _loanAmount: bigint,
+        _attackerSigner: Signer
     ): Promise<boolean> {
         // This is a placeholder for flash loan attack simulation
         // In a real implementation, this would use a flash loan provider
@@ -403,9 +403,9 @@ export class AttackSimulator {
      * Simulate a governance attack
      */
     static async simulateGovernanceAttack(
-        governanceContract: Contract,
-        proposalData: any,
-        attackerSigner: Signer
+        _governanceContract: Contract,
+        _proposalData: any,
+        _attackerSigner: Signer
     ): Promise<boolean> {
         // This is a placeholder for governance attack simulation
         return false;

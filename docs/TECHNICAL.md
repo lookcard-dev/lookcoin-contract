@@ -1,39 +1,79 @@
 # LookCoin Technical Architecture
 
+> **Overview**: LookCoin (LOOK) is an omnichain fungible token implementing native LayerZero OFT V2 with multi-protocol bridge support for seamless cross-chain transfers.
+>
+> **Related Documents**:
+> - [Quick Start Guide](QUICK_START.md) - Get up and running quickly
+> - [API Reference](API_REFERENCE.md) - Complete contract interfaces
+> - [Security Overview](security/overview.md) - Security model and controls
+> - [User Flow Guide](guides/user-flow.md) - End-user bridging instructions
+
 ## Executive Summary
 
-LookCoin (LOOK) is the native platform token of the LookCard ecosystem, designed as a native multi-protocol omnichain fungible token. The token implements a unified cross-chain architecture through the CrossChainRouter, supporting multiple bridge protocols: LayerZero's OFT V2 standard (BSC, Base, Optimism), Celer IM's cross-chain messaging (BSC, Optimism, Oasis Sapphire), and Hyperlane for cross-chain messaging. The architecture employs protocol abstraction through a modular design where each bridge protocol implements the ILookBridgeModule interface, enabling seamless protocol selection based on destination chain, cost optimization, speed requirements, or security preferences. The system maintains a unified global supply model with appropriate mechanics for each protocol (burn-and-mint for LayerZero and Hyperlane, lock-and-mint for Celer IM), ensuring consistent token supply across all deployments while providing redundancy, optimal routing, and enhanced cross-chain capabilities.
+LookCoin (LOOK) serves as the native platform token of the LookCard ecosystem, designed as a multi-protocol omnichain fungible token. The architecture provides:
+
+- **Unified Cross-Chain Operations**: Native LayerZero OFT V2 integration with multi-protocol router support
+- **Protocol Abstraction**: Modular design implementing ILookBridgeModule interface for seamless protocol selection
+- **Global Supply Management**: Burn-and-mint mechanics across all protocols ensuring consistent token supply
+- **Enhanced Security**: Supply oracle monitoring, role-based access control, and emergency pause mechanisms
+
+**Supported Protocols**:
+- LayerZero OFT V2 (BSC, Base, Optimism)
+- Celer IM (BSC, Optimism, Oasis Sapphire) 
+- Hyperlane (planned deployment)
+
+**Key Benefits**: Redundancy, optimal routing, cost optimization, and enhanced cross-chain capabilities.
 
 ## Token Specification
 
 ### Basic Properties
-- **Name**: LookCoin
-- **Symbol**: LOOK
-- **Decimals**: 18
-- **Total Supply**: Dynamic (tracked via totalMinted and totalBurned)
-- **Circulating Supply**: totalMinted - totalBurned
-- **Token Standard**: ERC20 with native cross-chain support
-- **Deployment Status**: ✅ Live on BSC Mainnet and BSC Testnet
+
+| Property | Value |
+|----------|-------|
+| **Name** | LookCoin |
+| **Symbol** | LOOK |
+| **Decimals** | 18 |
+| **Total Supply Cap** | 5,000,000,000 LOOK |
+| **Current Minted** | 20,000 LOOK (BSC Mainnet only) |
+| **Circulating Supply** | totalMinted - totalBurned |
+| **Token Standard** | ERC20 with native cross-chain support |
+
+### Deployment Status
+
+| Network | Status | Chain ID | Bridge Protocols |
+|---------|--------|----------|-----------------|
+| BSC Mainnet | ✅ Live | 56 | LayerZero, Celer IM |
+| BSC Testnet | ✅ Live | 97 | LayerZero, Celer IM |
+| Base Sepolia | ✅ Live | 84532 | LayerZero |
+| Optimism Sepolia | ✅ Live | 11155420 | LayerZero |
+| Oasis Sapphire Mainnet | ✅ Live | 23295 | Celer IM |
 
 ### Technical Standards
-- **Base**: OpenZeppelin ERC20Upgradeable v5.1.0
-- **Extensions**: ERC20PermitUpgradeable (EIP-2612 gasless approvals)
-- **Proxy Pattern**: UUPS (Universal Upgradeable Proxy Standard)
-- **Cross-chain**: Native LayerZero OFT V2 integration + modular bridge architecture
-- **Security**: Pausable, ReentrancyGuard, AccessControl with granular roles
-- **Solidity Version**: 0.8.28 with optimizer (9999 runs)
+
+| Component | Implementation |
+|-----------|----------------|
+| **Base Contract** | OpenZeppelin ERC20Upgradeable v5.1.0 |
+| **Extensions** | ERC20PermitUpgradeable (EIP-2612) |
+| **Proxy Pattern** | UUPS (Universal Upgradeable Proxy Standard) |
+| **Cross-chain** | Native LayerZero OFT V2 + modular bridges |
+| **Security** | Pausable, ReentrancyGuard, AccessControl |
+| **Solidity Version** | 0.8.28 with optimizer (9999 runs) |
 
 ## Cross-Chain Architecture
 
 ### Native OFT V2 Integration
-LookCoin implements LayerZero OFT V2 natively within the token contract:
-- **sendFrom()**: Full OFT V2 send functionality with adapter params
-- **bridgeToken()**: Simplified bridge interface for user convenience
-- **lzReceive()**: Direct endpoint integration for receiving transfers
-- **Trusted Remotes**: Per-chain peer contract configuration
-- **Gas Management**: Configurable gas limits per destination chain
 
-### Bridge Protocols
+LookCoin implements LayerZero OFT V2 natively within the token contract:
+
+| Function | Purpose | Implementation |
+|----------|---------|----------------|
+| `sendFrom()` | Full OFT V2 send functionality | Native adapter params support |
+| `bridgeToken()` | Simplified bridge interface | User convenience wrapper |
+| `lzReceive()` | Receiving transfers | Direct endpoint integration |
+| Trusted Remotes | Per-chain peer contracts | Configuration management |
+| Gas Management | Destination chain limits | Configurable gas parameters |
+
+### Bridge Protocol Overview
 
 ### Multi-Protocol Router Architecture
 
@@ -66,38 +106,55 @@ graph TB
 ```
 
 #### 1. LayerZero OFT V2 (Native)
-- **Mechanism**: Burn-and-mint
-- **Networks**: All supported chains
-- **Security**: DVN (Decentralized Verifier Network) support
-- **Features**: 
-  - Native integration in LookCoin contract
-  - Enforced options for minimum gas
-  - Nonce-based replay protection
-  - Trusted remote verification
+
+**Status**: ✅ Active across all supported chains
+
+| Attribute | Details |
+|-----------|----------|
+| **Mechanism** | Burn-and-mint |
+| **Networks** | BSC, Base, Optimism (all supported chains) |
+| **Security** | DVN (Decentralized Verifier Network) |
+| **Integration** | Native in LookCoin contract |
+
+**Key Features**:
+- Enforced options for minimum gas configuration
+- Nonce-based replay protection
+- Trusted remote verification
+- Direct endpoint communication
 
 #### 2. Celer IM (Inter-chain Messaging)
-- **Mechanism**: Burn-and-mint
-- **Networks**: BSC ⟷ Optimism, Sapphire
-- **Security**: SGN (State Guardian Network) validators
-- **Features**: 
-  - Message-based transfers with executor pattern
-  - Configurable chain support (no hardcoded chain IDs)
-  - Remote module registration
-  - Fee refund mechanism
 
-#### 3. Hyperlane
-- **Mechanism**: Burn-and-mint
-- **Networks**: Configurable via domain mappings
-- **Security**: Modular ISM (Interchain Security Modules)
-- **Features**: 
-  - Domain-based routing (no hardcoded chain IDs)
-  - Configurable domain-to-chain mappings
-  - Gas oracle integration
-  - Message-based architecture
+**Status**: ✅ Active on BSC ⟷ Optimism, Sapphire
 
-### Multi-Protocol Router Architecture
+| Attribute | Details |
+|-----------|----------|
+| **Mechanism** | Burn-and-mint |
+| **Networks** | BSC, Optimism, Oasis Sapphire |
+| **Security** | SGN (State Guardian Network) validators |
+| **Integration** | Separate CelerIMModule contract |
 
-LookCard operates its own complete Hyperlane infrastructure across all supported chains:
+**Key Features**:
+- Message-based transfers with executor pattern
+- Configurable chain support (no hardcoded chain IDs)
+- Remote module registration system
+- Automatic fee refund mechanism
+
+#### 3. Hyperlane (Planned)
+
+**Status**: 🔍 Infrastructure deployment pending
+
+| Attribute | Details |
+|-----------|----------|
+| **Mechanism** | Burn-and-mint (planned) |
+| **Networks** | Domain-based configuration |
+| **Security** | Modular ISM (Interchain Security Modules) |
+| **Integration** | Separate HyperlaneModule contract |
+
+**Planned Features**:
+- Domain-based routing (no hardcoded chain IDs)
+- Configurable domain-to-chain mappings
+- Gas oracle integration
+- Message-based architecture
 
 - **Custom Mailboxes**: LookCard-deployed mailbox contracts on each chain
 - **Self-Operated Relayers**: Dedicated relayer infrastructure for all routes
@@ -165,7 +222,7 @@ Multi-Chain Deployment
 ├── Infrastructure (Multi-protocol chains only)
 │   ├── CrossChainRouter.sol (Protocol selection & routing)
 │   ├── FeeManager.sol (Unified fee management)
-│   ├── SecurityManager.sol (Rate limiting & security)
+│   ├── SecurityManager.sol (Security controls)
 │   └── ProtocolRegistry.sol (Module registration)
 │
 └── External Integrations
@@ -363,7 +420,7 @@ sequenceDiagram
             SM->>SM: Check anomaly thresholds
             SM->>Router: Pause affected protocol
             SM->>Alert: Notify operators
-        else Rate limit exceeded
+        else Security threshold exceeded
             SM->>Modules: Enforce protocol limits
         end
     end
@@ -412,7 +469,6 @@ Setup includes:
 - Granting operational roles (MINTER, BURNER, BRIDGE)
 - Registering bridge modules with CrossChainRouter
 - Setting initial protocol fees
-- Configuring rate limits
 
 #### Stage 3: Configure
 Establishes cross-chain connections between networks:
@@ -447,13 +503,6 @@ Configuration includes:
 
 ## Security Considerations
 
-### Rate Limiting (via SecurityManager)
-- Per-transaction limit: 500,000 LOOK
-- Per-account hourly limit: 1,500,000 LOOK (3 transactions)
-- Global daily limit: 20% of total supply
-- Sliding window algorithm for accurate tracking
-- Emergency bypass for authorized operations
-
 ### Supply Monitoring
 - Real-time tracking via totalMinted and totalBurned
 - Cross-chain supply reconciliation every 15 minutes
@@ -461,6 +510,134 @@ Configuration includes:
 - Manual reconciliation tools for administrators
 - Oracle-based reporting across all chains
 - Circulating supply: totalMinted - totalBurned
+- Bridge registration with idempotency (prevents duplicate registrations)
+
+### Supply Reconciliation Process
+The system includes a dedicated reconciliation script for cross-chain supply monitoring:
+
+```bash
+# Run reconciliation from any deployed network
+npm run reconcile:bsc-testnet
+npm run reconcile:base-sepolia
+npm run reconcile:optimism-sepolia
+```
+
+**Reconciliation Features:**
+- Queries supply data from all deployed chains via RPC
+- Aggregates total minted, burned, and circulating supply
+- Compares against the 5 billion LOOK global cap
+- Updates SupplyOracle with multi-signature validation
+- Detects discrepancies beyond tolerance threshold (1000 LOOK)
+- Triggers automatic bridge pausing if unhealthy
+
+**Prerequisites:**
+- ORACLE_ROLE on SupplyOracle contract
+- RPC access to all deployed chains
+- Deployment artifacts in /deployments directory
+
+**Reconciliation Workflow:**
+1. Collect supply data from all chains
+2. Calculate aggregate supply metrics
+3. Check health against tolerance threshold
+4. Update SupplyOracle if needed (15-minute intervals)
+5. Generate comprehensive report
+
+**Supply Distribution:**
+- Home Chain (BSC): Mints the full 5 billion LOOK initially
+- Secondary Chains: Receive tokens only through bridges
+- SupplyOracle: Initialized with 5 billion expected supply, automatically updated by setup script if needed
+
+**Supply Oracle Management:**
+- The SupplyOracle is deployed with a 5 billion LOOK expected supply
+- The setup script automatically checks and updates the expected supply if it doesn't match
+- Admins can manually update using: `supplyOracle.updateExpectedSupply(newSupply)`
+
+### Multi-Signature Oracle Operations
+
+The SupplyOracle implements an on-chain multi-signature mechanism for supply updates to ensure data integrity and prevent single points of failure.
+
+**How It Works:**
+1. **Signature Collection**: Multiple oracle nodes with `ORACLE_ROLE` must independently report the same supply data
+2. **Threshold Requirement**: By default, 3 signatures are required before a supply update is executed
+3. **Automatic Execution**: When the threshold is reached, the supply update executes immediately
+4. **No Time Limits**: Signatures accumulate until the threshold is met, with no expiration
+
+**Supply Update Process:**
+```javascript
+// Oracle Node 1 reports supply
+await supplyOracle.updateSupply(
+  56,           // Chain ID (BSC)
+  1000000000,   // Total supply on chain
+  50000000,     // Locked supply in bridges
+  12345         // Nonce for this update
+);
+// Status: 1/3 signatures collected
+
+// Oracle Node 2 reports same data
+await supplyOracle.updateSupply(56, 1000000000, 50000000, 12345);
+// Status: 2/3 signatures collected
+
+// Oracle Node 3 reports same data
+await supplyOracle.updateSupply(56, 1000000000, 50000000, 12345);
+// Status: 3/3 signatures - Update executes automatically!
+```
+
+**Key Requirements:**
+- All oracles must use identical parameters (chainId, totalSupply, lockedSupply, nonce)
+- Each oracle can only sign once per unique update
+- The nonce ensures coordination between oracle nodes
+
+**Operational Setup:**
+
+For production deployments, the typical setup involves:
+
+1. **MPC Vault (Admin Team)**:
+   - Holds `DEFAULT_ADMIN_ROLE` for governance
+   - Can update signature thresholds via `updateRequiredSignatures()`
+   - Manages emergency procedures
+
+2. **Oracle Operators (Dev Team)**:
+   - 3+ independent addresses with `ORACLE_ROLE`
+   - Each runs an oracle service monitoring different RPC endpoints
+   - Coordinate on nonce values (typically using timestamps or block numbers)
+
+**Example Oracle Service:**
+```javascript
+// Each oracle node runs this independently
+async function reportSupplyData() {
+  // Gather supply data from chain
+  const totalSupply = await lookCoin.totalSupply();
+  const lockedInBridges = await calculateLockedSupply();
+  
+  // Use timestamp as nonce for coordination
+  const nonce = Math.floor(Date.now() / 1000);
+  
+  // Submit supply update (requires 3 signatures)
+  await supplyOracle.updateSupply(
+    chainId,
+    totalSupply,
+    lockedInBridges,
+    nonce
+  );
+  
+  console.log(`Oracle ${oracleId} submitted supply update with nonce ${nonce}`);
+}
+
+// Run every 15 minutes
+setInterval(reportSupplyData, 15 * 60 * 1000);
+```
+
+**Security Considerations:**
+- Multiple oracle nodes prevent single points of failure
+- Geographic distribution of nodes increases resilience
+- Different RPC providers reduce dependency risks
+- Threshold can be adjusted based on security requirements
+
+**Adjusting Signature Requirements:**
+```javascript
+// Only DEFAULT_ADMIN_ROLE (MPC Vault) can change this
+await supplyOracle.updateRequiredSignatures(5); // Increase to 5 signatures
+```
 
 ### Emergency Procedures
 1. **Pause All Operations**
@@ -481,7 +658,14 @@ Configuration includes:
 
 ### Governance Model
 - **Type**: MPC Vault Wallet (Off-chain Multi-Party Computation)
-- **Address**: Configured via GOVERNANCE_VAULT environment variable
+- **MPC Vault Address**: Configured via `GOVERNANCE_VAULT` environment variable
+  - Holds financial control (MINTER_ROLE, BURNER_ROLE)
+  - Can perform all administrative functions
+  - Has DEFAULT_ADMIN_ROLE on all contracts
+- **Dev Team Address**: Configured via `DEV_TEAM_ADDRESS` environment variable (optional)
+  - Holds technical roles without financial control
+  - Manages protocol configurations and operational tasks
+  - Has OPERATOR_ROLE on infrastructure contracts
 - **Execution**: Direct on-chain execution without timelock
 - **Scope**: All administrative functions via role-based permissions
 - **Security**: No single point of failure, distributed key management
@@ -526,11 +710,11 @@ The LookCoin ecosystem implements granular role-based access control using OpenZ
 | -------------------------- | -------------------- | --------------------------------------------- | ------------------------------- | ---------------- | ------------ |
 | **LookCoin.sol**           |                      |                                               |                                 |                  |              |
 |                            | `DEFAULT_ADMIN_ROLE` | `grantRole()`, `revokeRole()`                 | Grant/revoke all roles          | MPC Vault        | No           |
-|                            | `MINTER_ROLE`        | `mint()`                                      | Mint new tokens                 | MPC Vault + Bridges | Yes          |
-|                            | `BURNER_ROLE`        | `burn()`, `burnFrom()`                        | Burn tokens                     | MPC Vault + Bridges | Yes          |
+|                            | `MINTER_ROLE`        | `mint()`                                      | Mint new tokens                 | MPC Vault + Bridge Modules | Yes          |
+|                            | `BURNER_ROLE`        | `burn()`, `burnFrom()`                        | Burn tokens                     | MPC Vault + Bridge Modules + LookCoin | Yes          |
 |                            | `PAUSER_ROLE`        | `pause()`, `unpause()`                        | Pause/unpause transfers         | MPC Vault        | Yes          |
 |                            | `UPGRADER_ROLE`      | `upgradeToAndCall()`                          | Upgrade contract implementation | MPC Vault + Dev Team | Yes          |
-|                            | `BRIDGE_ROLE`        | Bridge-specific operations                     | Bridge functions only           | Bridge Contracts | Yes          |
+|                            | `BRIDGE_ROLE`        | Bridge-specific operations                     | Bridge functions only           | Bridge Modules + CrossChainRouter | Yes          |
 |                            | `PROTOCOL_ADMIN_ROLE`| `setTrustedRemote()`, protocol configs        | Configure protocols             | Dev Team         | Yes          |
 |                            | `ROUTER_ADMIN_ROLE`  | `setCrossChainRouter()`                       | Set router contract             | Dev Team         | Yes          |
 | **CrossChainRouter.sol**   |                      |                                               |                                 |                  |              |
@@ -581,7 +765,7 @@ The multi-protocol system implements carefully orchestrated role dependencies:
 
 2. **Router Integration**: The CrossChainRouter requires registration in LookCoin via `setCrossChainRouter()` to enable protocol routing.
 
-3. **Security Integration**: Protocol modules must be registered with SecurityManager for rate limiting and anomaly detection.
+3. **Security Integration**: Protocol modules must be registered with SecurityManager for anomaly detection.
 
 4. **Fee Management**: FeeManager requires protocol module addresses for accurate fee estimation across protocols.
 
@@ -601,17 +785,45 @@ The role assignment follows a three-stage pattern designed for security and oper
 
 - **Script**: `scripts/setup.ts`
 - **Purpose**: Configures roles and settings for the current network only
+- **Prerequisites**: 
+  - Stage 1 deployment completed with artifacts in `/deployments`
+  - Environment variables configured (`GOVERNANCE_VAULT`, `DEV_TEAM_ADDRESS`)
 - **Operations**:
-  - Grants `MINTER_ROLE` and `BURNER_ROLE` to MPC vault for token operations
-  - Grants technical roles to dev team addresses:
-    - `PROTOCOL_ADMIN_ROLE` for protocol configuration
-    - `ROUTER_ADMIN_ROLE` for router management
-    - `UPGRADER_ROLE` for contract upgrades
-    - `OPERATOR_ROLE` for operational tasks
-  - Assigns roles to protocol modules:
-    - Bridge contracts receive `MINTER_ROLE`, `BURNER_ROLE`, and `BRIDGE_ROLE`
-  - Registers CrossChainRouter with LookCoin
-  - Configures local protocol parameters
+
+  **1. Role Configuration:**
+  - **MPC Vault** (`GOVERNANCE_VAULT`) receives:
+    - `MINTER_ROLE` - For minting tokens in business operations
+    - `BURNER_ROLE` - For burning tokens in supply management
+  
+  - **Dev Team** (`DEV_TEAM_ADDRESS` - optional) receives:
+    - `PROTOCOL_ADMIN_ROLE` - For configuring protocol settings (trusted remotes, fees)
+    - `ROUTER_ADMIN_ROLE` - For setting/updating CrossChainRouter contract
+    - `UPGRADER_ROLE` - For contract upgrades (provides redundancy with MPC vault)
+    - `OPERATOR_ROLE` - On CrossChainRouter, FeeManager, SecurityManager, and all protocol modules
+  
+  - **Bridge Modules** receive:
+    - LayerZeroModule: `MINTER_ROLE`, `BURNER_ROLE`, `BRIDGE_ROLE`
+    - HyperlaneModule: `MINTER_ROLE`, `BURNER_ROLE`, `BRIDGE_ROLE` (if Hyperlane ready)
+    - CelerIMModule: `MINTER_ROLE`, `BRIDGE_ROLE`
+  
+  - **LookCoin Contract** receives:
+    - `BURNER_ROLE` - Enables direct LayerZero OFT functionality
+
+  **2. Infrastructure Configuration:**
+  - Sets LayerZero endpoint on LookCoin for direct OFT transfers
+  - Registers bridges with SupplyOracle for cross-chain supply tracking:
+    - LookCoin itself for LayerZero (uses LZ chain ID)
+    - HyperlaneModule (uses Hyperlane domain ID)
+    - CelerIMModule (uses Celer chain ID)
+  
+  **3. CrossChainRouter Setup (Multi-Protocol Mode):**
+  - Registers CrossChainRouter with LookCoin via `setCrossChainRouter()`
+  - Grants `OPERATOR_ROLE` to dev team on CrossChainRouter
+  - Registers protocol modules with router:
+    - LayerZero module (Protocol ID: 0)
+    - Celer module (Protocol ID: 1)
+    - Hyperlane module (Protocol ID: 2)
+  - Grants `BRIDGE_ROLE` to CrossChainRouter for module interaction
 
 **Stage 3: Configure (Cross-Chain Configuration)**
 

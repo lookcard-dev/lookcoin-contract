@@ -231,7 +231,28 @@ export function getDeploymentPath(networkName: string): string {
   return path.join(deploymentsDir, fileName);
 }
 
-export function loadDeployment(networkName: string, useLevel: boolean = false): Deployment | null {
+// Overloaded function for testing - accepts direct file path
+export function loadDeployment(filePath: string): Deployment | null;
+// Main function - accepts network name
+export function loadDeployment(networkName: string, useLevel: boolean): Deployment | null;
+
+export function loadDeployment(networkNameOrPath: string, useLevel: boolean = false): Deployment | null {
+  // If it's a file path (contains '/' or '\' or ends with .json), handle as direct file load
+  if (networkNameOrPath.includes('/') || networkNameOrPath.includes('\\') || networkNameOrPath.endsWith('.json')) {
+    if (!fs.existsSync(networkNameOrPath)) {
+      return null;
+    }
+    try {
+      const data = fs.readFileSync(networkNameOrPath, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error(`Error loading deployment from ${networkNameOrPath}:`, error);
+      return null;
+    }
+  }
+  
+  // Regular network-based load
+  const networkName = networkNameOrPath;
   if (!useLevel) {
     // Default behavior - load from JSON file
     const deploymentPath = getDeploymentPath(networkName);
@@ -273,7 +294,24 @@ export function loadDeployment(networkName: string, useLevel: boolean = false): 
   return null;
 }
 
-export async function saveDeployment(networkName: string, deployment: Deployment): Promise<void> {
+// Overloaded function for testing - accepts direct file path
+export function saveDeployment(filePath: string, deployment: Deployment): void;
+// Main function - accepts network name
+export async function saveDeployment(networkName: string, deployment: Deployment): Promise<void>;
+
+export async function saveDeployment(networkNameOrPath: string, deployment: Deployment): Promise<void> {
+  // If it's a file path (contains '/' or '\' or ends with .json), handle as direct file save
+  if (networkNameOrPath.includes('/') || networkNameOrPath.includes('\\') || networkNameOrPath.endsWith('.json')) {
+    const deploymentDir = path.dirname(networkNameOrPath);
+    if (!fs.existsSync(deploymentDir)) {
+      fs.mkdirSync(deploymentDir, { recursive: true });
+    }
+    fs.writeFileSync(networkNameOrPath, JSON.stringify(deployment, null, 2));
+    return;
+  }
+  
+  // Regular network-based save
+  const networkName = networkNameOrPath;
   const deploymentPath = getDeploymentPath(networkName);
   const deploymentsDir = path.dirname(deploymentPath);
   const isDebug = process.env.DEBUG_DEPLOYMENT === 'true';

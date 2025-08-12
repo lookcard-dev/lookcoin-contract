@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import hre from "hardhat";
-import { ChainConfig } from "../../hardhat.config";
+import { ChainConfig, TOTAL_SUPPLY } from "../../hardhat.config";
 import { ProtocolDetector, ProtocolSupport, isHyperlaneReady } from "./protocolDetector";
 import { fetchDeployOrUpgradeProxy } from "./state";
 import { Deployment } from "./deployment";
@@ -54,9 +54,9 @@ export class DeploymentOrchestrator {
     let supportedChainIds: number[];
     
     // Check if mainnet or testnet based on chain ID
-    if ([56, 8453, 10, 23295, 9070].includes(chainId)) {
+    if ([56, 8453, 10, 23294, 9070].includes(chainId)) {
       // Mainnet chain IDs
-      supportedChainIds = [56, 8453, 10, 23295, 9070]; // BSC, Base, Optimism, Sapphire, Akashic
+      supportedChainIds = [56, 8453, 10, 23294, 9070]; // BSC, Base, Optimism, Sapphire, Akashic
     } else {
       // Testnet chain IDs
       supportedChainIds = [97, 84532, 11155420, 23295, 9071]; // BSC Testnet, Base Sepolia, Optimism Sepolia, Sapphire Testnet, Akashic Testnet
@@ -68,7 +68,7 @@ export class DeploymentOrchestrator {
       "SupplyOracle",
       [
         config.deployer, 
-        ethers.parseEther("1000000000"), // 1 billion total supply
+        TOTAL_SUPPLY, // Total supply from hardhat config
         supportedChainIds
       ]
     );

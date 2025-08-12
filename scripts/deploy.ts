@@ -263,6 +263,31 @@ async function main() {
     deployment.protocolsDeployed.push("hyperlane");
   }
 
+  // Check for protocol deployment vs support mismatches
+  console.log("\n🔍 Verifying protocol deployments...");
+  const deploymentMismatches: string[] = [];
+  
+  if (deployment.protocolsDeployed.includes("layerZero") && !chainConfig.protocols.layerZero) {
+    deploymentMismatches.push("LayerZero (deployed but not supported)");
+  }
+  if (deployment.protocolsDeployed.includes("celer") && !chainConfig.protocols.celer) {
+    deploymentMismatches.push("Celer (deployed but not supported)");
+  }
+  if (deployment.protocolsDeployed.includes("hyperlane") && !chainConfig.protocols.hyperlane) {
+    deploymentMismatches.push("Hyperlane (deployed but not supported)");
+  }
+  
+  if (deploymentMismatches.length > 0) {
+    console.log("\n⚠️  WARNING: Protocol deployment mismatches detected:");
+    deploymentMismatches.forEach(mismatch => {
+      console.log(`   - ${mismatch}`);
+    });
+    console.log("\n   These protocols were deployed but are not supported on this network.");
+    console.log("   The setup script will skip configuration for unsupported protocols.");
+  } else {
+    console.log("✅ All deployed protocols are supported on this network.");
+  }
+
   // Deploy infrastructure for multi-protocol mode (unless in simple mode)
   if (deploymentMode === "multi-protocol" && !simpleMode && !forceStandardMode) {
     console.log("\n🏗️ Deploying infrastructure contracts...");

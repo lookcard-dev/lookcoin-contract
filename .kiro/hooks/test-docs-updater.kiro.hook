@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Test Documentation Updater",
+  "description": "Monitors the test directory for changes and updates the TESTCASE.md documentation to reflect any modifications to test files",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "test/**/*.ts",
+      "test/**/*.js"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "The test directory has been modified. Please analyze the changes in the test files and update the docs/TESTCASE.md document to accurately reflect the current test structure, new test cases, modified test scenarios, or removed tests. Ensure the documentation remains comprehensive and up-to-date with the actual test implementation."
+  }
+}

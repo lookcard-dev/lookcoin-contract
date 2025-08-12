@@ -6,14 +6,12 @@ import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../interfaces/ICrossChainRouter.sol";
-import "../security/RateLimiter.sol";
 
 contract SecurityManager is 
     Initializable, 
     AccessControlUpgradeable, 
     PausableUpgradeable, 
-    UUPSUpgradeable,
-    RateLimiter 
+    UUPSUpgradeable 
 {
     bytes32 public constant SECURITY_ADMIN_ROLE = keccak256("SECURITY_ADMIN_ROLE");
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
@@ -62,7 +60,6 @@ contract SecurityManager is
         __AccessControl_init();
         __Pausable_init();
         __UUPSUpgradeable_init();
-        __RateLimiter_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(SECURITY_ADMIN_ROLE, _admin);
@@ -111,8 +108,6 @@ contract SecurityManager is
         ProtocolSecurityConfig memory config = protocolConfigs[protocol];
         require(amount <= config.transactionLimit, "Transaction limit exceeded");
 
-        // Check rate limiting
-        _checkRateLimit(user, amount);
 
         // Update volumes
         globalDailyVolume += amount;

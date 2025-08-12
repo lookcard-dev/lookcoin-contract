@@ -177,7 +177,6 @@ contract CelerIMModule is
     __Pausable_init();
     __ReentrancyGuard_init();
     __UUPSUpgradeable_init();
-    // RateLimiter initialization removed
 
     require(_messageBus != address(0), "CelerIM: invalid message bus");
     require(_lookCoin != address(0), "CelerIM: invalid LookCoin");
@@ -188,7 +187,6 @@ contract CelerIMModule is
     _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     _grantRole(ADMIN_ROLE, _admin);
     _grantRole(OPERATOR_ROLE, _admin);
-    // Rate limit admin role removed
 
     // Initialize defaults
     feePercentage = 50; // 0.5%
@@ -201,90 +199,43 @@ contract CelerIMModule is
   }
 
   /**
-   * @dev Burn LOOK tokens and initiate cross-chain transfer
-   * @param _dstChainId Destination chain ID (must be BSC, Optimism, or Sapphire)
-   * @param _recipient Recipient address on destination chain
-   * @param _amount Amount to transfer (before fees)
-   * @notice Burns tokens on source chain and sends message to mint on destination
-   * @dev Requires msg.value to cover Celer message fees
-   * @dev Emits CrossChainTransferInitiated event
-   */
-  function bridge(
-    uint64 _dstChainId,
-    address _recipient,
-    uint256 _amount
-  )
-    external
-    payable
-    whenNotPaused
-    nonReentrant // Rate limiting check removed
-  {
-    require(!blacklist[msg.sender], "CelerIM: sender blacklisted");
-    require(whitelist[msg.sender] || !paused(), "CelerIM: not whitelisted");
-    require(_recipient != address(0), "CelerIM: invalid recipient");
-    require(_amount > 0, "CelerIM: invalid amount");
-    require(remoteModules[_dstChainId] != address(0), "CelerIM: unsupported chain");
-    require(supportedChains[_dstChainId], "CelerIM: unsupported destination chain");
-
-    // Calculate fee
-    uint256 fee = calculateFee(_amount);
-    uint256 netAmount = _amount - fee;
-
-    // Burn tokens (including fee)
-    lookCoin.burn(msg.sender, _amount);
-
-    // Note: Fee collection happens on destination chain during minting
-
-    // Generate unique transfer ID
-    bytes32 transferId = keccak256(abi.encodePacked(msg.sender, _recipient, _amount, block.timestamp, block.number));
-
-    // Encode message
-    bytes memory message = abi.encode(msg.sender, _recipient, netAmount, transferId);
-
-    // Calculate Celer message fee
-    uint256 messageFee = estimateMessageFee(_dstChainId, message);
-    require(msg.value >= messageFee, "CelerIM: insufficient message fee");
-
-    // Send cross-chain message with transfer
-    messageBus.sendMessageWithTransfer{value: messageFee}(
-      remoteModules[_dstChainId],
-      _dstChainId,
-      message,
-      address(lookCoin),
-      transferId,
-      messageFee
-    );
-
-    // Refund excess ETH
-    if (msg.value > messageFee) {
-      payable(msg.sender).transfer(msg.value - messageFee);
-    }
-
-    emit CrossChainTransferInitiated(msg.sender, _dstChainId, _recipient, netAmount, fee, transferId);
-  }
-
-  /**
    * @dev ILookBridgeModule implementation - bridge tokens to another chain
    * @param destinationChain Destination chain ID
    * @param recipient Recipient address on destination chain
-   * @param amount Amount to transfer
+   * @param amount Amount to transfer (before fees)
    * @param params Additional parameters (unused for Celer)
    * @return transferId Unique transfer identifier
+   * @notice Validates inputs, burns tokens, and initiates cross-chain transfer
+   * @dev Converts uint256 chainId to uint64 for Celer compatibility
    */
-  function bridgeToken(
+  function bridge(
     uint256 destinationChain,
     address recipient,
     uint256 amount,
     bytes calldata params
   ) external payable override whenNotPaused nonReentrant returns (bytes32 transferId) {
-    // Call existing bridge functionality
+    // Convert chain ID to uint64 for Celer compatibility
     uint64 dstChainId = uint64(destinationChain);
+    
+    // Input validation
+    require(!blacklist[msg.sender], "CelerIM: sender blacklisted");
+    require(whitelist[msg.sender] || !paused(), "CelerIM: not whitelisted");
+    require(recipient != address(0), "CelerIM: invalid recipient");
+    require(amount > 0, "CelerIM: invalid amount");
+    require(remoteModules[dstChainId] != address(0), "CelerIM: unsupported chain");
+    require(supportedChains[dstChainId], "CelerIM: unsupported destination chain");
 
     // Calculate fee
     uint256 fee = calculateFee(amount);
     uint256 netAmount = amount - fee;
 
-    // Generate transfer ID
+    // Transfer approved tokens from router to module, then burn them (including fee)
+    require(lookCoin.transferFrom(msg.sender, address(this), amount), "CelerIM: failed to transfer tokens");
+    lookCoin.burn(address(this), amount);
+
+    // Note: Fee collection happens on destination chain during minting
+
+    // Generate unique transfer ID
     transferId = keccak256(abi.encodePacked(msg.sender, recipient, amount, block.timestamp, block.number));
 
     // Store transfer info for ILookBridgeModule
@@ -300,9 +251,30 @@ contract CelerIMModule is
       timestamp: block.timestamp
     });
 
-    // Execute the bridge operation
-    this.bridge{value: msg.value}(dstChainId, recipient, amount);
+    // Encode message for cross-chain transfer
+    bytes memory message = abi.encode(msg.sender, recipient, netAmount, transferId);
 
+    // Calculate Celer message fee
+    uint256 messageFee = estimateMessageFee(dstChainId, message);
+    require(msg.value >= messageFee, "CelerIM: insufficient message fee");
+
+    // Send cross-chain message with transfer
+    messageBus.sendMessageWithTransfer{value: messageFee}(
+      remoteModules[dstChainId],
+      dstChainId,
+      message,
+      address(lookCoin),
+      transferId,
+      messageFee
+    );
+
+    // Refund excess ETH
+    if (msg.value > messageFee) {
+      payable(msg.sender).transfer(msg.value - messageFee);
+    }
+
+    // Emit events
+    emit CrossChainTransferInitiated(msg.sender, dstChainId, recipient, netAmount, fee, transferId);
     emit TransferInitiated(transferId, msg.sender, destinationChain, amount, "Celer");
   }
 
@@ -402,9 +374,12 @@ contract CelerIMModule is
    */
   function emergencyWithdraw(address token, address to, uint256 amount) external override onlyRole(ADMIN_ROLE) {
     require(token != address(lookCoin), "CelerIM: cannot withdraw LookCoin");
+    require(to != address(0) && to != address(this), "CelerIM: invalid recipient");
     
     if (token == address(0)) {
-      payable(to).transfer(amount);
+      // Use call instead of transfer for ETH to avoid gas limit issues
+      (bool success, ) = payable(to).call{value: amount}("");
+      require(success, "CelerIM: ETH transfer failed");
     } else {
       IERC20(token).safeTransfer(to, amount);
     }

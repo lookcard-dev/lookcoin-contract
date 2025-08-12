@@ -33,6 +33,18 @@ export async function configureLayerZero(
     if (deployment.protocolContracts?.layerZeroModule) {
       layerZeroModule = await ethers.getContractAt("LayerZeroModule", deployment.protocolContracts.layerZeroModule);
       details.push(`LayerZeroModule at ${deployment.protocolContracts.layerZeroModule}`);
+      
+      // Configure current chain mapping first if not already set
+      const currentChainId = deployment.chainId;
+      const currentEid = getLayerZeroChainId(currentChainId);
+      const currentMapping = await layerZeroModule.eidToChainId(currentEid);
+      if (currentMapping === 0) {
+        console.log(`Setting current chain mapping for LayerZeroModule: eid ${currentEid} -> chain ${currentChainId}...`);
+        const tx = await layerZeroModule.updateChainMapping(currentEid, currentChainId);
+        await tx.wait();
+        details.push(`Current chain mapping: eid ${currentEid} -> chain ${currentChainId}`);
+        configured = true;
+      }
     }
 
     for (const [chainId, otherDeployment] of Object.entries(otherDeployments)) {
@@ -60,19 +72,27 @@ export async function configureLayerZero(
       
       // Also configure LayerZeroModule if deployed
       if (layerZeroModule && otherDeployment.protocolContracts?.layerZeroModule) {
-        // Convert chain ID to LayerZero endpoint ID
-        const currentEid = await layerZeroModule.chainIdToEid(deployment.chainId);
-        const remoteEid = await layerZeroModule.chainIdToEid(Number(chainId));
+        const remoteEid = getLayerZeroChainId(Number(chainId));
+        
+        // First, ensure chain mapping is configured for LayerZeroModule
+        const currentMapping = await layerZeroModule.eidToChainId(remoteEid);
+        if (currentMapping === 0) {
+          console.log(`Setting chain mapping for LayerZeroModule: eid ${remoteEid} -> chain ${chainId}...`);
+          const tx = await layerZeroModule.updateChainMapping(remoteEid, Number(chainId));
+          await tx.wait();
+          details.push(`Chain mapping: eid ${remoteEid} -> chain ${chainId}`);
+          configured = true;
+        }
         
         // Check if trusted remote is set for LayerZeroModule
         const currentModuleTrustedRemote = await layerZeroModule.trustedRemotes(remoteEid);
         const remoteModuleAddress = otherDeployment.protocolContracts.layerZeroModule;
         
         if (currentModuleTrustedRemote === ethers.ZeroHash) {
-          console.log(`Setting trusted remote for LayerZeroModule on chain ${remoteLzChainId}...`);
+          console.log(`Setting trusted remote for LayerZeroModule on eid ${remoteEid}...`);
           const tx = await layerZeroModule.setTrustedRemote(remoteEid, remoteModuleAddress);
           await tx.wait();
-          details.push(`Module trusted remote ${remoteLzChainId}: ${remoteModuleAddress}`);
+          details.push(`Module trusted remote eid ${remoteEid}: ${remoteModuleAddress}`);
           configured = true;
         }
       }
@@ -95,11 +115,11 @@ export async function configureLayerZero(
       configured,
       details: configured ? `Configured: ${details.join(", ")}` : "Already configured"
     };
-  } catch (error: any) {
+  } catch (error) {
     return {
       protocol: "LayerZero",
       configured: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 }
@@ -109,8 +129,7 @@ export async function configureLayerZero(
  */
 export async function configureCeler(
   deployment: Deployment,
-  otherDeployments: { [chainId: string]: Deployment },
-  _chainConfig: ChainConfig
+  otherDeployments: { [chainId: string]: Deployment }
 ): Promise<ConfigurationResult> {
   try {
     if (!deployment.contracts.CelerIMModule && !deployment.protocolContracts?.celerIMModule) {
@@ -169,11 +188,11 @@ export async function configureCeler(
       configured,
       details: configured ? `Configured: ${details.join(", ")}` : "Already configured"
     };
-  } catch (error: any) {
+  } catch (error) {
     return {
       protocol: "Celer",
       configured: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 }
@@ -265,11 +284,11 @@ export async function configureHyperlane(
       configured,
       details: configured ? `Configured: ${details.join(", ")}` : "Already configured"
     };
-  } catch (error: any) {
+  } catch (error) {
     return {
       protocol: "Hyperlane",
       configured: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 }
@@ -279,8 +298,7 @@ export async function configureHyperlane(
  */
 export async function configureCrossChainRouter(
   deployment: Deployment,
-  otherDeployments: { [chainId: string]: Deployment },
-  _chainConfig: ChainConfig
+  otherDeployments: { [chainId: string]: Deployment }
 ): Promise<ConfigurationResult> {
   try {
     if (!deployment.infrastructureContracts?.crossChainRouter) {
@@ -292,59 +310,101 @@ export async function configureCrossChainRouter(
     }
 
     const router = await ethers.getContractAt(
-      "CrossChainRouter", 
+      "contracts/xchain/CrossChainRouter.sol:CrossChainRouter", 
       deployment.infrastructureContracts.crossChainRouter
     );
+    
+    // Check if the deployer has PROTOCOL_ADMIN_ROLE
+    const [deployer] = await ethers.getSigners();
+    const PROTOCOL_ADMIN_ROLE = await router.PROTOCOL_ADMIN_ROLE();
+    const hasRole = await router.hasRole(PROTOCOL_ADMIN_ROLE, deployer.address);
+    
+    if (!hasRole) {
+      return {
+        protocol: "CrossChainRouter",
+        configured: false,
+        error: `Deployer ${deployer.address} does not have PROTOCOL_ADMIN_ROLE on CrossChainRouter. Please run setup script first.`
+      };
+    }
+    
     let configured = false;
     const details: string[] = [];
 
-    // Register supported protocols
+    // Note: Protocol registration is already done in setup.ts
+    // This function only handles cross-chain configuration
     const protocols = [
-      { name: "LayerZero", module: deployment.contracts.LookCoin.proxy },
-      { name: "Celer", module: deployment.protocolContracts?.celerIMModule },
-      { name: "Hyperlane", module: deployment.protocolContracts?.hyperlaneModule }
+      { name: "LayerZero", enum: 0 },
+      { name: "Celer", enum: 1 },
+      { name: "Hyperlane", enum: 2 }
     ];
 
-    for (const protocol of protocols) {
-      if (protocol.module) {
-        // Map protocol name to Protocol enum
-        const protocolEnum = protocols.indexOf(protocol);
-        const moduleAddress = await router.protocolModules(protocolEnum);
-        
-        if (moduleAddress === ethers.ZeroAddress) {
-          console.log(`Registering ${protocol.name} with CrossChainRouter...`);
-          const tx = await router.registerProtocol(protocolEnum, protocol.module);
-          await tx.wait();
-          details.push(`${protocol.name}: ${protocol.module}`);
-          configured = true;
-        }
-      }
-    }
-
     // Register supported chains
-    for (const [chainId, otherDeployment] of Object.entries(otherDeployments)) {
+    for (const [chainId] of Object.entries(otherDeployments)) {
       const remoteChainId = Number(chainId);
+      console.log(`Checking chain ${remoteChainId} protocol support...`);
+      
       // Check if chain is supported for at least one protocol
       let chainSupported = false;
-      for (let i = 0; i < 4; i++) {
-        const isSupported = await router.chainProtocolSupport(remoteChainId, i);
-        if (isSupported) {
-          chainSupported = true;
-          break;
+      try {
+        for (let i = 0; i < 3; i++) { // Only check 0-2 (LayerZero, Celer, Hyperlane)
+          const isSupported = await router.chainProtocolSupport(remoteChainId, i);
+          if (isSupported) {
+            chainSupported = true;
+            break;
+          }
         }
+      } catch (error) {
+        console.error(`Error checking chain support for ${remoteChainId}:`, error);
+        continue;
       }
       
       if (!chainSupported) {
         console.log(`Setting chain ${remoteChainId} protocol support...`);
-        // Enable support for all protocols that have modules
-        for (let i = 0; i < protocols.length; i++) {
-          if (protocols[i].module) {
-            const tx = await router.setChainProtocolSupport(remoteChainId, i, true);
+        // Enable support for protocols based on what's deployed on the remote chain
+        const remoteDeployment = otherDeployments[chainId];
+        
+        // Check which protocols are deployed on the remote chain
+        const enabledProtocols: string[] = [];
+        
+        // LayerZero
+        if (remoteDeployment.protocolsDeployed?.includes('layerZero') || 
+            remoteDeployment.config?.layerZeroEndpoint) {
+          try {
+            const tx = await router.setChainProtocolSupport(remoteChainId, 0, true);
             await tx.wait();
+            enabledProtocols.push("LayerZero");
+          } catch (error) {
+            console.error(`Failed to set LayerZero support for chain ${remoteChainId}:`, error);
           }
         }
-        details.push(`Chain ${remoteChainId}`);
-        configured = true;
+        
+        // Celer
+        if (remoteDeployment.protocolsDeployed?.includes('celer') || 
+            remoteDeployment.contracts.CelerIMModule) {
+          try {
+            const tx = await router.setChainProtocolSupport(remoteChainId, 1, true);
+            await tx.wait();
+            enabledProtocols.push("Celer");
+          } catch (error) {
+            console.error(`Failed to set Celer support for chain ${remoteChainId}:`, error);
+          }
+        }
+        
+        // Hyperlane
+        if (remoteDeployment.protocolsDeployed?.includes('hyperlane')) {
+          try {
+            const tx = await router.setChainProtocolSupport(remoteChainId, 2, true);
+            await tx.wait();
+            enabledProtocols.push("Hyperlane");
+          } catch (error) {
+            console.error(`Failed to set Hyperlane support for chain ${remoteChainId}:`, error);
+          }
+        }
+        
+        if (enabledProtocols.length > 0) {
+          details.push(`Chain ${remoteChainId}: ${enabledProtocols.join(", ")}`);
+          configured = true;
+        }
       }
     }
 
@@ -353,11 +413,11 @@ export async function configureCrossChainRouter(
       configured,
       details: configured ? `Configured: ${details.join(", ")}` : "Already configured"
     };
-  } catch (error: any) {
+  } catch (error) {
     return {
       protocol: "CrossChainRouter",
       configured: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 }
@@ -366,9 +426,7 @@ export async function configureCrossChainRouter(
  * Configure FeeManager protocol module updates
  */
 export async function configureFeeManager(
-  deployment: Deployment,
-  otherDeployments: { [chainId: string]: Deployment },
-  chainConfig: ChainConfig
+  deployment: Deployment
 ): Promise<ConfigurationResult> {
   try {
     if (!deployment.infrastructureContracts?.feeManager) {
@@ -418,11 +476,11 @@ export async function configureFeeManager(
       configured,
       details: configured ? `Configured: ${details.join(", ")}` : "Already configured"
     };
-  } catch (error: any) {
+  } catch (error) {
     return {
       protocol: "FeeManager",
       configured: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 }
@@ -480,7 +538,7 @@ export async function configureProtocolRegistry(
         module: deployment.protocolContracts?.hyperlaneModule,
         metadata: ethers.AbiCoder.defaultAbiCoder().encode(
           ["string", "address"],
-          ["mailbox", chainConfig.protocols?.hyperlane?.mailbox || ethers.ZeroAddress]
+          ["mailbox", chainConfig.hyperlane?.mailbox || ethers.ZeroAddress]
         )
       }
     ];
@@ -536,11 +594,11 @@ export async function configureProtocolRegistry(
       configured,
       details: configured ? `Registered: ${details.join(", ")}` : "Already configured"
     };
-  } catch (error: any) {
+  } catch (error) {
     return {
       protocol: "ProtocolRegistry",
       configured: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 }

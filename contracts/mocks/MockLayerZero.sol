@@ -8,6 +8,26 @@ contract MockLayerZeroEndpoint {
     event PacketSent(uint16 dstChainId, bytes path, bytes payload, uint256 nativeFee);
     event PacketReceived(uint16 srcChainId, bytes srcAddress, address dstAddress, bytes payload);
     
+    // LayerZero V2 structures
+    struct MessagingParams {
+        uint32 dstEid;
+        bytes32 receiver;
+        bytes message;
+        bytes options;
+        bool payInLzToken;
+    }
+    
+    struct MessagingReceipt {
+        bytes32 guid;
+        uint64 nonce;      
+        MessagingFee fee;
+    }
+    
+    struct MessagingFee {
+        uint256 nativeFee;
+        uint256 lzTokenFee;
+    }
+    
     function setDestination(uint16 _chainId, address _destination) external {
         destinations[_chainId] = _destination;
     }
@@ -16,6 +36,35 @@ contract MockLayerZeroEndpoint {
         ultraLightNode = _ulNode;
     }
     
+    // LayerZero V2 send function
+    function send(
+        MessagingParams calldata _params,
+        address _refundAddress
+    ) external payable returns (MessagingReceipt memory) {
+        emit PacketSent(uint16(_params.dstEid), abi.encodePacked(_params.receiver), _params.message, msg.value);
+        
+        return MessagingReceipt({
+            guid: keccak256(abi.encodePacked(block.timestamp, _params.dstEid, _params.message)),
+            nonce: uint64(block.number),
+            fee: MessagingFee({
+                nativeFee: msg.value,
+                lzTokenFee: 0
+            })
+        });
+    }
+    
+    // LayerZero V2 quote function  
+    function quote(
+        MessagingParams calldata _params,
+        address _sender
+    ) external view returns (MessagingFee memory) {
+        return MessagingFee({
+            nativeFee: 0.01 ether,
+            lzTokenFee: 0
+        });
+    }
+    
+    // Legacy V1 send function for backward compatibility
     function send(
         uint16 _dstChainId,
         bytes calldata _destination,

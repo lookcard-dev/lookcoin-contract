@@ -34,6 +34,13 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
     mapping(uint32 => address[]) public bridgeContracts;
     uint32[] public supportedChains;
     
+    // Batch update structure
+    struct BatchSupplyUpdate {
+        uint32 chainId;
+        uint256 totalSupply;
+        uint256 lockedSupply;
+    }
+    
     // Reconciliation parameters
     uint256 public reconciliationInterval;
     uint256 public toleranceThreshold;
@@ -48,6 +55,10 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
     uint256 public requiredSignatures;
     mapping(bytes32 => mapping(address => bool)) public updateSignatures;
     mapping(bytes32 => uint256) public updateSignatureCount;
+    
+    // Nonce tracking to prevent replay attacks
+    mapping(uint256 => bool) private usedNonces;
+    uint256 public constant NONCE_VALIDITY_PERIOD = 1 hours;
     
     // Events
     event SupplyUpdated(
@@ -66,6 +77,7 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
     event ReconciliationCompleted(uint256 timestamp, bool success);
     event EmergencyModeActivated(address indexed activator);
     event EmergencyModeDeactivated(address indexed deactivator);
+    event ExpectedSupplyUpdated(uint256 oldSupply, uint256 newSupply);
 
     /**
      * @dev Initialize the supply oracle
@@ -121,6 +133,11 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
         uint256 _lockedSupply,
         uint256 _nonce
     ) external onlyRole(ORACLE_ROLE) whenNotPaused {
+        // Validate nonce to prevent replay attacks
+        require(!usedNonces[_nonce], "SupplyOracle: nonce already used");
+        require(_nonce > block.timestamp - NONCE_VALIDITY_PERIOD, "SupplyOracle: nonce too old");
+        require(_nonce <= block.timestamp + 5 minutes, "SupplyOracle: nonce too far in future");
+        
         bytes32 updateHash = keccak256(
             abi.encodePacked(_chainId, _totalSupply, _lockedSupply, _nonce)
         );
@@ -131,7 +148,36 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
         updateSignatureCount[updateHash]++;
         
         if (updateSignatureCount[updateHash] >= requiredSignatures) {
+            usedNonces[_nonce] = true;
             _executeSupplyUpdate(_chainId, _totalSupply, _lockedSupply);
+            _resetSignatures(updateHash);
+        }
+    }
+
+    /**
+     * @dev Batch update supply data for multiple chains in a single transaction
+     * @param updates Array of supply updates for all chains
+     * @param nonce Update nonce for multi-sig coordination
+     */
+    function batchUpdateSupply(
+        BatchSupplyUpdate[] calldata updates,
+        uint256 nonce
+    ) external onlyRole(ORACLE_ROLE) whenNotPaused {
+        // Validate nonce to prevent replay attacks
+        require(!usedNonces[nonce], "SupplyOracle: nonce already used");
+        require(nonce > block.timestamp - NONCE_VALIDITY_PERIOD, "SupplyOracle: nonce too old");
+        require(nonce <= block.timestamp + 5 minutes, "SupplyOracle: nonce too far in future");
+        
+        bytes32 updateHash = keccak256(abi.encode(updates, nonce));
+        
+        require(!updateSignatures[updateHash][msg.sender], "SupplyOracle: already signed");
+        
+        updateSignatures[updateHash][msg.sender] = true;
+        updateSignatureCount[updateHash]++;
+        
+        if (updateSignatureCount[updateHash] >= requiredSignatures) {
+            usedNonces[nonce] = true;
+            _executeBatchUpdate(updates);
             _resetSignatures(updateHash);
         }
     }
@@ -167,6 +213,48 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
      */
     function reconcileSupply() external onlyRole(OPERATOR_ROLE) {
         _reconcileSupply();
+    }
+
+    /**
+     * @dev Execute batch supply update after multi-sig validation
+     */
+    function _executeBatchUpdate(BatchSupplyUpdate[] calldata updates) internal {
+        uint256 totalActualSupply = 0;
+        
+        for (uint i = 0; i < updates.length; i++) {
+            BatchSupplyUpdate calldata update = updates[i];
+            uint256 circulatingSupply = update.totalSupply - update.lockedSupply;
+            
+            chainSupplies[update.chainId] = ChainSupply({
+                totalSupply: update.totalSupply,
+                lockedSupply: update.lockedSupply,
+                circulatingSupply: circulatingSupply,
+                lastUpdateTime: block.timestamp,
+                updateCount: chainSupplies[update.chainId].updateCount + 1
+            });
+            
+            totalActualSupply += update.totalSupply;
+            
+            emit SupplyUpdated(
+                update.chainId, 
+                update.totalSupply, 
+                update.lockedSupply, 
+                circulatingSupply
+            );
+        }
+        
+        // Check total supply health
+        uint256 discrepancy = totalActualSupply > totalExpectedSupply ? 
+            totalActualSupply - totalExpectedSupply : 
+            totalExpectedSupply - totalActualSupply;
+            
+        if (discrepancy > toleranceThreshold && !emergencyMode) {
+            emit SupplyMismatchDetected(totalExpectedSupply, totalActualSupply, discrepancy);
+            _pauseAllBridges("Supply mismatch detected");
+        }
+        
+        lastReconciliationTime = block.timestamp;
+        emit ReconciliationCompleted(block.timestamp, discrepancy <= toleranceThreshold);
     }
 
     /**
@@ -286,7 +374,34 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
         onlyRole(DEFAULT_ADMIN_ROLE) 
     {
         require(_bridge != address(0), "SupplyOracle: invalid bridge");
+        
+        // Check if bridge is already registered
+        address[] storage bridges = bridgeContracts[_chainId];
+        for (uint i = 0; i < bridges.length; i++) {
+            require(bridges[i] != _bridge, "SupplyOracle: bridge already registered");
+        }
+        
         bridgeContracts[_chainId].push(_bridge);
+    }
+
+    /**
+     * @dev Check if a bridge is registered for a chain
+     * @param _chainId Chain identifier
+     * @param _bridge Bridge contract address
+     * @return isRegistered True if bridge is registered
+     */
+    function isBridgeRegistered(uint32 _chainId, address _bridge) 
+        external 
+        view 
+        returns (bool isRegistered) 
+    {
+        address[] memory bridges = bridgeContracts[_chainId];
+        for (uint i = 0; i < bridges.length; i++) {
+            if (bridges[i] == _bridge) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -316,6 +431,21 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
     }
 
     /**
+     * @dev Update the total expected supply across all chains
+     * @param _newExpectedSupply New total expected supply
+     */
+    function updateExpectedSupply(uint256 _newExpectedSupply) 
+        external 
+        onlyRole(DEFAULT_ADMIN_ROLE) 
+    {
+        require(_newExpectedSupply > 0, "SupplyOracle: invalid supply");
+        uint256 oldSupply = totalExpectedSupply;
+        totalExpectedSupply = _newExpectedSupply;
+        
+        emit ExpectedSupplyUpdated(oldSupply, _newExpectedSupply);
+    }
+
+    /**
      * @dev Activate emergency mode
      */
     function activateEmergencyMode() external onlyRole(EMERGENCY_ROLE) {
@@ -336,8 +466,10 @@ contract SupplyOracle is AccessControlUpgradeable, PausableUpgradeable, UUPSUpgr
      * @dev Reset signatures for update hash
      */
     function _resetSignatures(bytes32 _updateHash) internal {
-        // Note: In production, implement proper cleanup of mapping
-        updateSignatureCount[_updateHash] = 0;
+        // Clear the signature count
+        delete updateSignatureCount[_updateHash];
+        // Note: Without enumerable roles, we cannot efficiently clear individual oracle signatures
+        // In production, consider maintaining a separate array of oracle addresses for cleanup
     }
 
     /**

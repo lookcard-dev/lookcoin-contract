@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@hyperlane-xyz/core/contracts/interfaces/IMailbox.sol";
 import "@hyperlane-xyz/core/contracts/interfaces/IInterchainGasPaymaster.sol";
 import "@hyperlane-xyz/core/contracts/interfaces/IMessageRecipient.sol";
@@ -24,6 +25,8 @@ contract HyperlaneModule is
   ILookBridgeModule,
   IMessageRecipient
 {
+  using SafeERC20 for IERC20;
+
   bytes32 public constant BRIDGE_ADMIN_ROLE = keccak256("BRIDGE_ADMIN_ROLE");
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
   bytes32 public constant RELAYER_ROLE = keccak256("RELAYER_ROLE");
@@ -69,7 +72,7 @@ contract HyperlaneModule is
     // This allows for flexible chain support without hardcoded values
   }
 
-  function bridgeToken(
+  function bridge(
     uint256 destinationChain,
     address recipient,
     uint256 amount,
@@ -82,8 +85,9 @@ contract HyperlaneModule is
     require(destinationDomain != 0, "HyperlaneModule: unsupported chain");
     require(trustedSenders[destinationDomain] != bytes32(0), "HyperlaneModule: untrusted destination");
 
-    // Burn tokens from sender
-    lookCoin.burn(msg.sender, amount);
+    // Transfer approved tokens from router to module, then burn them
+    require(lookCoin.transferFrom(msg.sender, address(this), amount), "Hyperlane: failed to transfer tokens");
+    lookCoin.burn(address(this), amount);
 
     // Generate transfer ID
     transferId = keccak256(abi.encodePacked(msg.sender, recipient, amount, block.timestamp));
@@ -195,6 +199,11 @@ contract HyperlaneModule is
     emit GasAmountUpdated(_amount);
   }
 
+  function updateMailbox(address _mailbox) external onlyRole(BRIDGE_ADMIN_ROLE) {
+    require(_mailbox != address(0), "HyperlaneModule: invalid mailbox");
+    mailbox = IMailbox(_mailbox);
+  }
+
   function estimateFee(
     uint256 destinationChain,
     uint256 amount,
@@ -233,10 +242,14 @@ contract HyperlaneModule is
   }
 
   function emergencyWithdraw(address token, address to, uint256 amount) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    require(to != address(0) && to != address(this), "Hyperlane: invalid recipient");
+    
     if (token == address(0)) {
-      payable(to).transfer(amount);
+      // Use call instead of transfer for ETH to avoid gas limit issues
+      (bool success, ) = payable(to).call{value: amount}("");
+      require(success, "Hyperlane: ETH transfer failed");
     } else {
-      IERC20(token).transfer(to, amount);
+      IERC20(token).safeTransfer(to, amount);
     }
   }
 
