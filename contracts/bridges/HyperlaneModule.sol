@@ -85,8 +85,9 @@ contract HyperlaneModule is
     require(destinationDomain != 0, "HyperlaneModule: unsupported chain");
     require(trustedSenders[destinationDomain] != bytes32(0), "HyperlaneModule: untrusted destination");
 
-    // Burn tokens from sender
-    lookCoin.burn(msg.sender, amount);
+    // Transfer approved tokens from router to module, then burn them
+    require(lookCoin.transferFrom(msg.sender, address(this), amount), "Hyperlane: failed to transfer tokens");
+    lookCoin.burn(address(this), amount);
 
     // Generate transfer ID
     transferId = keccak256(abi.encodePacked(msg.sender, recipient, amount, block.timestamp));

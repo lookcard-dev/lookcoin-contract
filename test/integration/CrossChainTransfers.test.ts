@@ -55,45 +55,45 @@ describe("Cross-Chain Transfers - Comprehensive Multi-Protocol Integration", fun
   });
 
   async function setupComprehensiveEnvironment() {
-    // Grant necessary roles
+    // Grant necessary roles - connect to admin account (owner)
     const BRIDGE_OPERATOR_ROLE = ethers.keccak256(ethers.toUtf8Bytes("BRIDGE_OPERATOR_ROLE"));
     const ORACLE_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ORACLE_ROLE"));
     
-    await fixture.layerZeroModule.grantRole(BRIDGE_OPERATOR_ROLE, fixture.crossChainRouter.target);
-    await fixture.celerIMModule.grantRole(BRIDGE_OPERATOR_ROLE, fixture.crossChainRouter.target);
-    await fixture.hyperlaneModule.grantRole(BRIDGE_OPERATOR_ROLE, fixture.crossChainRouter.target);
+    await fixture.layerZeroModule.connect(owner).grantRole(BRIDGE_OPERATOR_ROLE, fixture.crossChainRouter.target);
+    await fixture.celerIMModule.connect(owner).grantRole(BRIDGE_OPERATOR_ROLE, fixture.crossChainRouter.target);
+    await fixture.hyperlaneModule.connect(owner).grantRole(BRIDGE_OPERATOR_ROLE, fixture.crossChainRouter.target);
     
     if (fixture.supplyOracle) {
-      await fixture.supplyOracle.grantRole(ORACLE_ROLE, oracle1.address);
-      await fixture.supplyOracle.grantRole(ORACLE_ROLE, oracle2.address);
+      await fixture.supplyOracle.connect(owner).grantRole(ORACLE_ROLE, oracle1.address);
+      await fixture.supplyOracle.connect(owner).grantRole(ORACLE_ROLE, oracle2.address);
     }
 
     // Configure protocol registry
-    await fixture.protocolRegistry.registerProtocol(0, fixture.layerZeroModule.target, "LayerZero", "1.0.0");
-    await fixture.protocolRegistry.registerProtocol(1, fixture.celerIMModule.target, "Celer", "1.0.0");
-    await fixture.protocolRegistry.registerProtocol(2, fixture.hyperlaneModule.target, "Hyperlane", "1.0.0");
+    await fixture.protocolRegistry.connect(owner).registerProtocol(0, fixture.layerZeroModule.target, "LayerZero", "1.0.0");
+    await fixture.protocolRegistry.connect(owner).registerProtocol(1, fixture.celerIMModule.target, "Celer", "1.0.0");
+    await fixture.protocolRegistry.connect(owner).registerProtocol(2, fixture.hyperlaneModule.target, "Hyperlane", "1.0.0");
     
-    await fixture.protocolRegistry.addChainSupport(0, DEST_CHAIN_LZ);
-    await fixture.protocolRegistry.addChainSupport(1, DEST_CHAIN_CELER);
-    await fixture.protocolRegistry.addChainSupport(2, DEST_CHAIN_HL);
+    await fixture.protocolRegistry.connect(owner).addChainSupport(0, DEST_CHAIN_LZ);
+    await fixture.protocolRegistry.connect(owner).addChainSupport(1, DEST_CHAIN_CELER);
+    await fixture.protocolRegistry.connect(owner).addChainSupport(2, DEST_CHAIN_HL);
 
     // Setup chain configurations
-    await fixture.layerZeroModule.setTrustedRemote(DEST_CHAIN_LZ, ethers.zeroPadValue("0x1234", 32));
-    await fixture.celerIMModule.setRemoteModule(DEST_CHAIN_CELER, ethers.zeroPadValue("0x5678", 20));
-    await fixture.hyperlaneModule.setTrustedSender(DEST_CHAIN_HL, ethers.zeroPadValue("0x9abc", 32));
+    await fixture.layerZeroModule.connect(owner).setTrustedRemote(DEST_CHAIN_LZ, ethers.zeroPadValue("0x1234", 32));
+    await fixture.celerIMModule.connect(owner).setRemoteModule(DEST_CHAIN_CELER, ethers.zeroPadValue("0x5678", 20));
+    await fixture.hyperlaneModule.connect(owner).setTrustedSender(DEST_CHAIN_HL, ethers.zeroPadValue("0x9abc", 32));
 
     // Setup fees
-    await fixture.feeManager.setProtocolFee(0, 50); // 0.5% for LayerZero
-    await fixture.feeManager.setProtocolFee(1, 75); // 0.75% for Celer
-    await fixture.feeManager.setProtocolFee(2, 100); // 1% for Hyperlane
+    await fixture.feeManager.connect(owner).setProtocolFee(0, 50); // 0.5% for LayerZero
+    await fixture.feeManager.connect(owner).setProtocolFee(1, 75); // 0.75% for Celer
+    await fixture.feeManager.connect(owner).setProtocolFee(2, 100); // 1% for Hyperlane
     
-    await fixture.feeManager.setChainMultiplier(DEST_CHAIN_LZ, 12000); // 1.2x
-    await fixture.feeManager.setChainMultiplier(DEST_CHAIN_CELER, 11000); // 1.1x
-    await fixture.feeManager.setChainMultiplier(DEST_CHAIN_HL, 15000); // 1.5x
+    await fixture.feeManager.connect(owner).setChainMultiplier(DEST_CHAIN_LZ, 12000); // 1.2x
+    await fixture.feeManager.connect(owner).setChainMultiplier(DEST_CHAIN_CELER, 11000); // 1.1x
+    await fixture.feeManager.connect(owner).setChainMultiplier(DEST_CHAIN_HL, 15000); // 1.5x
 
     // Mint tokens to users
-    await fixture.lookCoin.mint(user.address, ethers.parseEther("10000000")); // 10M
-    await fixture.lookCoin.mint(user2.address, ethers.parseEther("5000000")); // 5M
+    await fixture.lookCoin.connect(owner).mint(user.address, ethers.parseEther("10000000")); // 10M
+    await fixture.lookCoin.connect(owner).mint(user2.address, ethers.parseEther("5000000")); // 5M
   }
 
   describe("End-to-End Bridge Flows", function () {

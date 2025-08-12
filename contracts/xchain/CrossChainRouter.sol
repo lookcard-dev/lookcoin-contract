@@ -47,6 +47,11 @@ contract CrossChainRouter is
         address _securityManager,
         address _admin
     ) public initializer {
+        require(_lookCoin != address(0), "Router: invalid lookCoin");
+        require(_feeManager != address(0), "Router: invalid feeManager");
+        require(_securityManager != address(0), "Router: invalid securityManager");
+        require(_admin != address(0), "Router: invalid admin");
+
         __AccessControl_init();
         __Pausable_init();
         __ReentrancyGuard_init();
@@ -68,7 +73,8 @@ contract CrossChainRouter is
         uint8 count = 0;
         for (uint8 i = 0; i < 3; i++) {
             Protocol protocol = Protocol(i);
-            if (protocolActive[protocol] && chainProtocolSupport[destinationChain][protocol]) {
+            // Include all protocols that have modules registered, regardless of active status
+            if (protocolModules[protocol] != address(0) && chainProtocolSupport[destinationChain][protocol]) {
                 count++;
             }
         }
@@ -78,9 +84,11 @@ contract CrossChainRouter is
 
         for (uint8 i = 0; i < 3; i++) {
             Protocol protocol = Protocol(i);
-            if (protocolActive[protocol] && chainProtocolSupport[destinationChain][protocol]) {
+            if (protocolModules[protocol] != address(0) && chainProtocolSupport[destinationChain][protocol]) {
                 address module = protocolModules[protocol];
-                if (module != address(0)) {
+                
+                // Check if protocol is active and available
+                if (protocolActive[protocol]) {
                     try ILookBridgeModule(module).estimateFee(destinationChain, amount, "") 
                     returns (uint256 fee, uint256 estimatedTime) {
                         options[index] = BridgeOption({
@@ -105,6 +113,18 @@ contract CrossChainRouter is
                         });
                         index++;
                     }
+                } else {
+                    // Protocol is disabled, include it but mark as unavailable
+                    options[index] = BridgeOption({
+                        protocol: protocol,
+                        fee: 0,
+                        estimatedTime: 0,
+                        securityLevel: _getSecurityLevel(protocol),
+                        available: false,
+                        minAmount: 0,
+                        maxAmount: 0
+                    });
+                    index++;
                 }
             }
         }
@@ -309,6 +329,25 @@ contract CrossChainRouter is
         (fee, ) = ILookBridgeModule(module).estimateFee(chainId, amount, data);
     }
 
+    /**
+     * @dev Check if a chain is configured for a specific protocol
+     * @param chainId Chain ID to check
+     * @param protocol Protocol to check
+     * @return true if chain is configured and protocol is active
+     */
+    function isChainConfigured(uint256 chainId, Protocol protocol) external view returns (bool) {
+        return chainProtocolSupport[chainId][protocol] && protocolActive[protocol];
+    }
+
+    /**
+     * @dev Get available bridge options for a destination chain (overload)
+     * @param chainId Destination chain ID
+     * @return options Array of available bridge options
+     */
+    function getBridgeOptions(uint256 chainId) external view returns (BridgeOption[] memory options) {
+        return this.getBridgeOptions(chainId, 0);
+    }
+
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     /**
@@ -325,5 +364,14 @@ contract CrossChainRouter is
             return 2; // Good security with validator set
         }
         return 1; // Default security level
+    }
+
+    /**
+     * @dev Accept ETH refunds from bridge modules
+     * @notice Bridge modules may refund excess ETH sent for cross-chain fees
+     */
+    receive() external payable {
+        // Accept ETH refunds from bridge operations
+        // ETH can later be withdrawn by admin if needed
     }
 }

@@ -75,6 +75,10 @@ contract LayerZeroModule is
   event DefaultOptionsUpdated(uint32 eid, bytes options);
 
   function initialize(address _lookCoin, address _lzEndpoint, address _admin) public initializer {
+    require(_lookCoin != address(0), "LayerZero: invalid lookCoin");
+    require(_lzEndpoint != address(0), "LayerZero: invalid lzEndpoint");
+    require(_admin != address(0), "LayerZero: invalid admin");
+
     __AccessControl_init();
     __Pausable_init();
     __ReentrancyGuard_init();
@@ -108,8 +112,9 @@ contract LayerZeroModule is
     require(dstEid != 0, "LayerZero: unsupported chain");
     require(trustedRemotes[dstEid] != bytes32(0), "LayerZero: no trusted remote");
 
-    // Burn tokens from sender
-    lookCoin.burn(msg.sender, amount);
+    // Transfer approved tokens from router to module, then burn them
+    require(lookCoin.transferFrom(msg.sender, address(this), amount), "LayerZero: failed to transfer tokens");
+    lookCoin.burn(address(this), amount);
 
     // Generate transfer ID
     transferId = keccak256(abi.encodePacked(msg.sender, recipient, amount, block.timestamp));

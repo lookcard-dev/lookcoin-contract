@@ -229,8 +229,9 @@ contract CelerIMModule is
     uint256 fee = calculateFee(amount);
     uint256 netAmount = amount - fee;
 
-    // Burn tokens (including fee)
-    lookCoin.burn(msg.sender, amount);
+    // Transfer approved tokens from router to module, then burn them (including fee)
+    require(lookCoin.transferFrom(msg.sender, address(this), amount), "CelerIM: failed to transfer tokens");
+    lookCoin.burn(address(this), amount);
 
     // Note: Fee collection happens on destination chain during minting
 

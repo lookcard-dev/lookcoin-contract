@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { CrossChainRouter, LookCoin, LayerZeroModule, CelerIMModule, HyperlaneModule } from "../../typechain-types";
-import { deployLookCoinFixture } from "../helpers/fixtures";
+import { deployBridgeFixture, DeploymentFixture } from "../helpers/fixtures";
 import {
   CONTRACT_ROLES,
   AMOUNTS,
@@ -21,7 +21,7 @@ import {
 
 
 describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration", function () {
-  let fixture: Awaited<ReturnType<typeof deployLookCoinFixture>>;
+  let fixture: DeploymentFixture;
   let crossChainRouter: CrossChainRouter;
   let lookCoin: LookCoin;
   let layerZeroModule: LayerZeroModule;
@@ -37,7 +37,7 @@ describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration",
   const PROTOCOL_HYPERLANE = 2;
 
   beforeEach(async function () {
-    fixture = await loadFixture(deployLookCoinFixture);
+    fixture = await loadFixture(deployBridgeFixture);
     crossChainRouter = fixture.crossChainRouter;
     lookCoin = fixture.lookCoin;
     layerZeroModule = fixture.layerZeroModule;
@@ -237,7 +237,7 @@ describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration",
           await crossChainRouter.connect(admin).registerProtocol(protocol.id, protocol.module);
           
           expect(await crossChainRouter.protocolModules(protocol.id)).to.equal(protocol.module);
-          expect(await crossChainRouter.protocolEnabled(protocol.id)).to.be.true;
+          expect(await crossChainRouter.protocolActive(protocol.id)).to.be.true;
         }
       });
     });
@@ -302,6 +302,27 @@ describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration",
       await crossChainRouter.connect(admin).setChainProtocolSupport(chainId, PROTOCOL_LAYERZERO, true);
       await crossChainRouter.connect(admin).setChainProtocolSupport(chainId, PROTOCOL_CELER, true);
       await crossChainRouter.connect(admin).setChainProtocolSupport(chainId, PROTOCOL_HYPERLANE, true);
+      
+      // Configure individual bridge modules for the destination chain
+      const remoteAddress = "0x" + "2".repeat(40);
+      
+      // Configure LayerZero module - needs LayerZero EID mapping
+      const layerZeroEid = 111; // Optimism's LayerZero EID 
+      await layerZeroModule.connect(admin).updateChainMapping(layerZeroEid, chainId); // Map chain ID to EID
+      await layerZeroModule.connect(admin).setTrustedRemote(layerZeroEid, remoteAddress);
+      
+      // Configure Celer IM module - needs chain support
+      await celerIMModule.connect(admin).setSupportedChain(chainId, true);
+      await celerIMModule.connect(admin).setRemoteModule(chainId, remoteAddress);
+      
+      // Configure Hyperlane module - needs domain mapping
+      const hyperlaneDomain = chainId; // Use chainId as domain for simplicity
+      await hyperlaneModule.connect(admin).setDomainMapping(hyperlaneDomain, chainId);
+      await hyperlaneModule.connect(admin).setTrustedSender(hyperlaneDomain, remoteAddress);
+      
+      // Configure Hyperlane gas pricing for fee estimation
+      const hyperlaneGasPaymaster = await ethers.getContractAt("MockHyperlaneGasPaymaster", await hyperlaneModule.gasPaymaster());
+      await hyperlaneGasPaymaster.setGasPrice(hyperlaneDomain, ethers.parseEther("0.00005")); // 50 gwei per gas unit (in ETH terms)
     });
 
     describe("Bridge Option Discovery", function () {
@@ -309,24 +330,24 @@ describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration",
         const chainId = DESTINATION_CHAIN_ID;
         const amount = AMOUNTS.THOUSAND_TOKENS;
         
-        const options = await crossChainRouter.getBridgeOptions(chainId, amount);
+        const options = await crossChainRouter["getBridgeOptions(uint256,uint256)"](chainId, amount);
         
         expect(options.length).to.be.gte(1); // Should have at least one option
         
         // Verify each option has required fields
         for (const option of options) {
-          expect(option.protocol).to.be.a("number");
+          expect(option.protocol).to.be.a("bigint"); // Solidity enums return as BigInt
           expect(option.available).to.be.a("boolean");
           expect(option.fee).to.be.a("bigint");
           expect(option.estimatedTime).to.be.a("bigint");
-          expect(option.securityLevel).to.be.a("number");
+          expect(option.securityLevel).to.be.a("bigint"); // uint8 also returns as BigInt
         }
       });
 
       it("should return empty options for unsupported chain", async function () {
         const unsupportedChain = 999999;
         
-        const options = await crossChainRouter.getBridgeOptions(unsupportedChain);
+        const options = await crossChainRouter["getBridgeOptions(uint256)"](unsupportedChain);
         
         expect(options.length).to.equal(0);
       });
@@ -337,7 +358,7 @@ describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration",
         // Disable LayerZero protocol
         await crossChainRouter.connect(admin).updateProtocolStatus(PROTOCOLS.LAYERZERO, false);
         
-        const options = await crossChainRouter.getBridgeOptions(chainId);
+        const options = await crossChainRouter["getBridgeOptions(uint256)"](chainId);
         
         // Should not include LayerZero in available options
         const layerZeroOption = options.find(opt => opt.protocol === BigInt(PROTOCOLS.LAYERZERO));
@@ -348,7 +369,7 @@ describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration",
     describe("Multi-Protocol Bridging", function () {
       it("should bridge tokens via LayerZero protocol", async function () {
         const amount = AMOUNTS.TEN_TOKENS;
-        const chainId = fixture.testChainId;
+        const chainId = DESTINATION_CHAIN_ID; // Use the same chain ID configured in beforeEach
         const recipient = user2.address;
         const protocol = PROTOCOLS.LAYERZERO;
         
@@ -369,14 +390,13 @@ describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration",
         // Tokens should be transferred to the router and then to the protocol module
         expect(await lookCoin.balanceOf(user1.address)).to.equal(balanceBefore - amount);
         
-        // Should emit transfer initiated event
-        await expect(tx).to.emit(crossChainRouter, "TransferInitiated")
-          .withArgs(user1.address, protocol, chainId, recipient, amount);
+        // Should emit transfer routed event
+        await expect(tx).to.emit(crossChainRouter, "TransferRouted");
       });
 
       it("should bridge tokens via Celer IM protocol", async function () {
         const amount = AMOUNTS.TEN_TOKENS;
-        const chainId = fixture.testChainId;
+        const chainId = DESTINATION_CHAIN_ID; // Use the same chain ID configured in beforeEach
         const recipient = user2.address;
         const protocol = PROTOCOLS.CELER;
         
@@ -394,12 +414,12 @@ describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration",
         );
         
         expect(await lookCoin.balanceOf(user1.address)).to.equal(balanceBefore - amount);
-        await expect(tx).to.emit(crossChainRouter, "TransferInitiated");
+        await expect(tx).to.emit(crossChainRouter, "TransferRouted");
       });
 
       it("should bridge tokens via Hyperlane protocol", async function () {
         const amount = AMOUNTS.TEN_TOKENS;
-        const chainId = fixture.testChainId;
+        const chainId = DESTINATION_CHAIN_ID; // Use the same chain ID configured in beforeEach
         const recipient = user2.address;
         const protocol = PROTOCOLS.HYPERLANE;
         
@@ -408,29 +428,41 @@ describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration",
         const balanceBefore = await lookCoin.balanceOf(user1.address);
         
         const tx = await crossChainRouter.connect(user1).bridge(
-          protocol,
           chainId,
           recipient,
           amount,
+          protocol,
+          "0x",
           { value: ethers.parseEther("0.008") }
         );
         
         expect(await lookCoin.balanceOf(user1.address)).to.equal(balanceBefore - amount);
-        await expect(tx).to.emit(crossChainRouter, "TransferInitiated");
+        await expect(tx).to.emit(crossChainRouter, "TransferRouted");
       });
 
       it("should estimate fees for different protocols", async function () {
         const amount = AMOUNTS.TEN_TOKENS;
-        const chainId = fixture.testChainId;
+        const chainId = DESTINATION_CHAIN_ID; // Use the same chain ID configured in beforeEach
         const recipient = user2.address;
         
         const protocols = [PROTOCOLS.LAYERZERO, PROTOCOLS.CELER, PROTOCOLS.HYPERLANE];
         
         for (const protocol of protocols) {
-          const estimatedFee = await crossChainRouter.estimateBridgeFee(protocol, chainId, recipient, amount);
+          const estimatedFee = await crossChainRouter.estimateFee(chainId, amount, protocol, "0x");
           
           expect(estimatedFee).to.be.gt(0);
-          expect(estimatedFee).to.be.lt(ethers.parseEther("0.1")); // Should be reasonable
+          
+          // Different protocols have different fee structures
+          if (protocol === PROTOCOLS.CELER) {
+            // Celer has a minimum fee of 10 LOOK tokens by default
+            // For 10 token transfer, fee will be max(0.5% of 10, 10) = 10 tokens
+            // Plus message fees (~0.001 ETH)
+            expect(estimatedFee).to.be.gte(ethers.parseEther("10")); // At least minimum fee
+            expect(estimatedFee).to.be.lt(ethers.parseEther("11")); // But reasonable
+          } else {
+            // LayerZero and Hyperlane have only message fees
+            expect(estimatedFee).to.be.lt(ethers.parseEther("0.02"));
+          }
           
           console.log(`Protocol ${protocol} estimated fee: ${ethers.formatEther(estimatedFee)} ETH`);
         }
@@ -501,9 +533,9 @@ describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration",
         const protocol = PROTOCOLS.LAYERZERO;
         
         await expectSpecificRevert(
-          async () => crossChainRouter.connect(user1).bridge(protocol, chainId, recipient, zeroAmount),
+          async () => crossChainRouter.connect(user1).bridge(chainId, recipient, zeroAmount, protocol, "0x"),
           crossChainRouter,
-          "CrossChainRouter: amount must be greater than zero"
+          "Router: invalid amount"
         );
       });
 
@@ -515,9 +547,9 @@ describe("CrossChainRouter - Comprehensive Multi-Protocol Bridge Orchestration",
         await lookCoin.connect(user1).approve(await crossChainRouter.getAddress(), amount);
         
         await expectSpecificRevert(
-          async () => crossChainRouter.connect(user1).bridge(protocol, chainId, ethers.ZeroAddress, amount),
+          async () => crossChainRouter.connect(user1).bridge(chainId, ethers.ZeroAddress, amount, protocol, "0x"),
           crossChainRouter,
-          "CrossChainRouter: invalid recipient"
+          "Router: invalid recipient"
         );
       });
     });

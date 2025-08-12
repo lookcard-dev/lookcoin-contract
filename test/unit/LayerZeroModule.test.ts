@@ -85,13 +85,12 @@ describe("LayerZeroModule - Comprehensive Bridge Operations and Security", funct
       });
 
       it("should enforce admin role for trusted remote setting", async function () {
-        await testRoleBasedFunction(
+        await expectSpecificRevert(
+          async () => layerZeroModule.connect(user1).setTrustedRemote(30101, TEST_ADDRESSES.REMOTE_ADDRESS),
           layerZeroModule,
-          "setTrustedRemote",
-          [30101, TEST_ADDRESSES.REMOTE_ADDRESS],
-          "BRIDGE_ADMIN_ROLE",
-          admin,
-          user1
+          "AccessControlUnauthorizedAccount",
+          user1.address,
+          CONTRACT_ROLES.LayerZeroModule.BRIDGE_ADMIN_ROLE
         );
       });
 
@@ -120,13 +119,12 @@ describe("LayerZeroModule - Comprehensive Bridge Operations and Security", funct
       });
 
       it("should enforce admin role for options setting", async function () {
-        await testRoleBasedFunction(
+        await expectSpecificRevert(
+          async () => layerZeroModule.connect(user1).setDefaultOptions(30101, "0x"),
           layerZeroModule,
-          "setDefaultOptions",
-          [30101, "0x"],
-          "BRIDGE_ADMIN_ROLE",
-          admin,
-          user1
+          "AccessControlUnauthorizedAccount",
+          user1.address,
+          CONTRACT_ROLES.LayerZeroModule.BRIDGE_ADMIN_ROLE
         );
       });
 
@@ -154,13 +152,12 @@ describe("LayerZeroModule - Comprehensive Bridge Operations and Security", funct
       });
 
       it("should enforce admin role for chain mapping", async function () {
-        await testRoleBasedFunction(
+        await expectSpecificRevert(
+          async () => layerZeroModule.connect(user1).updateChainMapping(30101, 1),
           layerZeroModule,
-          "updateChainMapping",
-          [30101, 1],
-          "BRIDGE_ADMIN_ROLE",
-          admin,
-          user1
+          "AccessControlUnauthorizedAccount",
+          user1.address,
+          CONTRACT_ROLES.LayerZeroModule.BRIDGE_ADMIN_ROLE
         );
       });
     });

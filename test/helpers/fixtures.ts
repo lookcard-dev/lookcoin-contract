@@ -35,6 +35,7 @@ export interface DeploymentFixture {
   mockLayerZero: MockLayerZeroEndpoint;
   mockCeler: MockMessageBus;
   mockHyperlane: MockHyperlaneMailbox;
+  mockHyperlaneGasPaymaster: any; // MockHyperlaneGasPaymaster
   
   // Signers with specific roles
   owner: SignerWithAddress;
@@ -103,6 +104,10 @@ export async function deployLookCoinFixture(): Promise<DeploymentFixture> {
   const MockHyperlane = await ethers.getContractFactory("MockHyperlaneMailbox");
   const mockHyperlane = await MockHyperlane.deploy() as unknown as MockHyperlaneMailbox;
   await mockHyperlane.waitForDeployment();
+
+  const MockHyperlaneGasPaymaster = await ethers.getContractFactory("MockHyperlaneGasPaymaster");
+  const mockHyperlaneGasPaymaster = await MockHyperlaneGasPaymaster.deploy();
+  await mockHyperlaneGasPaymaster.waitForDeployment();
 
   // Deploy core LookCoin contract
   const LookCoin = await ethers.getContractFactory("LookCoin");
@@ -196,7 +201,7 @@ export async function deployLookCoinFixture(): Promise<DeploymentFixture> {
     [
       await lookCoin.getAddress(),
       await mockHyperlane.getAddress(),
-      await mockHyperlane.getAddress(), // Using same mock for gas paymaster
+      await mockHyperlaneGasPaymaster.getAddress(), // Separate gas paymaster mock
       admin.address
     ],
     { initializer: "initialize" }
@@ -293,6 +298,7 @@ export async function deployLookCoinFixture(): Promise<DeploymentFixture> {
     mockLayerZero,
     mockCeler,
     mockHyperlane,
+    mockHyperlaneGasPaymaster,
     owner,
     admin,
     governance,
