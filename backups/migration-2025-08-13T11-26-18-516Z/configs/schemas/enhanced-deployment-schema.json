@@ -1,0 +1,565 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lookcoin.contract/schemas/enhanced-deployment-schema.json",
+  "title": "LookCoin Enhanced Deployment Schema",
+  "description": "Comprehensive schema for LookCoin deployment configurations with full infrastructure contract support and backward compatibility",
+  "type": "object",
+  "required": ["schemaVersion", "network", "chainId", "contracts", "metadata"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2.0.0",
+      "description": "Schema version for migration and compatibility tracking"
+    },
+    "network": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+$",
+      "description": "Canonical network name in lowercase without spaces or dashes"
+    },
+    "chainId": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "EVM chain ID"
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["deployer", "timestamp", "deploymentMode"],
+      "properties": {
+        "deployer": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Address of the deployment wallet"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp of initial deployment"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp of last modification"
+        },
+        "deploymentMode": {
+          "type": "string",
+          "enum": ["standard", "multi-protocol", "simple"],
+          "description": "Deployment architecture mode"
+        },
+        "protocolsEnabled": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["layerZero", "celer", "hyperlane"]
+          },
+          "uniqueItems": true,
+          "description": "List of enabled bridge protocols"
+        },
+        "networkTier": {
+          "type": "string",
+          "enum": ["mainnet", "testnet", "dev"],
+          "description": "Network classification for compatibility checks"
+        },
+        "migrationHistory": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MigrationRecord"
+          },
+          "description": "History of schema migrations and upgrades"
+        }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "required": ["core"],
+      "properties": {
+        "core": {
+          "type": "object",
+          "required": ["LookCoin", "SupplyOracle"],
+          "properties": {
+            "LookCoin": { "$ref": "#/definitions/ProxyContract" },
+            "SupplyOracle": { "$ref": "#/definitions/ProxyContract" }
+          },
+          "additionalProperties": false
+        },
+        "protocol": {
+          "type": "object",
+          "properties": {
+            "LayerZeroModule": { "$ref": "#/definitions/DirectContract" },
+            "CelerIMModule": { "$ref": "#/definitions/ProxyContract" },
+            "HyperlaneModule": { "$ref": "#/definitions/ProxyContract" }
+          },
+          "additionalProperties": false
+        },
+        "infrastructure": {
+          "type": "object",
+          "properties": {
+            "CrossChainRouter": { "$ref": "#/definitions/ProxyContract" },
+            "FeeManager": { "$ref": "#/definitions/ProxyContract" },
+            "SecurityManager": { "$ref": "#/definitions/ProxyContract" },
+            "ProtocolRegistry": { "$ref": "#/definitions/ProxyContract" }
+          },
+          "additionalProperties": false,
+          "description": "Infrastructure contracts (BSC networks only in multi-protocol mode)"
+        }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "properties": {
+        "governance": {
+          "type": "object",
+          "properties": {
+            "vault": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{40}$",
+              "description": "Multi-signature governance vault address"
+            },
+            "timelock": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{40}$",
+              "description": "Optional timelock controller address"
+            }
+          }
+        },
+        "protocols": {
+          "type": "object",
+          "properties": {
+            "layerZero": {
+              "$ref": "#/definitions/LayerZeroConfig"
+            },
+            "celer": {
+              "$ref": "#/definitions/CelerConfig"
+            },
+            "hyperlane": {
+              "$ref": "#/definitions/HyperlaneConfig"
+            }
+          }
+        },
+        "security": {
+          "type": "object",
+          "properties": {
+            "pauseGuardians": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^0x[a-fA-F0-9]{40}$"
+              },
+              "description": "Addresses authorized to pause operations"
+            },
+            "emergencyDelay": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Emergency action delay in seconds"
+            }
+          }
+        }
+      }
+    },
+    "topology": {
+      "type": "object",
+      "properties": {
+        "connectedChains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ChainConnection"
+          },
+          "description": "Configured cross-chain connections"
+        },
+        "routingPaths": {
+          "type": "object",
+          "patternProperties": {
+            "^[0-9]+$": {
+              "type": "object",
+              "properties": {
+                "preferredProtocol": {
+                  "type": "string",
+                  "enum": ["layerZero", "celer", "hyperlane"]
+                },
+                "fallbackProtocols": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": ["layerZero", "celer", "hyperlane"]
+                  }
+                },
+                "maxTransferAmount": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$",
+                  "description": "Maximum transfer amount as string to handle BigInt"
+                }
+              }
+            }
+          },
+          "description": "Per-destination routing configuration"
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "implementationHashes": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9]*$": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{64}$",
+              "description": "keccak256 hash of normalized bytecode"
+            }
+          }
+        },
+        "proxyHashes": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9]*$": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{64}$",
+              "description": "keccak256 hash of proxy initialization code"
+            }
+          }
+        },
+        "constructorArgs": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9]*$": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  { "type": "string" },
+                  { "type": "number" },
+                  { "type": "boolean" },
+                  { 
+                    "type": "object",
+                    "properties": {
+                      "type": { "const": "BigInt" },
+                      "value": { "type": "string", "pattern": "^[0-9]+$" }
+                    },
+                    "required": ["type", "value"]
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Constructor arguments with BigInt serialization support"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "cacheConfig": {
+          "type": "object",
+          "properties": {
+            "ttl": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Cache time-to-live in seconds"
+            },
+            "maxSize": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum cache entries"
+            }
+          }
+        },
+        "indexing": {
+          "type": "object",
+          "properties": {
+            "contractsByName": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z][A-Za-z0-9]*$": {
+                  "type": "string",
+                  "description": "Fast lookup by contract name to address"
+                }
+              }
+            },
+            "contractsByProtocol": {
+              "type": "object",
+              "properties": {
+                "layerZero": { "type": "array", "items": { "type": "string" } },
+                "celer": { "type": "array", "items": { "type": "string" } },
+                "hyperlane": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "legacy": {
+      "type": "object",
+      "properties": {
+        "v1Compatible": {
+          "type": "object",
+          "description": "Legacy v1 format for backward compatibility",
+          "properties": {
+            "deployer": { "type": "string" },
+            "timestamp": { "type": "string" },
+            "contracts": {
+              "type": "object",
+              "properties": {
+                "LookCoin": {
+                  "type": "object",
+                  "properties": {
+                    "proxy": { "type": "string" },
+                    "implementation": { "type": "string" }
+                  }
+                },
+                "CelerIMModule": {
+                  "type": "object",
+                  "properties": {
+                    "proxy": { "type": "string" },
+                    "implementation": { "type": "string" }
+                  }
+                },
+                "SupplyOracle": {
+                  "type": "object",
+                  "properties": {
+                    "proxy": { "type": "string" },
+                    "implementation": { "type": "string" }
+                  }
+                }
+              }
+            },
+            "config": {
+              "type": "object",
+              "properties": {
+                "layerZeroEndpoint": { "type": "string" },
+                "celerMessageBus": { "type": "string" },
+                "governanceVault": { "type": "string" }
+              }
+            },
+            "implementationHashes": { "type": "object" }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "ProxyContract": {
+      "type": "object",
+      "required": ["proxy", "implementation"],
+      "properties": {
+        "proxy": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Proxy contract address"
+        },
+        "implementation": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Implementation contract address"
+        },
+        "admin": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Proxy admin address (for transparent proxies)"
+        },
+        "upgradeHistory": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UpgradeRecord"
+          },
+          "description": "History of proxy upgrades"
+        }
+      }
+    },
+    "DirectContract": {
+      "type": "object",
+      "required": ["address"],
+      "properties": {
+        "address": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Contract deployment address"
+        },
+        "deploymentTx": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$",
+          "description": "Deployment transaction hash"
+        }
+      }
+    },
+    "UpgradeRecord": {
+      "type": "object",
+      "required": ["timestamp", "fromImplementation", "toImplementation"],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "fromImplementation": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$"
+        },
+        "toImplementation": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$"
+        },
+        "txHash": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for upgrade"
+        }
+      }
+    },
+    "MigrationRecord": {
+      "type": "object",
+      "required": ["from", "to", "timestamp"],
+      "properties": {
+        "from": {
+          "type": "string",
+          "description": "Previous schema version"
+        },
+        "to": {
+          "type": "string",
+          "description": "Target schema version"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "migrator": {
+          "type": "string",
+          "description": "Tool or script that performed migration"
+        }
+      }
+    },
+    "LayerZeroConfig": {
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "LayerZero endpoint address"
+        },
+        "lzChainId": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "LayerZero chain identifier"
+        },
+        "dvnConfig": {
+          "type": "object",
+          "properties": {
+            "requiredDVNs": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" }
+            },
+            "optionalDVNs": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" }
+            },
+            "threshold": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Required DVN threshold"
+            }
+          }
+        },
+        "gasLimits": {
+          "type": "object",
+          "patternProperties": {
+            "^[0-9]+$": {
+              "type": "integer",
+              "minimum": 100000,
+              "description": "Gas limit for destination chain"
+            }
+          }
+        }
+      }
+    },
+    "CelerConfig": {
+      "type": "object",
+      "properties": {
+        "messageBus": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Celer MessageBus address"
+        },
+        "celerChainId": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Celer chain identifier"
+        },
+        "feeConfig": {
+          "type": "object",
+          "properties": {
+            "baseFeeRate": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000,
+              "description": "Base fee rate in basis points"
+            },
+            "minFee": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "description": "Minimum fee in token units"
+            },
+            "maxFee": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "description": "Maximum fee in token units"
+            }
+          }
+        }
+      }
+    },
+    "HyperlaneConfig": {
+      "type": "object",
+      "properties": {
+        "mailbox": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Hyperlane Mailbox address"
+        },
+        "domainId": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Hyperlane domain identifier"
+        },
+        "interchainSecurityModule": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "ISM address for message validation"
+        },
+        "hook": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Post-dispatch hook address"
+        }
+      }
+    },
+    "ChainConnection": {
+      "type": "object",
+      "required": ["chainId", "protocols"],
+      "properties": {
+        "chainId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "networkName": {
+          "type": "string"
+        },
+        "protocols": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["layerZero", "celer", "hyperlane"]
+          },
+          "uniqueItems": true
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "lastHealthCheck": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

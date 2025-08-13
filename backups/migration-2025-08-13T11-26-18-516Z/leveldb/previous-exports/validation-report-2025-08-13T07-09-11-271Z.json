@@ -1,0 +1,228 @@
+{
+  "timestamp": "2025-08-13T07:09:11.271Z",
+  "totalContracts": 29,
+  "matched": 13,
+  "mismatched": 13,
+  "missingInJson": 0,
+  "missingInLevelDB": 3,
+  "validationResults": [
+    {
+      "chainId": 56,
+      "network": "bscmainnet",
+      "status": "matched",
+      "contractName": "CelerIMModule"
+    },
+    {
+      "chainId": 56,
+      "network": "bscmainnet",
+      "status": "mismatch",
+      "contractName": "FeeManager",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 56,
+      "network": "bscmainnet",
+      "status": "mismatch",
+      "contractName": "LayerZeroModule",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 56,
+      "network": "bscmainnet",
+      "status": "matched",
+      "contractName": "LookCoin"
+    },
+    {
+      "chainId": 56,
+      "network": "bscmainnet",
+      "status": "mismatch",
+      "contractName": "ProtocolRegistry",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 56,
+      "network": "bscmainnet",
+      "status": "mismatch",
+      "contractName": "SecurityManager",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 56,
+      "network": "bscmainnet",
+      "status": "matched",
+      "contractName": "SupplyOracle"
+    },
+    {
+      "chainId": 56,
+      "network": "bscmainnet",
+      "status": "mismatch",
+      "contractName": "contracts/xchain/CrossChainRouter.sol:CrossChainRouter",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 97,
+      "network": "bsctestnet",
+      "status": "matched",
+      "contractName": "CelerIMModule"
+    },
+    {
+      "chainId": 97,
+      "network": "bsctestnet",
+      "status": "mismatch",
+      "contractName": "FeeManager",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 97,
+      "network": "bsctestnet",
+      "status": "mismatch",
+      "contractName": "HyperlaneModule",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 97,
+      "network": "bsctestnet",
+      "status": "mismatch",
+      "contractName": "LayerZeroModule",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 97,
+      "network": "bsctestnet",
+      "status": "matched",
+      "contractName": "LookCoin"
+    },
+    {
+      "chainId": 97,
+      "network": "bsctestnet",
+      "status": "mismatch",
+      "contractName": "ProtocolRegistry",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 97,
+      "network": "bsctestnet",
+      "status": "mismatch",
+      "contractName": "SecurityManager",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 97,
+      "network": "bsctestnet",
+      "status": "matched",
+      "contractName": "SupplyOracle"
+    },
+    {
+      "chainId": 97,
+      "network": "bsctestnet",
+      "status": "mismatch",
+      "contractName": "contracts/xchain/CrossChainRouter.sol:CrossChainRouter",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 23295,
+      "network": "sapphiremainnet",
+      "status": "matched",
+      "contractName": "CelerIMModule"
+    },
+    {
+      "chainId": 23295,
+      "network": "sapphiremainnet",
+      "status": "matched",
+      "contractName": "LookCoin"
+    },
+    {
+      "chainId": 23295,
+      "network": "sapphiremainnet",
+      "status": "matched",
+      "contractName": "SupplyOracle"
+    },
+    {
+      "chainId": 84532,
+      "network": "basesepolia",
+      "status": "mismatch",
+      "contractName": "LayerZeroModule",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 84532,
+      "network": "basesepolia",
+      "status": "matched",
+      "contractName": "LookCoin"
+    },
+    {
+      "chainId": 84532,
+      "network": "basesepolia",
+      "status": "matched",
+      "contractName": "SupplyOracle"
+    },
+    {
+      "chainId": 11155420,
+      "network": "optimismsepolia",
+      "status": "mismatch",
+      "contractName": "LayerZeroModule",
+      "differences": [
+        "Deployment args mismatch"
+      ]
+    },
+    {
+      "chainId": 11155420,
+      "network": "optimismsepolia",
+      "status": "matched",
+      "contractName": "LookCoin"
+    },
+    {
+      "chainId": 11155420,
+      "network": "optimismsepolia",
+      "status": "matched",
+      "contractName": "SupplyOracle"
+    },
+    {
+      "chainId": 23294,
+      "network": "sapphiretestnet",
+      "status": "missing-in-leveldb",
+      "contractName": "LookCoin"
+    },
+    {
+      "chainId": 23294,
+      "network": "sapphiretestnet",
+      "status": "missing-in-leveldb",
+      "contractName": "SupplyOracle"
+    },
+    {
+      "chainId": 23294,
+      "network": "sapphiretestnet",
+      "status": "missing-in-leveldb",
+      "contractName": "CelerIMModule"
+    }
+  ],
+  "isValid": false,
+  "recommendations": [
+    "13 contracts have data mismatches. Review the differences and re-sync if needed.",
+    "3 contracts exist only in JSON. This is expected for new deployments after migration."
+  ]
+}

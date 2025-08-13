@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "3.0.0",
+  "fileVersion": 2,
+  "network": "chain1",
+  "chainId": 100001,
+  "networkTier": "dev",
+  "metadata": {
+    "deployer": "0x0",
+    "deploymentMode": "standard",
+    "timestamp": "2025-08-13T08:30:07.378Z",
+    "lastUpdated": "2025-08-13T08:30:07.378Z",
+    "protocolsEnabled": [],
+    "protocolsDeployed": [],
+    "protocolsConfigured": [],
+    "migrationHistory": [],
+    "dataSources": {
+      "originalFormat": "unified",
+      "consolidatedAt": "2025-08-13T08:30:07.378Z"
+    }
+  },
+  "contracts": {
+    "core": {
+      "LookCoin": {},
+      "SupplyOracle": {}
+    },
+    "infrastructure": {
+      "CrossChainContract": {
+        "address": "0x100001567890123456789012345678901234567890",
+        "deployedAt": "2025-08-13T08:30:07.378Z",
+        "timestamp": 1755073807378
+      }
+    }
+  },
+  "configuration": {
+    "governance": {
+      "vault": "0x0"
+    },
+    "protocols": {},
+    "security": {
+      "pauseEnabled": true,
+      "emergencyDelay": 86400
+    }
+  },
+  "topology": {
+    "connectedChains": [],
+    "tierValidation": {
+      "crossTierAllowed": false,
+      "crossTierDetected": false,
+      "validatedAt": "2025-08-13T08:30:07.378Z"
+    },
+    "configurationStatus": {
+      "lastConfigured": "2025-08-13T08:30:07.378Z",
+      "pendingConfigurations": [],
+      "failedConfigurations": []
+    }
+  },
+  "verification": {
+    "contractVerification": {},
+    "implementationHashes": {
+      "CrossChainContract": "0xcrossimpl"
+    },
+    "dataIntegrity": {
+      "lastValidated": "2025-08-13T08:30:07.378Z",
+      "checksums": {
+        "contracts": "",
+        "configuration": "",
+        "topology": ""
+      }
+    }
+  },
+  "operations": {
+    "deploymentHistory": [
+      {
+        "contractName": "CrossChainContract",
+        "action": "deployed",
+        "timestamp": "2025-08-13T08:30:07.378Z"
+      }
+    ],
+    "upgradeHistory": []
+  },
+  "extended_CrossChainContract": {
+    "factoryByteCodeHash": "0xcrosschain",
+    "implementationHash": "0xcrossimpl",
+    "deploymentArgs": [],
+    "timestamp": 1755073807378
+  }
+}

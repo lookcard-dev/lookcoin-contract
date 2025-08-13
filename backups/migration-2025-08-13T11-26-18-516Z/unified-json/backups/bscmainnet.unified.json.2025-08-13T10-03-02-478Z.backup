@@ -1,0 +1,291 @@
+{
+  "schemaVersion": "3.0.0",
+  "fileVersion": 3,
+  "network": "bscmainnet",
+  "chainId": 56,
+  "networkTier": "mainnet",
+  "metadata": {
+    "deployer": "0x6Fb9955AA9d3f77CB3281633FC6e57B249a26b21",
+    "deploymentMode": "multi-protocol",
+    "timestamp": "2025-07-25T11:11:18.006Z",
+    "lastUpdated": "2025-08-13T10:03:02.476Z",
+    "protocolsEnabled": [
+      "layerZero",
+      "celer"
+    ],
+    "protocolsDeployed": [
+      "layerZero",
+      "celer"
+    ],
+    "protocolsConfigured": [],
+    "migrationHistory": [
+      {
+        "from": "v1.x",
+        "to": "2.0.0",
+        "timestamp": "2025-08-12T00:00:00.000Z",
+        "migrator": "EnhancedSchemaDesign-Phase1.3"
+      },
+      {
+        "from": "v2.0.0",
+        "to": "3.0.0",
+        "timestamp": "2025-08-13T08:29:32.523Z",
+        "migrator": "consolidate-to-unified",
+        "notes": "Consolidated bscmainnet.json, enhanced-bscmainnet.json"
+      }
+    ],
+    "dataSources": {
+      "originalFormat": "json-v2",
+      "importedFrom": [
+        "bscmainnet.json",
+        "enhanced-bscmainnet.json"
+      ],
+      "consolidatedAt": "2025-08-13T08:29:32.523Z"
+    }
+  },
+  "contracts": {
+    "core": {
+      "LookCoin": {
+        "address": "0x3333333333333333333333333333333333333333",
+        "proxy": "0x7d919E3ac306BBA4e5c85E40fB665126586C992d",
+        "implementation": "0x3333333333333333333333333333333333333333",
+        "deployedAt": "2025-08-13T10:03:02.476Z",
+        "timestamp": 1755079382476
+      },
+      "SupplyOracle": {
+        "proxy": "0xdD09527aBef51a5fdfb19bCceA495AE2E5eaF0B0",
+        "implementation": "0x63DBfB3749E7d4a26672d3525e821d25445532C6"
+      }
+    },
+    "protocol": {
+      "LayerZeroModule": {
+        "proxy": "0xFc79aa2AeeAc6D08d7A39faf1dbEe5AC0e63DFc8",
+        "implementation": "0x6299cf49EA7eed6187aD4E53C56314ef11de6bB5"
+      },
+      "CelerIMModule": {
+        "proxy": "0x9177A126C719A943BdF05fbC1dC089DCa458cb9e",
+        "implementation": "0x14Bed7a3e6fB31fafd700e0D867f7Dd343615541"
+      }
+    },
+    "infrastructure": {
+      "CrossChainRouter": {
+        "proxy": "0xDD6e927c534fcd541a7D6053eDe35De48aD38bbc",
+        "implementation": "0xbb1DB44C74B7A381BDd6E8c173878d0E644256CC"
+      },
+      "FeeManager": {
+        "proxy": "0xA30ec846115c20aeF89795D0fE6dab6C05e1AaDb",
+        "implementation": "0xC4F08150A68ADFBf9Eb909eD53DA19Ce7810B8F6"
+      },
+      "SecurityManager": {
+        "proxy": "0x7293dE1109A1F6255A4B2c1a545c9F5Cc9708A4d",
+        "implementation": "0xa95Ca80c3C154e7bFA8A509333aC14d84722FB24"
+      },
+      "ProtocolRegistry": {
+        "proxy": "0x7c255412E311Cf3fd40515b0CCE3270c7f5c9CCd",
+        "implementation": "0x04650476E9984a0656bAF7a98f3E786600135FBe"
+      },
+      "TestContract": {
+        "address": "0x1111111111111111111111111111111111111111",
+        "proxy": "0x2222222222222222222222222222222222222222",
+        "implementation": "0x1111111111111111111111111111111111111111",
+        "deployedAt": "2025-08-13T10:03:02.475Z",
+        "timestamp": 1755079382475
+      }
+    },
+    "legacy": {
+      "contracts/xchain/CrossChainRouter.sol:CrossChainRouter": {
+        "currentName": "CrossChainRouter",
+        "currentCategory": "infrastructure"
+      }
+    }
+  },
+  "configuration": {
+    "governance": {
+      "vault": "0x6fb9955aa9d3f77cb3281633fc6e57b249a26b21"
+    },
+    "protocols": {
+      "layerZero": {
+        "endpoint": "0x1a44076050125825900e736c501f859c50fE728c",
+        "lzChainId": 30102,
+        "dvnConfig": {
+          "requiredDVNs": [
+            "0x589dEDbD617e0CBcB916A9223F4d1300c294236b"
+          ],
+          "threshold": 1
+        },
+        "gasLimits": {
+          "97": 200000,
+          "84532": 300000,
+          "11155420": 350000
+        },
+        "remotes": []
+      },
+      "celer": {
+        "messageBus": "0x95714818fdd7a5454f73da9c777b3ee6ebaeea6b",
+        "celerChainId": 56,
+        "feeConfig": {
+          "baseFeeRate": 50,
+          "minFee": "10000000000000000000",
+          "maxFee": "1000000000000000000000"
+        },
+        "remotes": []
+      }
+    },
+    "security": {
+      "pauseEnabled": true,
+      "emergencyDelay": 86400
+    },
+    "supplyOracle": {}
+  },
+  "topology": {
+    "connectedChains": [
+      {
+        "chainId": 97,
+        "networkName": "bsctestnet",
+        "protocols": [
+          "layerZero",
+          "celer"
+        ],
+        "enabled": true,
+        "lastHealthCheck": "2025-08-12T00:00:00.000Z"
+      },
+      {
+        "chainId": 84532,
+        "networkName": "basesepolia",
+        "protocols": [
+          "layerZero"
+        ],
+        "enabled": true,
+        "lastHealthCheck": "2025-08-12T00:00:00.000Z"
+      },
+      {
+        "chainId": 11155420,
+        "networkName": "optimismsepolia",
+        "protocols": [
+          "layerZero"
+        ],
+        "enabled": true,
+        "lastHealthCheck": "2025-08-12T00:00:00.000Z"
+      }
+    ],
+    "tierValidation": {
+      "crossTierAllowed": false,
+      "crossTierDetected": false,
+      "validatedAt": "2025-08-13T08:29:32.524Z"
+    },
+    "configurationStatus": {
+      "lastConfigured": "2025-08-13T08:29:32.524Z",
+      "pendingConfigurations": [],
+      "failedConfigurations": []
+    }
+  },
+  "verification": {
+    "contractVerification": {},
+    "implementationHashes": {
+      "LookCoin": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "SupplyOracle": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
+      "CelerIMModule": "0xefc292208ede616ee62527e07708925ea60a9bfe42d7e1d7dd40082cc7d365fe",
+      "FeeManager": "0xd991560106a222a3f8afdd2ea7dd6c7d2d12f22705c2f1f8a80bc897972ad65d",
+      "LayerZeroModule": "0x6c99f65d61cc52b89b08d9816f295ab86302068a04a5f7d1211fe11683b9c4b1",
+      "ProtocolRegistry": "0x284be8bea7d07e7ae83a7783cab5e1920da220f7592f8e75f6222045a85f9e52",
+      "SecurityManager": "0xcb0c4da7beb4f3133682cc5397a65596510d14546494f13ebaf51d71fa08205a",
+      "contracts/xchain/CrossChainRouter.sol:CrossChainRouter": "0x78013d028a69039a72be1c6a5b412d2cf955b391e822d9c041530c6e1ced9936",
+      "CrossChainRouter": "0x78013d028a69039a72be1c6a5b412d2cf955b391e822d9c041530c6e1ced9936",
+      "TestContract": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "dataIntegrity": {
+      "lastValidated": "2025-08-13T08:29:32.523Z",
+      "checksums": {
+        "contracts": "f9203e543492ee05",
+        "configuration": "e4a39ca936c5be2b",
+        "topology": "c97cd6e0e0d92928"
+      }
+    }
+  },
+  "operations": {
+    "deploymentHistory": [
+      {
+        "contractName": "TestContract",
+        "action": "deployed",
+        "timestamp": "2025-08-13T10:03:02.475Z"
+      },
+      {
+        "contractName": "LookCoin",
+        "action": "deployed",
+        "timestamp": "2025-08-13T10:03:02.476Z"
+      }
+    ],
+    "upgradeHistory": [],
+    "metrics": {}
+  },
+  "extended_CelerIMModule": {
+    "factoryByteCodeHash": "0xefc292208ede616ee62527e07708925ea60a9bfe42d7e1d7dd40082cc7d365fe",
+    "implementationHash": "0xefc292208ede616ee62527e07708925ea60a9bfe42d7e1d7dd40082cc7d365fe",
+    "timestamp": 1753441878006
+  },
+  "extended_FeeManager": {
+    "factoryByteCodeHash": "0xd991560106a222a3f8afdd2ea7dd6c7d2d12f22705c2f1f8a80bc897972ad65d",
+    "implementationHash": "0xd991560106a222a3f8afdd2ea7dd6c7d2d12f22705c2f1f8a80bc897972ad65d",
+    "deploymentArgs": [
+      "0x6Fb9955AA9d3f77CB3281633FC6e57B249a26b21"
+    ],
+    "timestamp": 1753432603170
+  },
+  "extended_LayerZeroModule": {
+    "factoryByteCodeHash": "0x6c99f65d61cc52b89b08d9816f295ab86302068a04a5f7d1211fe11683b9c4b1",
+    "implementationHash": "0x6c99f65d61cc52b89b08d9816f295ab86302068a04a5f7d1211fe11683b9c4b1",
+    "deploymentArgs": [
+      "0x7d919E3ac306BBA4e5c85E40fB665126586C992d",
+      "0x1a44076050125825900e736c501f859c50fE728c",
+      "0x6Fb9955AA9d3f77CB3281633FC6e57B249a26b21"
+    ],
+    "timestamp": 1753432566706
+  },
+  "extended_LookCoin": {
+    "factoryByteCodeHash": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "implementationHash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "deploymentArgs": [],
+    "timestamp": 1755079382476
+  },
+  "extended_ProtocolRegistry": {
+    "factoryByteCodeHash": "0x284be8bea7d07e7ae83a7783cab5e1920da220f7592f8e75f6222045a85f9e52",
+    "implementationHash": "0x284be8bea7d07e7ae83a7783cab5e1920da220f7592f8e75f6222045a85f9e52",
+    "deploymentArgs": [
+      "0x6Fb9955AA9d3f77CB3281633FC6e57B249a26b21"
+    ],
+    "timestamp": 1753432592027
+  },
+  "extended_SecurityManager": {
+    "factoryByteCodeHash": "0xcb0c4da7beb4f3133682cc5397a65596510d14546494f13ebaf51d71fa08205a",
+    "implementationHash": "0xcb0c4da7beb4f3133682cc5397a65596510d14546494f13ebaf51d71fa08205a",
+    "deploymentArgs": [
+      "0x6Fb9955AA9d3f77CB3281633FC6e57B249a26b21",
+      "20000000000000000000000000"
+    ],
+    "timestamp": 1753432614554
+  },
+  "extended_SupplyOracle": {
+    "factoryByteCodeHash": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
+    "implementationHash": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
+    "timestamp": 1753441878006
+  },
+  "extended_CrossChainRouter": {
+    "factoryByteCodeHash": "0x78013d028a69039a72be1c6a5b412d2cf955b391e822d9c041530c6e1ced9936",
+    "implementationHash": "0x78013d028a69039a72be1c6a5b412d2cf955b391e822d9c041530c6e1ced9936",
+    "deploymentArgs": [
+      "0x7d919E3ac306BBA4e5c85E40fB665126586C992d",
+      "0xA30ec846115c20aeF89795D0fE6dab6C05e1AaDb",
+      "0x7293dE1109A1F6255A4B2c1a545c9F5Cc9708A4d",
+      "0x6Fb9955AA9d3f77CB3281633FC6e57B249a26b21"
+    ],
+    "timestamp": 1753432624849
+  },
+  "extended_TestContract": {
+    "factoryByteCodeHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "implementationHash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "deploymentArgs": [
+      "arg1",
+      "arg2"
+    ],
+    "timestamp": 1755079382475
+  }
+}

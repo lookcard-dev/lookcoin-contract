@@ -7,10 +7,15 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "typeRoots": ["./node_modules/@types"],
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitAny": true
   },
-  "exclude": ["node_modules", "typechain-types"]
+  "exclude": [
+    "node_modules",
+    "typechain-types"
+  ]
 }

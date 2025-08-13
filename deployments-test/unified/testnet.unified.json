@@ -1,0 +1,920 @@
+{
+  "schemaVersion": "3.0.0",
+  "fileVersion": 4,
+  "network": "testnet",
+  "chainId": 999999,
+  "networkTier": "testnet",
+  "metadata": {
+    "deployer": "0x0",
+    "deploymentMode": "standard",
+    "timestamp": "2025-08-13T08:30:07.381Z",
+    "lastUpdated": "2025-08-13T08:30:07.382Z",
+    "protocolsEnabled": [],
+    "protocolsDeployed": [],
+    "protocolsConfigured": [],
+    "migrationHistory": [],
+    "dataSources": {
+      "originalFormat": "unified",
+      "consolidatedAt": "2025-08-13T08:30:07.381Z"
+    }
+  },
+  "contracts": {
+    "core": {
+      "LookCoin": {},
+      "SupplyOracle": {}
+    },
+    "infrastructure": {
+      "NoProxyContract": {
+        "address": "0xNOPR567890123456789012345678901234567890",
+        "deployedAt": "2025-08-13T08:30:07.381Z",
+        "timestamp": 1755073807381
+      },
+      "LargeArgsContract": {
+        "address": "0xLARG567890123456789012345678901234567890",
+        "deployedAt": "2025-08-13T08:30:07.382Z",
+        "timestamp": 1755073807382
+      },
+      "Contract$Special#Name@123": {
+        "address": "0xSPEC567890123456789012345678901234567890",
+        "deployedAt": "2025-08-13T08:30:07.382Z",
+        "timestamp": 1755073807382
+      }
+    }
+  },
+  "configuration": {
+    "governance": {
+      "vault": "0x0"
+    },
+    "protocols": {},
+    "security": {
+      "pauseEnabled": true,
+      "emergencyDelay": 86400
+    }
+  },
+  "topology": {
+    "connectedChains": [],
+    "tierValidation": {
+      "crossTierAllowed": false,
+      "crossTierDetected": false,
+      "validatedAt": "2025-08-13T08:30:07.381Z"
+    },
+    "configurationStatus": {
+      "lastConfigured": "2025-08-13T08:30:07.381Z",
+      "pendingConfigurations": [],
+      "failedConfigurations": []
+    }
+  },
+  "verification": {
+    "contractVerification": {},
+    "implementationHashes": {
+      "LargeArgsContract": "0xlargeimpl",
+      "Contract$Special#Name@123": "0xspecialimpl"
+    },
+    "dataIntegrity": {
+      "lastValidated": "2025-08-13T08:30:07.381Z",
+      "checksums": {
+        "contracts": "",
+        "configuration": "",
+        "topology": ""
+      }
+    }
+  },
+  "operations": {
+    "deploymentHistory": [
+      {
+        "contractName": "NoProxyContract",
+        "action": "deployed",
+        "timestamp": "2025-08-13T08:30:07.381Z"
+      },
+      {
+        "contractName": "LargeArgsContract",
+        "action": "deployed",
+        "timestamp": "2025-08-13T08:30:07.382Z"
+      },
+      {
+        "contractName": "Contract$Special#Name@123",
+        "action": "deployed",
+        "timestamp": "2025-08-13T08:30:07.382Z"
+      }
+    ],
+    "upgradeHistory": []
+  },
+  "extended_NoProxyContract": {
+    "factoryByteCodeHash": "0xnoproxy",
+    "deploymentArgs": [],
+    "timestamp": 1755073807381
+  },
+  "extended_LargeArgsContract": {
+    "factoryByteCodeHash": "0xlarge",
+    "implementationHash": "0xlargeimpl",
+    "deploymentArgs": [
+      {
+        "index": 0,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 0,
+          "flag": true
+        }
+      },
+      {
+        "index": 1,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 1000,
+          "flag": false
+        }
+      },
+      {
+        "index": 2,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 2000,
+          "flag": true
+        }
+      },
+      {
+        "index": 3,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 3000,
+          "flag": false
+        }
+      },
+      {
+        "index": 4,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 4000,
+          "flag": true
+        }
+      },
+      {
+        "index": 5,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 5000,
+          "flag": false
+        }
+      },
+      {
+        "index": 6,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 6000,
+          "flag": true
+        }
+      },
+      {
+        "index": 7,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 7000,
+          "flag": false
+        }
+      },
+      {
+        "index": 8,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 8000,
+          "flag": true
+        }
+      },
+      {
+        "index": 9,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 9000,
+          "flag": false
+        }
+      },
+      {
+        "index": 10,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 10000,
+          "flag": true
+        }
+      },
+      {
+        "index": 11,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 11000,
+          "flag": false
+        }
+      },
+      {
+        "index": 12,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 12000,
+          "flag": true
+        }
+      },
+      {
+        "index": 13,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 13000,
+          "flag": false
+        }
+      },
+      {
+        "index": 14,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 14000,
+          "flag": true
+        }
+      },
+      {
+        "index": 15,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 15000,
+          "flag": false
+        }
+      },
+      {
+        "index": 16,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 16000,
+          "flag": true
+        }
+      },
+      {
+        "index": 17,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 17000,
+          "flag": false
+        }
+      },
+      {
+        "index": 18,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 18000,
+          "flag": true
+        }
+      },
+      {
+        "index": 19,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 19000,
+          "flag": false
+        }
+      },
+      {
+        "index": 20,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 20000,
+          "flag": true
+        }
+      },
+      {
+        "index": 21,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 21000,
+          "flag": false
+        }
+      },
+      {
+        "index": 22,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 22000,
+          "flag": true
+        }
+      },
+      {
+        "index": 23,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 23000,
+          "flag": false
+        }
+      },
+      {
+        "index": 24,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 24000,
+          "flag": true
+        }
+      },
+      {
+        "index": 25,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 25000,
+          "flag": false
+        }
+      },
+      {
+        "index": 26,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 26000,
+          "flag": true
+        }
+      },
+      {
+        "index": 27,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 27000,
+          "flag": false
+        }
+      },
+      {
+        "index": 28,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 28000,
+          "flag": true
+        }
+      },
+      {
+        "index": 29,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 29000,
+          "flag": false
+        }
+      },
+      {
+        "index": 30,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 30000,
+          "flag": true
+        }
+      },
+      {
+        "index": 31,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 31000,
+          "flag": false
+        }
+      },
+      {
+        "index": 32,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 32000,
+          "flag": true
+        }
+      },
+      {
+        "index": 33,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 33000,
+          "flag": false
+        }
+      },
+      {
+        "index": 34,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 34000,
+          "flag": true
+        }
+      },
+      {
+        "index": 35,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 35000,
+          "flag": false
+        }
+      },
+      {
+        "index": 36,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 36000,
+          "flag": true
+        }
+      },
+      {
+        "index": 37,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 37000,
+          "flag": false
+        }
+      },
+      {
+        "index": 38,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 38000,
+          "flag": true
+        }
+      },
+      {
+        "index": 39,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 39000,
+          "flag": false
+        }
+      },
+      {
+        "index": 40,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 40000,
+          "flag": true
+        }
+      },
+      {
+        "index": 41,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 41000,
+          "flag": false
+        }
+      },
+      {
+        "index": 42,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 42000,
+          "flag": true
+        }
+      },
+      {
+        "index": 43,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 43000,
+          "flag": false
+        }
+      },
+      {
+        "index": 44,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 44000,
+          "flag": true
+        }
+      },
+      {
+        "index": 45,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 45000,
+          "flag": false
+        }
+      },
+      {
+        "index": 46,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 46000,
+          "flag": true
+        }
+      },
+      {
+        "index": 47,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 47000,
+          "flag": false
+        }
+      },
+      {
+        "index": 48,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 48000,
+          "flag": true
+        }
+      },
+      {
+        "index": 49,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 49000,
+          "flag": false
+        }
+      },
+      {
+        "index": 50,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 50000,
+          "flag": true
+        }
+      },
+      {
+        "index": 51,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 51000,
+          "flag": false
+        }
+      },
+      {
+        "index": 52,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 52000,
+          "flag": true
+        }
+      },
+      {
+        "index": 53,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 53000,
+          "flag": false
+        }
+      },
+      {
+        "index": 54,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 54000,
+          "flag": true
+        }
+      },
+      {
+        "index": 55,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 55000,
+          "flag": false
+        }
+      },
+      {
+        "index": 56,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 56000,
+          "flag": true
+        }
+      },
+      {
+        "index": 57,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 57000,
+          "flag": false
+        }
+      },
+      {
+        "index": 58,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 58000,
+          "flag": true
+        }
+      },
+      {
+        "index": 59,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 59000,
+          "flag": false
+        }
+      },
+      {
+        "index": 60,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 60000,
+          "flag": true
+        }
+      },
+      {
+        "index": 61,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 61000,
+          "flag": false
+        }
+      },
+      {
+        "index": 62,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 62000,
+          "flag": true
+        }
+      },
+      {
+        "index": 63,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 63000,
+          "flag": false
+        }
+      },
+      {
+        "index": 64,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 64000,
+          "flag": true
+        }
+      },
+      {
+        "index": 65,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 65000,
+          "flag": false
+        }
+      },
+      {
+        "index": 66,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 66000,
+          "flag": true
+        }
+      },
+      {
+        "index": 67,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 67000,
+          "flag": false
+        }
+      },
+      {
+        "index": 68,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 68000,
+          "flag": true
+        }
+      },
+      {
+        "index": 69,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 69000,
+          "flag": false
+        }
+      },
+      {
+        "index": 70,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 70000,
+          "flag": true
+        }
+      },
+      {
+        "index": 71,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 71000,
+          "flag": false
+        }
+      },
+      {
+        "index": 72,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 72000,
+          "flag": true
+        }
+      },
+      {
+        "index": 73,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 73000,
+          "flag": false
+        }
+      },
+      {
+        "index": 74,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 74000,
+          "flag": true
+        }
+      },
+      {
+        "index": 75,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 75000,
+          "flag": false
+        }
+      },
+      {
+        "index": 76,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 76000,
+          "flag": true
+        }
+      },
+      {
+        "index": 77,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 77000,
+          "flag": false
+        }
+      },
+      {
+        "index": 78,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 78000,
+          "flag": true
+        }
+      },
+      {
+        "index": 79,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 79000,
+          "flag": false
+        }
+      },
+      {
+        "index": 80,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 80000,
+          "flag": true
+        }
+      },
+      {
+        "index": 81,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 81000,
+          "flag": false
+        }
+      },
+      {
+        "index": 82,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 82000,
+          "flag": true
+        }
+      },
+      {
+        "index": 83,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 83000,
+          "flag": false
+        }
+      },
+      {
+        "index": 84,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 84000,
+          "flag": true
+        }
+      },
+      {
+        "index": 85,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 85000,
+          "flag": false
+        }
+      },
+      {
+        "index": 86,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 86000,
+          "flag": true
+        }
+      },
+      {
+        "index": 87,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 87000,
+          "flag": false
+        }
+      },
+      {
+        "index": 88,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 88000,
+          "flag": true
+        }
+      },
+      {
+        "index": 89,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 89000,
+          "flag": false
+        }
+      },
+      {
+        "index": 90,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 90000,
+          "flag": true
+        }
+      },
+      {
+        "index": 91,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 91000,
+          "flag": false
+        }
+      },
+      {
+        "index": 92,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 92000,
+          "flag": true
+        }
+      },
+      {
+        "index": 93,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 93000,
+          "flag": false
+        }
+      },
+      {
+        "index": 94,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 94000,
+          "flag": true
+        }
+      },
+      {
+        "index": 95,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 95000,
+          "flag": false
+        }
+      },
+      {
+        "index": 96,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 96000,
+          "flag": true
+        }
+      },
+      {
+        "index": 97,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 97000,
+          "flag": false
+        }
+      },
+      {
+        "index": 98,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 98000,
+          "flag": true
+        }
+      },
+      {
+        "index": 99,
+        "data": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nested": {
+          "value": 99000,
+          "flag": false
+        }
+      }
+    ],
+    "timestamp": 1755073807382
+  },
+  "extended_Contract$Special#Name@123": {
+    "factoryByteCodeHash": "0xspecial",
+    "implementationHash": "0xspecialimpl",
+    "deploymentArgs": [],
+    "timestamp": 1755073807382
+  }
+}

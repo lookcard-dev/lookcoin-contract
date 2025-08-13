@@ -1,0 +1,46 @@
+{
+  "success": false,
+  "checks": [
+    {
+      "name": "Unified Directory",
+      "status": "pass",
+      "message": "Unified deployment directory exists"
+    },
+    {
+      "name": "Unified Files",
+      "status": "pass",
+      "message": "Found 5 unified deployment files"
+    },
+    {
+      "name": "File Integrity",
+      "status": "fail",
+      "message": "No files have valid unified structure"
+    },
+    {
+      "name": "Backup System",
+      "status": "warning",
+      "message": "Latest backup may be incomplete or failed verification"
+    },
+    {
+      "name": "Contract Data",
+      "status": "warning",
+      "message": "Mainnet files found but no valid contract addresses detected"
+    },
+    {
+      "name": "Dependencies",
+      "status": "pass",
+      "message": "State management utilities available"
+    },
+    {
+      "name": "Package Dependencies",
+      "status": "pass",
+      "message": "Package.json is valid"
+    }
+  ],
+  "summary": {
+    "totalChecks": 7,
+    "passed": 4,
+    "failed": 1,
+    "warnings": 2
+  }
+}

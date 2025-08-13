@@ -6,8 +6,8 @@ root: ./
 # Structure configuration
 structure:
   readme: README.md
-  summary: SUMMARY.md
-  
+  summary: ./docs/SUMMARY.md
+
 # Site metadata
 title: "LookCoin Documentation"
 description: "Complete documentation for LookCoin omnichain fungible token"

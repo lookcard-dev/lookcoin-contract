@@ -1,0 +1,115 @@
+{
+  "backupId": "migration-2025-08-13T11-26-18-516Z",
+  "verificationTimestamp": "2025-08-13T11:26:37.313Z",
+  "status": "FAILED",
+  "summary": {
+    "totalFilesExpected": 112,
+    "totalFilesFound": 103,
+    "totalSizeExpected": 2122308,
+    "totalSizeActual": 2046095,
+    "checksumsVerified": 16,
+    "checksumFailures": 0
+  },
+  "categories": {
+    "leveldb": {
+      "expected": true,
+      "found": true,
+      "filesExpected": 0,
+      "filesFound": 20,
+      "sizeExpected": 0,
+      "sizeActual": 63402,
+      "checksumsPassed": 0,
+      "checksumsFailed": 0,
+      "issues": [
+        "File count mismatch: expected 0, found 20 (difference: +20)",
+        "Size deviation: expected 0 B, actual 61.9 KB (Infinity% difference)"
+      ]
+    },
+    "legacyJson": {
+      "expected": true,
+      "found": false,
+      "filesExpected": 10,
+      "filesFound": 0,
+      "sizeExpected": 22270,
+      "sizeActual": 0,
+      "checksumsPassed": 0,
+      "checksumsFailed": 0,
+      "issues": []
+    },
+    "unifiedJson": {
+      "expected": true,
+      "found": false,
+      "filesExpected": 17,
+      "filesFound": 0,
+      "sizeExpected": 117672,
+      "sizeActual": 0,
+      "checksumsPassed": 0,
+      "checksumsFailed": 0,
+      "issues": []
+    },
+    "configs": {
+      "expected": true,
+      "found": true,
+      "filesExpected": 6,
+      "filesFound": 8,
+      "sizeExpected": 781911,
+      "sizeActual": 812795,
+      "checksumsPassed": 0,
+      "checksumsFailed": 0,
+      "issues": [
+        "File count mismatch: expected 6, found 8 (difference: +2)"
+      ]
+    },
+    "scripts": {
+      "expected": true,
+      "found": true,
+      "filesExpected": 45,
+      "filesFound": 45,
+      "sizeExpected": 728994,
+      "sizeActual": 728994,
+      "checksumsPassed": 0,
+      "checksumsFailed": 0,
+      "issues": []
+    },
+    "docs": {
+      "expected": true,
+      "found": true,
+      "filesExpected": 34,
+      "filesFound": 30,
+      "sizeExpected": 471461,
+      "sizeActual": 440904,
+      "checksumsPassed": 0,
+      "checksumsFailed": 0,
+      "issues": [
+        "File count mismatch: expected 34, found 30 (difference: -4)"
+      ]
+    }
+  },
+  "issues": [
+    {
+      "severity": "ERROR",
+      "category": "leveldb",
+      "description": "File count mismatch: expected 0, found 20 (difference: +20)"
+    },
+    {
+      "severity": "ERROR",
+      "category": "leveldb",
+      "description": "Size deviation: expected 0 B, actual 61.9 KB (Infinity% difference)"
+    },
+    {
+      "severity": "ERROR",
+      "category": "configs",
+      "description": "File count mismatch: expected 6, found 8 (difference: +2)"
+    },
+    {
+      "severity": "ERROR",
+      "category": "docs",
+      "description": "File count mismatch: expected 34, found 30 (difference: -4)"
+    }
+  ],
+  "recommendations": [
+    "⚠️  WARNING: Significant number of files missing. Verify backup process completion.",
+    "🟠 HIGH: Unified JSON backup missing. Migration rollback may be incomplete.",
+    "✅ GOOD: Sample checksum verification passed. Backup integrity appears sound."
+  ]
+}

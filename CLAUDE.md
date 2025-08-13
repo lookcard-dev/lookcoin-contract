@@ -187,14 +187,96 @@ SKIP_UPGRADE_CHECK=true npm run deploy:<network>  # Skip upgrade checks
 npm run deploy:<network> -- --simple-mode         # Simple deployment
 ```
 
+## Unified State Management
+
+### Deployment Schema v3.0.0
+
+LookCoin uses a **Unified JSON State Management** system that consolidates all deployment data into single files per network. This replaced the previous LevelDB storage system in August 2025.
+
+#### Current Architecture
+```
+deployments/unified/
+├── bscmainnet.unified.json      # Complete BSC mainnet state
+├── bsctestnet.unified.json      # Complete BSC testnet state  
+├── basesepolia.unified.json     # Complete Base Sepolia state
+├── optimismsepolia.unified.json # Complete Optimism Sepolia state
+└── sapphiremainnet.unified.json # Complete Sapphire mainnet state
+```
+
+#### Key Features
+- **Single Source of Truth**: All deployment data in one file per network
+- **Extended Fields**: Preserves all contract metadata using extended data pattern
+- **BigInt Support**: Handles large numbers with custom serialization
+- **Version Control**: Git-friendly format with schema versioning
+- **Performance Optimized**: Multi-level caching and batch operations
+
+#### State Management Commands
+```bash
+# Validate current deployment state
+npm run state:validate
+
+# Create comprehensive backup
+npm run state:backup
+
+# Restore from backup
+npm run state:restore
+
+# Performance benchmarking
+npm run benchmark
+```
+
+#### Unified Schema Structure
+```json
+{
+  "schemaVersion": "3.0.0",
+  "network": "bscmainnet", 
+  "chainId": 56,
+  "contracts": {
+    "core": { "LookCoin": {...}, "SupplyOracle": {...} },
+    "protocol": { "LayerZeroModule": {...}, "CelerIMModule": {...} },
+    "infrastructure": { "CrossChainRouter": {...}, "FeeManager": {...} }
+  },
+  "configuration": { "protocols": {...}, "governance": {...} },
+  "topology": { "connectedChains": [...], "routingPaths": {...} }
+}
+```
+
+### Migration Status
+- ✅ **Migration Complete**: LevelDB → Unified JSON (August 2025)  
+- ✅ **Data Preservation**: 100% data integrity maintained (26/26 contracts)
+- ✅ **Performance**: Within acceptable ranges (≤3x latency)
+- ✅ **Backup Systems**: Comprehensive backup and rollback procedures
+
+### Extended Fields Pattern
+The unified system uses an extended fields pattern to preserve all LevelDB data:
+
+```json
+{
+  "contracts": {
+    "core": {
+      "LookCoin": {
+        "implementation": "0x8f8C..."  // Address (not hash)
+      }
+    }
+  },
+  "extended_LookCoin": {
+    "implementationHash": "0x035df...",  // Hash stored here
+    "factoryByteCodeHash": "0x12345...",
+    "deploymentArgs": [...],
+    "timestamp": 1753441878006
+  }
+}
+```
+
 ## Configuration Management
 
-All network and protocol configurations are centralized in `hardhat.config.ts`:
+All network and protocol configurations are centralized in `hardhat.config.ts` and unified JSON files:
 
 - Network RPC endpoints and chain IDs
 - Protocol endpoints and parameters
 - DVN settings for LayerZero
 - Fee structures and limits
+- Cross-network topology and routing
 
 ## Common Issues & Solutions
 

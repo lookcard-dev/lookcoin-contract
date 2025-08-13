@@ -1,0 +1,38 @@
+{
+  "chainId": 11155420,
+  "network": "optimismsepolia",
+  "networkTier": "testnet",
+  "deploymentMode": "standard",
+  "timestamp": "2025-08-01T20:23:23.060Z",
+  "tierValidation": {
+    "crossTierAllowed": false,
+    "crossTierDetected": false,
+    "overrideMethod": "none"
+  },
+  "protocolsConfigured": [
+    {
+      "protocol": "LayerZero",
+      "configured": true,
+      "details": "Configured: LayerZeroModule at 0xe71BEF0472C96c0D255Bd4ec40CB4A0618B53A2C, Module trusted remote 40102: 0x69e6AF742E4a3E4d8494FDA6F181E263fB77f741"
+    }
+  ],
+  "layerZeroRemotes": [
+    {
+      "chainId": 40102,
+      "networkTier": "testnet",
+      "lookCoin": "0xB8B7604628F37D611e82D22609ACE0Ca01A14e2D"
+    },
+    {
+      "chainId": 40245,
+      "networkTier": "testnet",
+      "lookCoin": "0xF936F96de720753D01B27C8Bb4805bE9714D612e"
+    }
+  ],
+  "celerRemotes": [],
+  "hyperlaneRemotes": [],
+  "supplyOracleConfig": {
+    "reconciliationInterval": "900 seconds",
+    "toleranceThreshold": "100 basis points"
+  },
+  "hyperlaneStatus": "not ready"
+}

@@ -1,0 +1,58 @@
+{
+  "chainId": 97,
+  "network": "bsctestnet",
+  "networkTier": "testnet",
+  "deploymentMode": "multi-protocol",
+  "timestamp": "2025-08-01T20:08:25.054Z",
+  "tierValidation": {
+    "crossTierAllowed": false,
+    "crossTierDetected": false,
+    "overrideMethod": "none"
+  },
+  "protocolsConfigured": [
+    {
+      "protocol": "LayerZero",
+      "configured": false,
+      "details": "Already configured"
+    },
+    {
+      "protocol": "Celer",
+      "configured": false,
+      "details": "Already configured"
+    },
+    {
+      "protocol": "CrossChainRouter",
+      "configured": false,
+      "details": "Already configured"
+    },
+    {
+      "protocol": "FeeManager",
+      "configured": false,
+      "details": "Already configured"
+    },
+    {
+      "protocol": "ProtocolRegistry",
+      "configured": false,
+      "details": "Already configured"
+    }
+  ],
+  "layerZeroRemotes": [
+    {
+      "chainId": 40245,
+      "networkTier": "testnet",
+      "lookCoin": "0xF936F96de720753D01B27C8Bb4805bE9714D612e"
+    },
+    {
+      "chainId": 40232,
+      "networkTier": "testnet",
+      "lookCoin": "0xF936F96de720753D01B27C8Bb4805bE9714D612e"
+    }
+  ],
+  "celerRemotes": [],
+  "hyperlaneRemotes": [],
+  "supplyOracleConfig": {
+    "reconciliationInterval": "900 seconds",
+    "toleranceThreshold": "100 basis points"
+  },
+  "hyperlaneStatus": "not ready"
+}

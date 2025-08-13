@@ -1,0 +1,82 @@
+{
+  "timestamp": "2025-08-13T06:51:47.656Z",
+  "sourceFile": "leveldb-export-2025-08-13T06-48-38-098Z.json",
+  "results": [
+    {
+      "network": "bscmainnet",
+      "chainId": 56,
+      "added": [
+        "FeeManager",
+        "LayerZeroModule",
+        "ProtocolRegistry",
+        "SecurityManager",
+        "contracts/xchain/CrossChainRouter.sol:CrossChainRouter"
+      ],
+      "updated": [],
+      "skipped": [
+        "CelerIMModule",
+        "LookCoin",
+        "SupplyOracle"
+      ]
+    },
+    {
+      "network": "bsctestnet",
+      "chainId": 97,
+      "added": [
+        "FeeManager",
+        "HyperlaneModule",
+        "LayerZeroModule",
+        "ProtocolRegistry",
+        "SecurityManager",
+        "contracts/xchain/CrossChainRouter.sol:CrossChainRouter"
+      ],
+      "updated": [],
+      "skipped": [
+        "CelerIMModule",
+        "LookCoin",
+        "SupplyOracle"
+      ]
+    },
+    {
+      "network": "sapphiremainnet",
+      "chainId": 23295,
+      "added": [
+        "CelerIMModule",
+        "LookCoin",
+        "SupplyOracle"
+      ],
+      "updated": [],
+      "skipped": []
+    },
+    {
+      "network": "basesepolia",
+      "chainId": 84532,
+      "added": [
+        "LayerZeroModule"
+      ],
+      "updated": [],
+      "skipped": [
+        "LookCoin",
+        "SupplyOracle"
+      ]
+    },
+    {
+      "network": "optimismsepolia",
+      "chainId": 11155420,
+      "added": [
+        "LayerZeroModule"
+      ],
+      "updated": [],
+      "skipped": [
+        "LookCoin",
+        "SupplyOracle"
+      ]
+    }
+  ],
+  "summary": {
+    "totalNetworks": 5,
+    "totalAdded": 16,
+    "totalUpdated": 0,
+    "totalSkipped": 10
+  }
+}

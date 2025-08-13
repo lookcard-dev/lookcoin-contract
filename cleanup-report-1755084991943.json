@@ -1,0 +1,254 @@
+{
+  "success": true,
+  "operations": [
+    {
+      "type": "create",
+      "description": "Created archive directory structure",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive",
+      "completed": true,
+      "timestamp": 1755084971474
+    },
+    {
+      "type": "archive",
+      "description": "Archived legacy file: basesepolia.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/basesepolia.json",
+      "oldValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/basesepolia.json",
+      "newValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/basesepolia.json",
+      "completed": true,
+      "timestamp": 1755084971475
+    },
+    {
+      "type": "archive",
+      "description": "Archived legacy file: bscmainnet.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/bscmainnet.json",
+      "oldValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/bscmainnet.json",
+      "newValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/bscmainnet.json",
+      "completed": true,
+      "timestamp": 1755084971476
+    },
+    {
+      "type": "archive",
+      "description": "Archived legacy file: bsctestnet.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/bsctestnet.json",
+      "oldValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/bsctestnet.json",
+      "newValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/bsctestnet.json",
+      "completed": true,
+      "timestamp": 1755084971476
+    },
+    {
+      "type": "archive",
+      "description": "Archived legacy file: optimismsepolia.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/optimismsepolia.json",
+      "oldValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/optimismsepolia.json",
+      "newValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/optimismsepolia.json",
+      "completed": true,
+      "timestamp": 1755084971477
+    },
+    {
+      "type": "archive",
+      "description": "Archived legacy file: sapphiremainnet.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/sapphiremainnet.json",
+      "oldValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/sapphiremainnet.json",
+      "newValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/sapphiremainnet.json",
+      "completed": true,
+      "timestamp": 1755084971477
+    },
+    {
+      "type": "archive",
+      "description": "Archived legacy file: sapphiretestnet.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/sapphiretestnet.json",
+      "oldValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/sapphiretestnet.json",
+      "newValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/sapphiretestnet.json",
+      "completed": true,
+      "timestamp": 1755084971477
+    },
+    {
+      "type": "archive",
+      "description": "Archived legacy file: config-basesepolia.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/config-basesepolia.json",
+      "oldValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/config-basesepolia.json",
+      "newValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/config-basesepolia.json",
+      "completed": true,
+      "timestamp": 1755084971477
+    },
+    {
+      "type": "archive",
+      "description": "Archived legacy file: config-bsctestnet.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/config-bsctestnet.json",
+      "oldValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/config-bsctestnet.json",
+      "newValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/config-bsctestnet.json",
+      "completed": true,
+      "timestamp": 1755084971478
+    },
+    {
+      "type": "archive",
+      "description": "Archived legacy file: config-optimismsepolia.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/config-optimismsepolia.json",
+      "oldValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/config-optimismsepolia.json",
+      "newValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/config-optimismsepolia.json",
+      "completed": true,
+      "timestamp": 1755084971478
+    },
+    {
+      "type": "archive",
+      "description": "Archived enhanced file: enhanced-bscmainnet.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/enhanced-bscmainnet.json",
+      "oldValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/enhanced-bscmainnet.json",
+      "newValue": "/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/enhanced-json/enhanced-bscmainnet.json",
+      "completed": true,
+      "timestamp": 1755084971479
+    },
+    {
+      "type": "modify",
+      "description": "Removed LevelDB dependencies",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/package.json",
+      "oldValue": "{\"@ethereum-sourcify/bytecode-utils\":\"1.2.8\",\"@hyperlane-xyz/core\":\"^9.0.2\",\"@hyperlane-xyz/sdk\":\"^16.0.0\",\"@layerzerolabs/lz-evm-messagelib-v2\":\"^3.0.115\",\"@layerzerolabs/lz-evm-protocol-v2\":\"^3.0.115\",\"@layerzerolabs/oft-evm\":\"^3.2.0\",\"@openzeppelin/contracts\":\"^5.0.2\",\"@openzeppelin/contracts-upgradeable\":\"^5.0.2\",\"chalk\":\"^5.5.0\",\"level\":\"^10.0.0\"}",
+      "newValue": "{\"@ethereum-sourcify/bytecode-utils\":\"1.2.8\",\"@hyperlane-xyz/core\":\"^9.0.2\",\"@hyperlane-xyz/sdk\":\"^16.0.0\",\"@layerzerolabs/lz-evm-messagelib-v2\":\"^3.0.115\",\"@layerzerolabs/lz-evm-protocol-v2\":\"^3.0.115\",\"@layerzerolabs/oft-evm\":\"^3.2.0\",\"@openzeppelin/contracts\":\"^5.0.2\",\"@openzeppelin/contracts-upgradeable\":\"^5.0.2\",\"chalk\":\"^5.5.0\"}",
+      "completed": true,
+      "timestamp": 1755084991925
+    },
+    {
+      "type": "modify",
+      "description": "Updated StateManagerFactory to remove LevelDB references",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/scripts/utils/StateManagerFactory.ts",
+      "oldValue": "/**\n * StateManagerFactory - Factory and Migration Architecture\n * \n * Provides factory methods for ",
+      "newValue": "/**\n * StateManagerFactory - Factory and Migration Architecture\n * \n * Provides factory methods for ",
+      "completed": true,
+      "timestamp": 1755084991926
+    },
+    {
+      "type": "remove",
+      "description": "Removed LevelDBStateManager.ts",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/scripts/utils/LevelDBStateManager.ts",
+      "completed": true,
+      "timestamp": 1755084991927
+    },
+    {
+      "type": "remove",
+      "description": "Removed directory: leveldb",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb",
+      "completed": true,
+      "timestamp": 1755084991938
+    },
+    {
+      "type": "remove",
+      "description": "Removed directory: leveldb-backup",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-backup",
+      "completed": true,
+      "timestamp": 1755084991940
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: leveldb-data-integrity-report.md",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-data-integrity-report.md",
+      "completed": true,
+      "timestamp": 1755084991940
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: leveldb-inventory.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-inventory.json",
+      "completed": true,
+      "timestamp": 1755084991940
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: backups/migration-2025-08-13T11-26-18-516Z/leveldb/leveldb-data-integrity-report.md",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/backups/migration-2025-08-13T11-26-18-516Z/leveldb/leveldb-data-integrity-report.md",
+      "completed": true,
+      "timestamp": 1755084991940
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: backups/migration-2025-08-13T11-26-18-516Z/leveldb/leveldb-inventory.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/backups/migration-2025-08-13T11-26-18-516Z/leveldb/leveldb-inventory.json",
+      "completed": true,
+      "timestamp": 1755084991940
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: backups/migration-2025-08-13T11-26-18-516Z/leveldb/previous-exports/leveldb-export-2025-08-13T06-48-38-098Z.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/backups/migration-2025-08-13T11-26-18-516Z/leveldb/previous-exports/leveldb-export-2025-08-13T06-48-38-098Z.json",
+      "completed": true,
+      "timestamp": 1755084991940
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: leveldb-analysis-report-1754996362937.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-analysis-report-1754996362937.json",
+      "completed": true,
+      "timestamp": 1755084991940
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: leveldb-unified-comparison-2025-08-13T10-56-40-938Z.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-56-40-938Z.json",
+      "completed": true,
+      "timestamp": 1755084991941
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: leveldb-unified-comparison-2025-08-13T10-57-52-348Z.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-57-52-348Z.json",
+      "completed": true,
+      "timestamp": 1755084991941
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: leveldb-unified-comparison-2025-08-13T10-58-11-797Z.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-58-11-797Z.json",
+      "completed": true,
+      "timestamp": 1755084991941
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: leveldb-unified-comparison-2025-08-13T10-58-23-589Z.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-58-23-589Z.json",
+      "completed": true,
+      "timestamp": 1755084991941
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: leveldb-unified-comparison-2025-08-13T10-59-29-728Z.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-59-29-728Z.json",
+      "completed": true,
+      "timestamp": 1755084991941
+    },
+    {
+      "type": "remove",
+      "description": "Removed file: leveldb-unified-comparison-2025-08-13T10-59-54-229Z.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-59-54-229Z.json",
+      "completed": true,
+      "timestamp": 1755084991941
+    },
+    {
+      "type": "modify",
+      "description": "Updated .gitignore",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/.gitignore",
+      "completed": true,
+      "timestamp": 1755084991942
+    },
+    {
+      "type": "modify",
+      "description": "Updated tsconfig.json",
+      "path": "/Users/mike/Workplace/LookCard/lookcoin-contract/tsconfig.json",
+      "completed": true,
+      "timestamp": 1755084991942
+    }
+  ],
+  "errors": [],
+  "warnings": [],
+  "rollbackScript": "#!/bin/bash\n# Generated Rollback Script for Migration Cleanup\n# Generated at: 2025-08-13T11:36:31.943Z\n\nset -e\necho \"🔄 Starting rollback of migration cleanup...\"\n\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/tsconfig.json was modified - manual review required\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/.gitignore was modified - manual review required\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-59-54-229Z.json was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-59-29-728Z.json was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-58-23-589Z.json was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-58-11-797Z.json was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-57-52-348Z.json was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-unified-comparison-2025-08-13T10-56-40-938Z.json was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-analysis-report-1754996362937.json was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/backups/migration-2025-08-13T11-26-18-516Z/leveldb/previous-exports/leveldb-export-2025-08-13T06-48-38-098Z.json was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/backups/migration-2025-08-13T11-26-18-516Z/leveldb/leveldb-inventory.json was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/backups/migration-2025-08-13T11-26-18-516Z/leveldb/leveldb-data-integrity-report.md was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-inventory.json was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-data-integrity-report.md was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-backup was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/leveldb was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/scripts/utils/LevelDBStateManager.ts was removed - restore from backup if needed\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/scripts/utils/StateManagerFactory.ts was modified - manual review required\n# Note: /Users/mike/Workplace/LookCard/lookcoin-contract/package.json was modified - manual review required\n# Restore enhanced-bscmainnet.json\ncp \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/enhanced-json/enhanced-bscmainnet.json\" \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/enhanced-bscmainnet.json\"\nrm \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/enhanced-json/enhanced-bscmainnet.json\"\n# Restore config-optimismsepolia.json\ncp \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/config-optimismsepolia.json\" \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/config-optimismsepolia.json\"\nrm \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/config-optimismsepolia.json\"\n# Restore config-bsctestnet.json\ncp \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/config-bsctestnet.json\" \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/config-bsctestnet.json\"\nrm \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/config-bsctestnet.json\"\n# Restore config-basesepolia.json\ncp \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/config-basesepolia.json\" \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/config-basesepolia.json\"\nrm \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/config-basesepolia.json\"\n# Restore sapphiretestnet.json\ncp \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/sapphiretestnet.json\" \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/sapphiretestnet.json\"\nrm \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/sapphiretestnet.json\"\n# Restore sapphiremainnet.json\ncp \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/sapphiremainnet.json\" \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/sapphiremainnet.json\"\nrm \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/sapphiremainnet.json\"\n# Restore optimismsepolia.json\ncp \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/optimismsepolia.json\" \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/optimismsepolia.json\"\nrm \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/optimismsepolia.json\"\n# Restore bsctestnet.json\ncp \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/bsctestnet.json\" \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/bsctestnet.json\"\nrm \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/bsctestnet.json\"\n# Restore bscmainnet.json\ncp \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/bscmainnet.json\" \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/bscmainnet.json\"\nrm \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/bscmainnet.json\"\n# Restore basesepolia.json\ncp \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/basesepolia.json\" \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/basesepolia.json\"\nrm \"/Users/mike/Workplace/LookCard/lookcoin-contract/deployments/archive/legacy-json/basesepolia.json\"\n\necho \"✅ Rollback completed - manual verification recommended\"",
+  "verificationReport": {
+    "backupValidated": true,
+    "unifiedSystemWorking": true,
+    "legacyFilesArchived": true,
+    "leveldbDependenciesRemoved": true,
+    "codeReferencesUpdated": true,
+    "configFilesUpdated": true,
+    "totalFilesArchived": 10,
+    "totalFilesRemoved": 15,
+    "diskSpaceRecovered": "0 MB",
+    "completionStatus": "success"
+  }
+}

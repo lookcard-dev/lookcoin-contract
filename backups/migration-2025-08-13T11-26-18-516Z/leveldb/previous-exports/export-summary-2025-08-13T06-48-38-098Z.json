@@ -1,0 +1,77 @@
+{
+  "totalContracts": 28,
+  "networks": {
+    "56": {
+      "chainId": 56,
+      "networkName": "bscmainnet",
+      "contractCount": 8,
+      "contracts": [
+        "CelerIMModule",
+        "FeeManager",
+        "LayerZeroModule",
+        "LookCoin",
+        "ProtocolRegistry",
+        "SecurityManager",
+        "SupplyOracle",
+        "contracts/xchain/CrossChainRouter.sol:CrossChainRouter"
+      ]
+    },
+    "97": {
+      "chainId": 97,
+      "networkName": "bsctestnet",
+      "contractCount": 9,
+      "contracts": [
+        "CelerIMModule",
+        "FeeManager",
+        "HyperlaneModule",
+        "LayerZeroModule",
+        "LookCoin",
+        "ProtocolRegistry",
+        "SecurityManager",
+        "SupplyOracle",
+        "contracts/xchain/CrossChainRouter.sol:CrossChainRouter"
+      ]
+    },
+    "23295": {
+      "chainId": 23295,
+      "networkName": "sapphiremainnet",
+      "contractCount": 3,
+      "contracts": [
+        "CelerIMModule",
+        "LookCoin",
+        "SupplyOracle"
+      ]
+    },
+    "31337": {
+      "chainId": 31337,
+      "networkName": "test",
+      "contractCount": 2,
+      "contracts": [
+        "LookCoin",
+        "SupplyOracle"
+      ]
+    },
+    "84532": {
+      "chainId": 84532,
+      "networkName": "baseSepolia",
+      "contractCount": 3,
+      "contracts": [
+        "LayerZeroModule",
+        "LookCoin",
+        "SupplyOracle"
+      ]
+    },
+    "11155420": {
+      "chainId": 11155420,
+      "networkName": "opSepolia",
+      "contractCount": 3,
+      "contracts": [
+        "LayerZeroModule",
+        "LookCoin",
+        "SupplyOracle"
+      ]
+    }
+  },
+  "exportTime": "2025-08-13T06:48:38.099Z",
+  "exportFile": "/Users/mike/Workplace/LookCard/lookcoin-contract/leveldb-backup/leveldb-export-2025-08-13T06-48-38-098Z.json"
+}
