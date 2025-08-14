@@ -16,6 +16,17 @@ contract SecurityManager is
     bytes32 public constant SECURITY_ADMIN_ROLE = keccak256("SECURITY_ADMIN_ROLE");
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
     
+    // Storage placeholders for upgrade compatibility (from removed RateLimiter)
+    // DO NOT REMOVE - Required for storage layout compatibility with BSC deployment
+    struct UserTransactionData {
+        uint256[] timestamps;
+        uint256[] amounts;
+        uint256 windowStart;
+    }
+    mapping(address => UserTransactionData) private _userTransactions; // slot 0
+    bool private rateLimitEnabled; // slot 1
+    uint256[48] private __gap; // slots 2-49
+    
     struct ProtocolSecurityConfig {
         bool paused;
         uint256 dailyLimit;
@@ -42,7 +53,7 @@ contract SecurityManager is
     bool public emergencyPaused;
     mapping(bytes32 => bool) public blockedTransfers;
 
-    uint256[50] private __gap;
+    uint256[50] private __gap2;
 
     event ProtocolPaused(ICrossChainRouter.Protocol indexed protocol);
     event ProtocolUnpaused(ICrossChainRouter.Protocol indexed protocol);

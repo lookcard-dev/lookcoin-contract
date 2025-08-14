@@ -26,8 +26,25 @@ contract MockNetworkSimulator {
     uint256 public packetLoss;
     uint256 public jitter;
     
+    // Enhanced simulation state
+    mapping(uint256 => bool) public isPartitioned;
+    mapping(uint256 => bool) public hasReorg;
+    mapping(bytes32 => bool) public messageFailures;
+    mapping(bytes32 => bool) public messageSuccesses;
+    mapping(bytes32 => bool) public prepareAcks;
+    mapping(bytes32 => bool) public commits;
+    mapping(uint256 => uint256) public reorgBlocks;
+    
     event ConditionsSet(uint256 latency, uint256 packetLoss, uint256 jitter);
     event PacketSent(bytes32 packetId, bool dropped, uint256 delay);
+    event PartitionSimulated(uint256[] chainIds);
+    event PartitionResolved(uint256[] chainIds);
+    event ReorgSimulated(uint256 chainId, uint256 fromBlock, uint256 toBlock);
+    event ReorgResolved();
+    event MessageFailureSimulated(uint256 chainId, bytes32 messageId);
+    event MessageSuccessSimulated(uint256 chainId, bytes32 messageId);
+    event PrepareAckSimulated(uint256 chainId, bytes32 transactionId);
+    event CommitSimulated(uint256 chainId, bytes32 transactionId);
     
     function setConditions(uint256 _latency, uint256 _packetLoss, uint256 _jitter) external {
         latency = _latency;
@@ -49,6 +66,75 @@ contract MockNetworkSimulator {
         
         emit PacketSent(_packetId, dropped, delay);
         return (dropped, delay);
+    }
+    
+    // Network partition simulation
+    function simulatePartition(uint256[] memory chainIds) external {
+        for (uint256 i = 0; i < chainIds.length; i++) {
+            isPartitioned[chainIds[i]] = true;
+        }
+        emit PartitionSimulated(chainIds);
+    }
+    
+    function resolvePartition(uint256[] memory chainIds) external {
+        for (uint256 i = 0; i < chainIds.length; i++) {
+            isPartitioned[chainIds[i]] = false;
+        }
+        emit PartitionResolved(chainIds);
+    }
+    
+    // Chain reorganization simulation
+    function simulateReorg(uint256 fromBlock, uint256 toBlock) external {
+        reorgBlocks[fromBlock] = toBlock;
+        hasReorg[fromBlock] = true;
+        emit ReorgSimulated(0, fromBlock, toBlock); // Using 0 as default chain ID
+    }
+    
+    function resolveReorg() external {
+        emit ReorgResolved();
+    }
+    
+    // Message failure/success simulation
+    function simulateMessageFailure(uint256 chainId, bytes32 messageId) external {
+        messageFailures[messageId] = true;
+        emit MessageFailureSimulated(chainId, messageId);
+    }
+    
+    function simulateMessageSuccess(uint256 chainId, bytes32 messageId) external {
+        messageSuccesses[messageId] = true;
+        emit MessageSuccessSimulated(chainId, messageId);
+    }
+    
+    // Two-phase commit simulation
+    function simulatePrepareAck(uint256 chainId, bytes32 transactionId) external {
+        prepareAcks[transactionId] = true;
+        emit PrepareAckSimulated(chainId, transactionId);
+    }
+    
+    function simulateCommit(uint256 chainId, bytes32 transactionId) external {
+        commits[transactionId] = true;
+        emit CommitSimulated(chainId, transactionId);
+    }
+    
+    // Query functions
+    function isChainPartitioned(uint256 chainId) external view returns (bool) {
+        return isPartitioned[chainId];
+    }
+    
+    function hasMessageFailed(bytes32 messageId) external view returns (bool) {
+        return messageFailures[messageId];
+    }
+    
+    function hasMessageSucceeded(bytes32 messageId) external view returns (bool) {
+        return messageSuccesses[messageId];
+    }
+    
+    function hasPrepareAck(bytes32 transactionId) external view returns (bool) {
+        return prepareAcks[transactionId];
+    }
+    
+    function hasCommit(bytes32 transactionId) external view returns (bool) {
+        return commits[transactionId];
     }
 }
 

@@ -92,30 +92,199 @@ export async function deployLookCoinFixture(): Promise<DeploymentFixture> {
     operator
   ] = await ethers.getSigners();
 
-  // Deploy mock contracts first
-  const MockLayerZero = await ethers.getContractFactory("MockLayerZeroEndpoint");
-  const mockLayerZero = await MockLayerZero.deploy() as unknown as MockLayerZeroEndpoint;
-  await mockLayerZero.waitForDeployment();
+  // Deploy mock contracts with comprehensive error handling and validation
+  let mockLayerZero: MockLayerZeroEndpoint;
+  let mockCeler: MockMessageBus;
+  let mockHyperlane: MockHyperlaneMailbox;
+  let mockHyperlaneGasPaymaster: any;
+  
+  try {
+    console.debug('Deploying mock contracts...');
+    
+    // Deploy MockLayerZeroEndpoint with validation
+    try {
+      const MockLayerZero = await ethers.getContractFactory("MockLayerZeroEndpoint");
+      mockLayerZero = await MockLayerZero.deploy() as unknown as MockLayerZeroEndpoint;
+      await mockLayerZero.waitForDeployment();
+      
+      const lzAddress = await mockLayerZero.getAddress();
+      if (!lzAddress || lzAddress === ethers.ZeroAddress) {
+        throw new Error('MockLayerZeroEndpoint deployed with invalid address');
+      }
+      
+      // Validate mock contract functionality
+      try {
+        // Test the correct function call to ensure contract is properly deployed
+        await mockLayerZero.estimateFees(0, '0x', '0x', false, '0x');
+        console.debug('MockLayerZeroEndpoint validation passed');
+      } catch (validationError) {
+        // Try legacy method name for compatibility
+        try {
+          await mockLayerZero.estimatedFees(0, '0x', '0x', false, '0x');
+          console.debug('MockLayerZeroEndpoint validation passed (legacy)');
+        } catch (legacyError) {
+          console.warn('MockLayerZeroEndpoint validation warning:', validationError);
+        }
+      }
+      
+      console.debug('MockLayerZeroEndpoint deployed successfully at:', lzAddress);
+    } catch (lzError) {
+      throw new Error(`Failed to deploy MockLayerZeroEndpoint: ${lzError}`);
+    }
 
-  const MockCeler = await ethers.getContractFactory("MockMessageBus");
-  const mockCeler = await MockCeler.deploy() as unknown as MockMessageBus;
-  await mockCeler.waitForDeployment();
+    // Deploy MockMessageBus with validation
+    try {
+      const MockCeler = await ethers.getContractFactory("MockMessageBus");
+      mockCeler = await MockCeler.deploy() as unknown as MockMessageBus;
+      await mockCeler.waitForDeployment();
+      
+      const celerAddress = await mockCeler.getAddress();
+      if (!celerAddress || celerAddress === ethers.ZeroAddress) {
+        throw new Error('MockMessageBus deployed with invalid address');
+      }
+      
+      // Validate mock contract functionality with basic call
+      try {
+        await mockCeler.feeBase();
+        // Test enhanced functionality
+        await mockCeler.setBridgeStatus(true);
+        await mockCeler.updateLiquidity(ethers.parseEther('1000'));
+        console.debug('MockMessageBus validation passed');
+      } catch (validationError) {
+        console.warn('MockMessageBus validation warning:', validationError);
+      }
+      
+      console.debug('MockMessageBus deployed successfully at:', celerAddress);
+    } catch (celerError) {
+      throw new Error(`Failed to deploy MockMessageBus: ${celerError}`);
+    }
 
-  const MockHyperlane = await ethers.getContractFactory("MockHyperlaneMailbox");
-  const mockHyperlane = await MockHyperlane.deploy() as unknown as MockHyperlaneMailbox;
-  await mockHyperlane.waitForDeployment();
+    // Deploy MockHyperlaneMailbox with validation
+    try {
+      const MockHyperlane = await ethers.getContractFactory("MockHyperlaneMailbox");
+      mockHyperlane = await MockHyperlane.deploy() as unknown as MockHyperlaneMailbox;
+      await mockHyperlane.waitForDeployment();
+      
+      const hyperlaneAddress = await mockHyperlane.getAddress();
+      if (!hyperlaneAddress || hyperlaneAddress === ethers.ZeroAddress) {
+        throw new Error('MockHyperlaneMailbox deployed with invalid address');
+      }
+      
+      // Validate mock contract functionality
+      try {
+        await mockHyperlane.localDomain();
+        // Test enhanced functionality
+        await mockHyperlane.setDeliveryPaused(false);
+        await mockHyperlane.setAuthorizedCaller(admin.address, true);
+        console.debug('MockHyperlaneMailbox validation passed');
+      } catch (validationError) {
+        console.warn('MockHyperlaneMailbox validation warning:', validationError);
+      }
+      
+      console.debug('MockHyperlaneMailbox deployed successfully at:', hyperlaneAddress);
+    } catch (hyperlaneError) {
+      throw new Error(`Failed to deploy MockHyperlaneMailbox: ${hyperlaneError}`);
+    }
 
-  const MockHyperlaneGasPaymaster = await ethers.getContractFactory("MockHyperlaneGasPaymaster");
-  const mockHyperlaneGasPaymaster = await MockHyperlaneGasPaymaster.deploy();
-  await mockHyperlaneGasPaymaster.waitForDeployment();
+    // Deploy MockHyperlaneGasPaymaster with validation
+    try {
+      const MockHyperlaneGasPaymaster = await ethers.getContractFactory("MockHyperlaneGasPaymaster");
+      mockHyperlaneGasPaymaster = await MockHyperlaneGasPaymaster.deploy();
+      await mockHyperlaneGasPaymaster.waitForDeployment();
+      
+      const gasPaysAddress = await mockHyperlaneGasPaymaster.getAddress();
+      if (!gasPaysAddress || gasPaysAddress === ethers.ZeroAddress) {
+        throw new Error('MockHyperlaneGasPaymaster deployed with invalid address');
+      }
+      
+      console.debug('MockHyperlaneGasPaymaster deployed successfully at:', gasPaysAddress);
+    } catch (gasPayError) {
+      throw new Error(`Failed to deploy MockHyperlaneGasPaymaster: ${gasPayError}`);
+    }
+    
+    console.debug('All mock contracts deployed successfully');
+    
+  } catch (error) {
+    console.error('Mock contract deployment failed:', error);
+    throw new Error(`Failed to deploy mock contracts: ${error}`);
+  }
 
-  // Deploy core LookCoin contract
-  const LookCoin = await ethers.getContractFactory("LookCoin");
-  const lookCoin = await upgrades.deployProxy(
-    LookCoin,
-    [governance.address, await mockLayerZero.getAddress()],
-    { initializer: "initialize" }
-  ) as unknown as LookCoin;
+  // Deploy core LookCoin contract with comprehensive initialization validation
+  let lookCoin: LookCoin;
+  try {
+    console.debug('Deploying LookCoin contract...');
+    
+    const LookCoin = await ethers.getContractFactory("LookCoin");
+    const mockLzAddress = await mockLayerZero.getAddress();
+    
+    // Validate parameters before deployment
+    if (!governance.address || governance.address === ethers.ZeroAddress) {
+      throw new Error('Invalid governance address');
+    }
+    
+    if (!mockLzAddress || mockLzAddress === ethers.ZeroAddress) {
+      throw new Error('Invalid LayerZero endpoint address');
+    }
+    
+    lookCoin = await upgrades.deployProxy(
+      LookCoin,
+      [governance.address, mockLzAddress],
+      { 
+        initializer: "initialize",
+        kind: "uups",
+        timeout: 60000 // 60 second timeout for deployment
+      }
+    ) as unknown as LookCoin;
+    
+    // Wait for deployment with timeout
+    await Promise.race([
+      lookCoin.waitForDeployment(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Deployment timeout')), 30000))
+    ]);
+    
+    const lookCoinAddress = await lookCoin.getAddress();
+    console.debug('LookCoin deployed at:', lookCoinAddress);
+    
+    // Comprehensive initialization validation
+    try {
+      // Verify LayerZero endpoint
+      const lzEndpoint = await lookCoin.lzEndpoint();
+      if (lzEndpoint !== mockLzAddress) {
+        throw new Error(`LookCoin initialization failed: expected LZ endpoint ${mockLzAddress}, got ${lzEndpoint}`);
+      }
+      
+      // Verify governance has admin role
+      const adminRole = await lookCoin.DEFAULT_ADMIN_ROLE();
+      const hasAdminRole = await lookCoin.hasRole(adminRole, governance.address);
+      if (!hasAdminRole) {
+        throw new Error('Governance account does not have admin role');
+      }
+      
+      // Verify initial supply is zero
+      const totalSupply = await lookCoin.totalSupply();
+      if (totalSupply !== 0n) {
+        console.warn(`Unexpected initial total supply: ${totalSupply}`);
+      }
+      
+      // Test basic functionality
+      const name = await lookCoin.name();
+      const symbol = await lookCoin.symbol();
+      const decimals = await lookCoin.decimals();
+      
+      if (!name || !symbol || decimals === undefined) {
+        throw new Error('LookCoin basic properties not properly initialized');
+      }
+      
+      console.debug('LookCoin initialization validated successfully');
+      
+    } catch (validationError) {
+      throw new Error(`LookCoin initialization validation failed: ${validationError}`);
+    }
+    
+  } catch (error) {
+    console.error('LookCoin deployment failed:', error);
+    throw new Error(`Failed to deploy LookCoin: ${error}`);
+  }
 
   // Deploy MinimalTimelock for governance
   const MinimalTimelock = await ethers.getContractFactory("MinimalTimelock");
@@ -279,10 +448,26 @@ export async function deployLookCoinFixture(): Promise<DeploymentFixture> {
   await celerIMModule.connect(admin).grantRole(CELER_OPERATOR_ROLE, operator.address);
   
   // Phase 3: Configure - Cross-chain setup (partial for testing)
+  // Test configuration with validation
   const testChainId = 31337; // Hardhat chain ID
   const testDomain = 2; // Hyperlane test domain
   const testEid = 30102; // LayerZero test EID
   const remoteAddress = "0x" + "1".repeat(40);
+  
+  // Validate mock contract addresses are set
+  const mockAddresses = {
+    layerZero: await mockLayerZero.getAddress(),
+    celer: await mockCeler.getAddress(),
+    hyperlane: await mockHyperlane.getAddress(),
+    hyperlaneGasPaymaster: await mockHyperlaneGasPaymaster.getAddress(),
+  };
+  
+  // Ensure all mock addresses are valid
+  Object.entries(mockAddresses).forEach(([name, address]) => {
+    if (!address || address === ethers.ZeroAddress) {
+      throw new Error(`Invalid ${name} mock address: ${address}`);
+    }
+  });
   
   return {
     lookCoin,
