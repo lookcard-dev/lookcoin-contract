@@ -241,7 +241,7 @@ describe("Security Edge Cases - Recent Security Fixes Validation", function () {
         const amount = ethers.parseUnits("100", 18);
         
         // User should be able to burn their own tokens
-        await fixture.lookCoin.connect(fixture.user).burn(fixture.user.address, amount);
+        await fixture.lookCoin.connect(fixture.user)["burn(address,uint256)"](fixture.user.address, amount);
         
         expect(await fixture.lookCoin.balanceOf(fixture.user.address))
           .to.equal(ethers.parseUnits("900", 18));
@@ -254,13 +254,13 @@ describe("Security Edge Cases - Recent Security Fixes Validation", function () {
         
         // Should fail without BURNER_ROLE
         await expectSpecificRevert(
-          async () => fixture.lookCoin.connect(fixture.user2).burn(fixture.user.address, amount),
+          async () => fixture.lookCoin.connect(fixture.user2)["burn(address,uint256)"](fixture.user.address, amount),
           fixture.lookCoin,
           "LookCoin: unauthorized burner"
         );
         
         // Should succeed with BURNER_ROLE
-        await fixture.lookCoin.connect(fixture.burner).burn(fixture.user.address, amount);
+        await fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user.address, amount);
         
         expect(await fixture.lookCoin.balanceOf(fixture.user.address))
           .to.equal(ethers.parseUnits("900", 18));
@@ -272,7 +272,7 @@ describe("Security Edge Cases - Recent Security Fixes Validation", function () {
         const amount = ethers.parseUnits("100", 18);
         
         // BRIDGE_ROLE should be able to burn from any address
-        await fixture.lookCoin.connect(fixture.bridgeOperator).burn(fixture.user.address, amount);
+        await fixture.lookCoin.connect(fixture.bridgeOperator)["burn(address,uint256)"](fixture.user.address, amount);
         
         expect(await fixture.lookCoin.balanceOf(fixture.user.address))
           .to.equal(ethers.parseUnits("900", 18));
@@ -295,11 +295,11 @@ describe("Security Edge Cases - Recent Security Fixes Validation", function () {
         for (const test of testMatrix) {
           if (test.shouldSucceed) {
             await expect(
-              fixture.lookCoin.connect(test.caller).burn(test.target, amount)
+              fixture.lookCoin.connect(test.caller)["burn(address,uint256)"](test.target, amount)
             ).to.not.be.reverted;
           } else {
             await expectSpecificRevert(
-              async () => fixture.lookCoin.connect(test.caller).burn(test.target, amount),
+              async () => fixture.lookCoin.connect(test.caller)["burn(address,uint256)"](test.target, amount),
               fixture.lookCoin,
               "LookCoin: unauthorized burner"
             );
@@ -680,7 +680,7 @@ describe("Security Edge Cases - Recent Security Fixes Validation", function () {
         );
         
         await expectSpecificRevert(
-          async () => fixture.lookCoin.connect(fixture.burner).burn(fixture.user.address, 0),
+          async () => fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user.address, 0),
           fixture.lookCoin,
           "LookCoin: amount must be greater than zero"
         );
@@ -693,7 +693,7 @@ describe("Security Edge Cases - Recent Security Fixes Validation", function () {
         );
         
         await expectSpecificRevert(
-          async () => fixture.lookCoin.connect(fixture.burner).burn(ethers.ZeroAddress, amount),
+          async () => fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](ethers.ZeroAddress, amount),
           fixture.lookCoin,
           "ERC20: burn from the zero address"
         );
@@ -752,7 +752,7 @@ describe("Security Edge Cases - Recent Security Fixes Validation", function () {
         const initialSupply = await fixture.lookCoin.totalSupply();
         
         // Burn some tokens
-        await fixture.lookCoin.connect(fixture.burner).burn(fixture.user.address, amount / BigInt(2));
+        await fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user.address, amount / BigInt(2));
         
         // Verify invariants
         const afterBurnMinted = await fixture.lookCoin.totalMinted();
@@ -780,7 +780,7 @@ describe("Security Edge Cases - Recent Security Fixes Validation", function () {
         
         // Simulate concurrent operations (sequential execution simulating concurrency)
         // Operation 1: Direct burn
-        await fixture.lookCoin.connect(fixture.burner).burn(fixture.user.address, amount);
+        await fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user.address, amount);
         
         // Operation 2: Bridge operation (which also burns)
         await fixture.lookCoin.connect(fixture.user).approve(await fixture.celerIMModule.getAddress(), amount);

@@ -425,7 +425,7 @@ contract LookCoin is
     bytes calldata _srcAddress,
     uint64 _nonce,
     bytes calldata _payload
-  ) external override whenNotPaused {
+  ) external virtual override whenNotPaused {
     require(msg.sender == address(lzEndpoint), "LookCoin: invalid endpoint caller");
 
     // Verify trusted source
@@ -646,7 +646,7 @@ contract LookCoin is
   /**
    * @dev Override supportsInterface for multiple inheritance
    */
-  function supportsInterface(bytes4 interfaceId) public view override(AccessControlUpgradeable) returns (bool) {
+  function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControlUpgradeable) returns (bool) {
     return super.supportsInterface(interfaceId);
   }
 

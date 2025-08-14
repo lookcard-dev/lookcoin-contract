@@ -375,7 +375,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
     describe("Reentrancy Protection", function () {
       it("should prevent reentrancy on mint", async function () {
         const MockReentrantAttacker = await ethers.getContractFactory("MockReentrantAttacker");
-        const attacker = await MockReentrantAttacker.deploy();
+        const attacker = await MockReentrantAttacker.deploy(await fixture.lookCoin.getAddress());
         await attacker.waitForDeployment();
 
         await testMintReentrancyProtection({
@@ -405,7 +405,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
           BigInt(0),
           amount,
           async () => {
-            await fixture.lookCoin.connect(fixture.user1).burn(amount);
+            await fixture.lookCoin.connect(fixture.user1)["burn(uint256)"](amount);
           }
         );
       });
@@ -431,7 +431,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
           BigInt(0),
           amount,
           async () => {
-            await fixture.lookCoin.connect(fixture.bridgeOperator).burn(fixture.user1.address, amount);
+            await fixture.lookCoin.connect(fixture.bridgeOperator)["burn(address,uint256)"](fixture.user1.address, amount);
           }
         );
       });
@@ -440,7 +440,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
     describe("Input Validation", function () {
       it("should prevent burning from zero address", async function () {
         await expectSpecificRevert(
-          async () => fixture.lookCoin.connect(fixture.burner).burn(ethers.ZeroAddress, AMOUNTS.TEN_TOKENS),
+          async () => fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](ethers.ZeroAddress, AMOUNTS.TEN_TOKENS),
           fixture.lookCoin,
           ERROR_MESSAGES.BURN_FROM_ZERO_ADDRESS
         );
@@ -448,7 +448,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
 
       it("should prevent burning zero amounts", async function () {
         await expectSpecificRevert(
-          async () => fixture.lookCoin.connect(fixture.burner).burn(fixture.user1.address, 0),
+          async () => fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user1.address, 0),
           fixture.lookCoin,
           ERROR_MESSAGES.INVALID_AMOUNT
         );
@@ -459,7 +459,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
         const excessAmount = balance + BigInt(1);
         
         await expectSpecificRevert(
-          async () => fixture.lookCoin.connect(fixture.burner).burn(fixture.user1.address, excessAmount),
+          async () => fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user1.address, excessAmount),
           fixture.lookCoin,
           "ERC20InsufficientBalance"
         );
@@ -477,7 +477,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
             BigInt(0),
             amount,
             async () => {
-              await fixture.lookCoin.connect(fixture.burner).burn(fixture.user1.address, amount);
+              await fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user1.address, amount);
               expectedTotalBurned += amount;
             }
           );
@@ -488,7 +488,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
 
       it("should emit Transfer event on burn", async function () {
         const amount = AMOUNTS.TEN_TOKENS;
-        const tx = await fixture.lookCoin.connect(fixture.burner).burn(fixture.user1.address, amount);
+        const tx = await fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user1.address, amount);
         
         await assertEventEmission(
           tx,
@@ -502,7 +502,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
     describe("Reentrancy Protection", function () {
       it("should prevent reentrancy on burn", async function () {
         const MockReentrantAttacker = await ethers.getContractFactory("MockReentrantAttacker");
-        const attacker = await MockReentrantAttacker.deploy();
+        const attacker = await MockReentrantAttacker.deploy(await fixture.lookCoin.getAddress());
         await attacker.waitForDeployment();
 
         await testBurnReentrancyProtection({
@@ -555,7 +555,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
         },
         {
           name: "burn",
-          operation: (fixture: Awaited<ReturnType<typeof deployLookCoinFixture>>) => fixture.lookCoin.connect(fixture.burner).burn(fixture.user1.address, AMOUNTS.TEN_TOKENS)
+          operation: (fixture: Awaited<ReturnType<typeof deployLookCoinFixture>>) => fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user1.address, AMOUNTS.TEN_TOKENS)
         },
         {
           name: "approve",
@@ -796,14 +796,14 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
       await fixture.lookCoin.connect(fixture.minter).mint(fixture.user1.address, largeAmount);
       expect(await fixture.lookCoin.balanceOf(fixture.user1.address)).to.equal(largeAmount);
       
-      await fixture.lookCoin.connect(fixture.burner).burn(fixture.user1.address, largeAmount);
+      await fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user1.address, largeAmount);
       expect(await fixture.lookCoin.balanceOf(fixture.user1.address)).to.equal(0);
     });
 
     it("should verify supply formula: totalSupply = totalMinted - totalBurned", async function () {
       // Perform various operations
       await fixture.lookCoin.connect(fixture.minter).mint(fixture.user1.address, AMOUNTS.THOUSAND_TOKENS);
-      await fixture.lookCoin.connect(fixture.burner).burn(fixture.user1.address, AMOUNTS.HUNDRED_TOKENS);
+      await fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user1.address, AMOUNTS.HUNDRED_TOKENS);
       await fixture.lookCoin.connect(fixture.minter).mint(fixture.user2.address, AMOUNTS.TEN_TOKENS);
       
       const totalSupply = await fixture.lookCoin.totalSupply();
@@ -862,7 +862,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
       
       // Burn gas tracking  
       const burnReport = await trackGasUsage(
-        async () => fixture.lookCoin.connect(fixture.burner).burn(fixture.user1.address, amount / BigInt(2)),
+        async () => fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user1.address, amount / BigInt(2)),
         "burn"
       );
       
@@ -929,7 +929,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
             ethers.ZeroHash
           ),
           fixture.lookCoin,
-          "ERC2612InvalidSigner"
+          "ECDSAInvalidSignature"
         );
       });
 
@@ -990,7 +990,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
             s
           ),
           fixture.lookCoin,
-          "ERC2612InvalidSigner"
+          "ECDSAInvalidSignature"
         );
       });
     });
@@ -1001,9 +1001,8 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
 
     beforeEach(async function () {
       const MockReentrantAttacker = await ethers.getContractFactory("MockReentrantAttacker");
-      mockAttacker = await MockReentrantAttacker.deploy();
+      mockAttacker = await MockReentrantAttacker.deploy(await fixture.lookCoin.getAddress());
       await mockAttacker.waitForDeployment();
-      await mockAttacker.initialize(await fixture.lookCoin.getAddress());
     });
 
     it("should prevent complex reentrancy scenarios on mint", async function () {
@@ -1097,7 +1096,7 @@ describe("LookCoin - Comprehensive Security & Functionality Test Suite", functio
       // Concurrent operations should maintain state consistency
       const operations = [
         fixture.lookCoin.connect(fixture.minter).mint(fixture.user2.address, amount),
-        fixture.lookCoin.connect(fixture.burner).burn(fixture.user1.address, amount),
+        fixture.lookCoin.connect(fixture.burner)["burn(address,uint256)"](fixture.user1.address, amount),
         fixture.lookCoin.connect(fixture.user1).transfer(fixture.user2.address, amount),
       ];
       

@@ -27,4 +27,30 @@ interface ILookCoin is IERC20 {
    * @return The number of decimals of the token
    */
   function decimals() external view returns (uint8);
+
+  /**
+   * @dev Bridge tokens to another chain
+   * @param dstChainId Destination chain ID
+   * @param toAddress Recipient address on destination chain (encoded as bytes)
+   * @param amount Amount to transfer
+   */
+  function bridgeToken(
+    uint16 dstChainId,
+    bytes calldata toAddress,
+    uint256 amount
+  ) external payable;
+
+  /**
+   * @dev Estimate fees for cross-chain transfer
+   * @param dstChainId Destination chain ID
+   * @param toAddress Recipient address (encoded)
+   * @param amount Amount to transfer
+   * @return nativeFee Fee in native token
+   * @return zroFee Fee in ZRO token
+   */
+  function estimateBridgeFee(
+    uint16 dstChainId,
+    bytes calldata toAddress,
+    uint256 amount
+  ) external view returns (uint nativeFee, uint zroFee);
 }
