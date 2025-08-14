@@ -1,0 +1,14 @@
+# Reports Directory
+
+This directory contains load test reports and performance analysis data.
+
+Reports are automatically generated during load test execution and include:
+- Comprehensive performance metrics
+- System resource utilization
+- Error analysis and recommendations
+- Trend analysis and benchmarks
+
+File naming convention:
+- load-test-report-[timestamp].json
+- performance-metrics-[timestamp].json
+- system-analysis-[timestamp].json

@@ -1,0 +1,25 @@
+{
+  "network": "bsctestnet",
+  "chainId": 97,
+  "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
+  "startTime": "2025-08-14T12:37:33.846Z",
+  "steps": [
+    {
+      "name": "ProtocolDetection",
+      "status": "pending"
+    },
+    {
+      "name": "CoreContracts",
+      "status": "pending"
+    },
+    {
+      "name": "ProtocolModules",
+      "status": "pending"
+    },
+    {
+      "name": "Infrastructure",
+      "status": "pending"
+    }
+  ],
+  "checkpoint": null
+}

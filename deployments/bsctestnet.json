@@ -1,0 +1,46 @@
+{
+  "network": "bsctestnet",
+  "chainId": 97,
+  "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
+  "timestamp": "2025-08-14T12:44:15.261Z",
+  "deploymentMode": "multi-protocol",
+  "protocolsDeployed": [
+    "layerZero",
+    "celer"
+  ],
+  "contracts": {
+    "LookCoin": {
+      "proxy": "0xB8B7604628F37D611e82D22609ACE0Ca01A14e2D",
+      "implementation": "0x8335E3cF6f1ac39841deBA4033a93c81ab738443"
+    },
+    "SupplyOracle": {
+      "proxy": "0xd6f310c307a6FF8163A94984163D541b66077004",
+      "implementation": "0xF7528004a9FC774e0BBeB075853E77A2344d5D49"
+    },
+    "CelerIMModule": {
+      "proxy": "0x03E823BE92A2526083681075430b1fd6D486D046",
+      "implementation": "0xFc4C9E1C27Fd5E18065DB32B4E236BeB0823fd06"
+    }
+  },
+  "config": {
+    "layerZeroEndpoint": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+    "celerMessageBus": "0xAd204986D6cB67A5Bc76a3CB8974823F43Cb9AAA",
+    "governanceVault": "0x0bec539fd761cae579802072d9ee7fde86ed05a3"
+  },
+  "implementationHashes": {
+    "LookCoin": "0x543f53aad1d25e76e465e66fcc4c71ffd41aad170c6c9122e70cd8afc3720c54",
+    "SupplyOracle": "0x2e08fc1a3dd68863c30354c2e385ff9a940958f206beb46c65a6e38ad0fa51f1",
+    "CelerIMModule": "0xb8582fde962eabcbbde479834fe29d7335980c319c1e0a9358153f7a71001d05"
+  },
+  "lastDeployed": "2025-08-14T12:44:15.261Z",
+  "protocolContracts": {
+    "layerZeroModule": "0x69e6AF742E4a3E4d8494FDA6F181E263fB77f741",
+    "celerIMModule": "0x03E823BE92A2526083681075430b1fd6D486D046"
+  },
+  "infrastructureContracts": {
+    "crossChainRouter": "0x062e72413720Fd97310E7A787284b39af9d4Ea18",
+    "feeManager": "0x04001c7bE59A7e0F3F7b981eC4D0cbE59e56B0E1",
+    "securityManager": "0x97D543565Ab7CC09bd6643bFeD38Db56894BBAb8",
+    "protocolRegistry": "0x79b98fCecED2A468bB98FCB77c3b634af9C19978"
+  }
+}

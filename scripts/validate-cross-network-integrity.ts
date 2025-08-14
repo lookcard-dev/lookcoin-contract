@@ -262,7 +262,7 @@ function validateCoreContracts(file: DeploymentFile, network: string): Validatio
     }
     
     // Validate contract address - check both direct address and proxy/implementation
-    let contractAddress = contract.address || contract.proxy;
+    const contractAddress = contract.address || contract.proxy;
     if (!contractAddress) {
       result.criticalErrors.push(`Missing address for ${contractName} on ${network}`);
     } else {

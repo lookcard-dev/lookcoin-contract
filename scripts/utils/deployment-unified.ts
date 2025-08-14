@@ -7,17 +7,36 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { ethers } from "ethers";
-// Import from the actual hardhat config source
-const hardhatConfig = require("../../hardhat.config");
-const { getNetworkName, getNetworkTier, getChainConfig } = hardhatConfig;
 import { UnifiedDeployment, isUnifiedDeployment } from "../../schemas/unified-deployment-schema";
+
+// Local implementation of getNetworkTier
+function getNetworkTier(chainId: number): "mainnet" | "testnet" | "dev" | "unknown" {
+  // Mainnet chain IDs
+  const mainnetChainIds = [56, 8453, 10, 23294, 9070]; // BSC, Base, Optimism, Sapphire, Akashic
+  if (mainnetChainIds.includes(chainId)) {
+    return "mainnet";
+  }
+
+  // Testnet chain IDs
+  const testnetChainIds = [97, 84532, 11155420, 23295]; // BSC Testnet, Base Sepolia, Optimism Sepolia, Sapphire Testnet
+  if (testnetChainIds.includes(chainId)) {
+    return "testnet";
+  }
+
+  // Hardhat network
+  if (chainId === 31337) {
+    return "dev";
+  }
+
+  return "unknown";
+}
 
 // Legacy Deployment interface (for backward compatibility)
 export interface Deployment {
   network: string;
   chainId: number;
   deployer: string;
+  timestamp: string;
   deploymentMode?: "standard" | "multi-protocol";
   protocolsDeployed?: string[];
   protocolContracts?: {
@@ -38,7 +57,7 @@ export interface Deployment {
       address: string;
       proxy: string;
     };
-    [key: string]: any;
+    [key: string]: unknown;
   };
   infrastructureContracts?: {
     crossChainRouter?: string;
@@ -62,7 +81,7 @@ export interface Deployment {
  * Convert unified deployment to legacy format for backward compatibility
  */
 function convertUnifiedToLegacy(unified: UnifiedDeployment): Deployment {
-  const contracts: any = {
+  const contracts: Record<string, { address: string; proxy: string }> = {
     LookCoin: {
       address: unified.contracts.core.LookCoin.implementation || unified.contracts.core.LookCoin.address,
       proxy: unified.contracts.core.LookCoin.proxy || unified.contracts.core.LookCoin.address
@@ -94,7 +113,7 @@ function convertUnifiedToLegacy(unified: UnifiedDeployment): Deployment {
   }
 
   // Extract protocol contracts
-  const protocolContracts: any = {};
+  const protocolContracts: Record<string, string> = {};
   if (unified.contracts.protocol?.LayerZeroModule) {
     protocolContracts.layerZeroModule = unified.contracts.protocol.LayerZeroModule.proxy;
   }
@@ -103,7 +122,7 @@ function convertUnifiedToLegacy(unified: UnifiedDeployment): Deployment {
   }
 
   // Extract infrastructure contracts
-  const infrastructureContracts: any = {};
+  const infrastructureContracts: Record<string, string> = {};
   if (unified.contracts.infrastructure?.CrossChainRouter) {
     infrastructureContracts.crossChainRouter = unified.contracts.infrastructure.CrossChainRouter.proxy;
   }
@@ -118,7 +137,7 @@ function convertUnifiedToLegacy(unified: UnifiedDeployment): Deployment {
   }
 
   // Build config
-  const config: any = {
+  const config: Record<string, unknown> = {
     governanceVault: unified.configuration.governance.vault
   };
 
@@ -133,6 +152,7 @@ function convertUnifiedToLegacy(unified: UnifiedDeployment): Deployment {
     network: unified.network,
     chainId: unified.chainId,
     deployer: unified.metadata.deployer,
+    timestamp: unified.metadata.timestamp,
     deploymentMode: unified.metadata.deploymentMode as "standard" | "multi-protocol",
     protocolsDeployed: unified.metadata.protocolsDeployed,
     protocolContracts: Object.keys(protocolContracts).length > 0 ? protocolContracts : undefined,
@@ -298,6 +318,5 @@ export {
   isCompatibleNetworkTier,
   getDeploymentPath,
   saveDeployment,
-  getBytecodeHash,
-  getChainIdsFromDeployment
+  getBytecodeHash
 } from "./deployment";

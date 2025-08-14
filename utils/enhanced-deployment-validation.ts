@@ -12,10 +12,7 @@ import { join } from 'path';
 import { 
   EnhancedDeployment, 
   DeploymentMode, 
-  Protocol, 
   NetworkTier,
-  ContractName,
-  MigrationResult,
   isEnhancedDeployment,
   isProxyContract,
   isBigIntSerialized,
@@ -116,10 +113,10 @@ function validateDeploymentMode(deployment: EnhancedDeployment): { errors: strin
   const warnings: string[] = [];
 
   const { deploymentMode, protocolsEnabled } = deployment.metadata;
-  const { protocol, infrastructure } = deployment.contracts;
+  const { infrastructure } = deployment.contracts;
 
   switch (deploymentMode) {
-    case 'multi-protocol':
+    case 'multi-protocol': {
       // Multi-protocol mode should have multiple protocols or infrastructure contracts
       const protocolCount = protocolsEnabled?.length || 0;
       const hasInfrastructure = infrastructure && Object.keys(infrastructure).length > 0;
@@ -133,6 +130,7 @@ function validateDeploymentMode(deployment: EnhancedDeployment): { errors: strin
         errors.push('Multi-protocol mode on BSC network requires infrastructure contracts');
       }
       break;
+    }
 
     case 'standard':
       // Standard mode should have one protocol, no infrastructure
@@ -203,7 +201,8 @@ function validateNetworkCompatibility(deployment: EnhancedDeployment): { errors:
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  const { chainId, networkTier } = deployment.metadata;
+  const { networkTier } = deployment.metadata;
+  const { chainId } = deployment;
   const expectedTier = getExpectedNetworkTier(chainId);
 
   if (networkTier && networkTier !== expectedTier) {
@@ -478,14 +477,4 @@ export function generateValidationReport(deployment: EnhancedDeployment, result:
   };
 }
 
-// ============================================================================
-// Export All Validation Functions
-// ============================================================================
-
-export {
-  validateDeploymentSchema,
-  validateDeploymentLogic,
-  validateEnhancedDeployment,
-  generateValidationReport,
-  getAjvInstance
-};
+// All validation functions are already exported above with individual export statements

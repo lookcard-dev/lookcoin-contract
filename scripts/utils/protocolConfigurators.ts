@@ -332,11 +332,7 @@ export async function configureCrossChainRouter(
 
     // Note: Protocol registration is already done in setup.ts
     // This function only handles cross-chain configuration
-    const protocols = [
-      { name: "LayerZero", enum: 0 },
-      { name: "Celer", enum: 1 },
-      { name: "Hyperlane", enum: 2 }
-    ];
+    // Available protocols: LayerZero (0), Celer (1), Hyperlane (2)
 
     // Register supported chains
     for (const [chainId] of Object.entries(otherDeployments)) {

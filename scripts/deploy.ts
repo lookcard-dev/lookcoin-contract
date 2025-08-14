@@ -302,16 +302,16 @@ async function main() {
   // Set deployment mode
   deployment.deploymentMode = deploymentMode;
 
-  // Update implementation hashes
-  const lookCoinArtifact = await hre.artifacts.readArtifact("LookCoin");
-  deployment.implementationHashes!.LookCoin = getBytecodeHash(lookCoinArtifact.deployedBytecode);
+  // Update implementation hashes - use factory bytecode for consistency with upgrade checks
+  const lookCoinFactory = await ethers.getContractFactory("LookCoin");
+  deployment.implementationHashes!.LookCoin = getBytecodeHash(lookCoinFactory.bytecode);
 
-  const supplyOracleArtifact = await hre.artifacts.readArtifact("SupplyOracle");
-  deployment.implementationHashes!.SupplyOracle = getBytecodeHash(supplyOracleArtifact.deployedBytecode);
+  const supplyOracleFactory = await ethers.getContractFactory("SupplyOracle");
+  deployment.implementationHashes!.SupplyOracle = getBytecodeHash(supplyOracleFactory.bytecode);
 
   if (deployment.contracts.CelerIMModule) {
-    const celerArtifact = await hre.artifacts.readArtifact("CelerIMModule");
-    deployment.implementationHashes!.CelerIMModule = getBytecodeHash(celerArtifact.deployedBytecode);
+    const celerFactory = await ethers.getContractFactory("CelerIMModule");
+    deployment.implementationHashes!.CelerIMModule = getBytecodeHash(celerFactory.bytecode);
   }
 
   // Update deployment timestamp

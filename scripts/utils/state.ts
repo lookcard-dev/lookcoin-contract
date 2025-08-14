@@ -25,33 +25,42 @@ async function getStateManager(): Promise<IStateManager> {
     if (backend === 'unified') {
       // Use the new unified JSON state manager
       stateManager = new UnifiedJSONStateManager({
-        unifiedPath: path.join(process.cwd(), 'deployments', 'unified'),
+        jsonPath: path.join(process.cwd(), 'deployments', 'unified'),
         debugMode: isDebug,
         prettyPrint: true,
         atomicWrites: true
       });
     } else if (backend === 'json') {
       // Use the standard JSON state manager
-      stateManager = StateManagerFactory.create('json', {
+      const factory = new StateManagerFactory();
+      stateManager = await factory.createStateManager('json', {
         jsonPath: path.join(process.cwd(), 'deployments'),
         debugMode: isDebug
       });
     } else if (backend === 'leveldb') {
       // Fall back to LevelDB for backward compatibility
-      console.warn('[WARNING] Using deprecated LevelDB backend. Please migrate to unified JSON.');
-      stateManager = StateManagerFactory.create('leveldb', {
-        dbPath: path.join(process.cwd(), 'leveldb'),
-        debugMode: isDebug
+      console.warn('[WARNING] LevelDB backend is no longer supported. Using unified JSON instead.');
+      stateManager = new UnifiedJSONStateManager({
+        jsonPath: path.join(process.cwd(), 'deployments', 'unified'),
+        debugMode: isDebug,
+        prettyPrint: true,
+        atomicWrites: true
       });
     } else {
       throw new Error(`Unknown state backend: ${backend}. Use 'unified', 'json', or 'leveldb'`);
     }
     
-    await stateManager.initialize();
+    if (stateManager) {
+      await stateManager.initialize();
+    }
     
     if (isDebug) {
       console.log(`[DEBUG] State manager initialized with backend: ${backend}`);
     }
+  }
+  
+  if (!stateManager) {
+    throw new Error('Failed to initialize state manager');
   }
   
   return stateManager;
@@ -126,7 +135,6 @@ export async function fetchDeployOrUpgradeProxy<T extends Contract>(
   const chainId = network.config.chainId!;
   const networkName = network.name;
 
-  const isDebug = process.env.DEBUG_DEPLOYMENT === 'true';
   const skipUpgradeCheck = process.env.SKIP_UPGRADE_CHECK === 'true';
 
   console.log(`⌛️ Processing ${contractName}...`);

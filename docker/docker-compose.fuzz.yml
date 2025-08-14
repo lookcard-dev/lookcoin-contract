@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  fuzz-tests:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.fuzz
+    volumes:
+      - ../reports:/app/reports
+      - ../cache_forge:/app/cache_forge
+    environment:
+      - FOUNDRY_PROFILE=default
+      - RUST_LOG=info
+    networks:
+      - fuzz-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    read_only: false
+    tmpfs:
+      - /tmp:size=100M
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  fuzz-runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.fuzz
+    command: ["forge", "test", "--match-contract", "FuzzTests", "--fuzz-runs", "50000", "-vvv"]
+    volumes:
+      - ../reports:/app/reports
+      - ../cache_forge:/app/cache_forge
+    environment:
+      - FOUNDRY_PROFILE=intensive
+      - RUST_LOG=debug
+    networks:
+      - fuzz-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  vulnerability-scanner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.fuzz
+    command: ["forge", "test", "--match-contract", "FuzzTargets", "--fuzz-runs", "25000", "-vvv"]
+    volumes:
+      - ../reports:/app/reports
+      - ../cache_forge:/app/cache_forge
+    environment:
+      - FOUNDRY_PROFILE=intensive
+      - RUST_LOG=debug
+    networks:
+      - fuzz-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+networks:
+  fuzz-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"
+      com.docker.network.bridge.enable_ip_masquerade: "false"

@@ -489,16 +489,9 @@ export class StateManagerFactory implements IStateManagerFactory {
     let manager: IStateManager;
 
     switch (backend) {
-      
       case 'json':
         manager = new JSONStateManager(config);
         break;
-      case 'leveldb':
-        throw new StateManagerError(
-          StateManagerErrorCode.BACKEND_UNAVAILABLE,
-          'LevelDB backend has been deprecated and removed. Use "json" backend instead.',
-          { backend, migration: 'Use unified JSON format in deployments/unified/' }
-        );
       default:
         throw new StateManagerError(
           StateManagerErrorCode.BACKEND_UNAVAILABLE,

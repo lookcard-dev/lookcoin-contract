@@ -8,7 +8,7 @@
     "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
     "deploymentMode": "standard",
     "timestamp": "2025-08-01T20:20:10.608Z",
-    "lastUpdated": "2025-08-13T07:38:39.006Z",
+    "lastUpdated": "2025-08-14T12:29:49.624Z",
     "protocolsEnabled": [
       "layerZero"
     ],
@@ -40,17 +40,17 @@
     "core": {
       "LookCoin": {
         "proxy": "0xF936F96de720753D01B27C8Bb4805bE9714D612e",
-        "implementation": "0xbCb0a67E981490dDb8833D2F1B33A9dBB1a7A0f4"
+        "implementation": "0x6B8A47b3BFae0dF2AE6bAeEFf96f686F4c653601"
       },
       "SupplyOracle": {
         "proxy": "0x959bC8859Af2adF2da6168cc1fB9F434fd573a4e",
-        "implementation": "0x42C8A4B98414C8dF66E7a61Fc68320E627Cd710c"
+        "implementation": "0xB0E797Ed029886BfFE6A2583dC644BF5CA2096B7"
       }
     },
     "protocol": {
       "LayerZeroModule": {
         "proxy": "0xe71BEF0472C96c0D255Bd4ec40CB4A0618B53A2C",
-        "implementation": "0xE6285525A8756b0cEd73E673902A017BEf5154BD"
+        "implementation": "0xD36d68E8d02c3E4AccC7Ef5d73060b2F513e31b5"
       }
     }
   },
@@ -145,9 +145,9 @@
   "verification": {
     "contractVerification": {},
     "implementationHashes": {
-      "LookCoin": "0x035df318e7b4d02767fc5d749d77c0cd1f8a24e45950df940b71de21b6b81d49",
-      "SupplyOracle": "0xf159f83ef568998f00591e56d9f411ff8a9af9fce5c312e7812927d78e1d9995",
-      "LayerZeroModule": "0x6c99f65d61cc52b89b08d9816f295ab86302068a04a5f7d1211fe11683b9c4b1"
+      "LookCoin": "0x543f53aad1d25e76e465e66fcc4c71ffd41aad170c6c9122e70cd8afc3720c54",
+      "SupplyOracle": "0x2e08fc1a3dd68863c30354c2e385ff9a940958f206beb46c65a6e38ad0fa51f1",
+      "LayerZeroModule": "0x6b4380788807d8f16078621fa9163b2da1ae516356b60454d241889a920c7cdf"
     },
     "dataIntegrity": {
       "lastValidated": "2025-08-13T07:38:39.006Z",
@@ -164,23 +164,24 @@
     "metrics": {}
   },
   "extended_LayerZeroModule": {
-    "factoryByteCodeHash": "0x6c99f65d61cc52b89b08d9816f295ab86302068a04a5f7d1211fe11683b9c4b1",
-    "implementationHash": "0x6c99f65d61cc52b89b08d9816f295ab86302068a04a5f7d1211fe11683b9c4b1",
+    "factoryByteCodeHash": "0x6b4380788807d8f16078621fa9163b2da1ae516356b60454d241889a920c7cdf",
+    "implementationHash": "0x6b4380788807d8f16078621fa9163b2da1ae516356b60454d241889a920c7cdf",
     "deploymentArgs": [
       "0xF936F96de720753D01B27C8Bb4805bE9714D612e",
       "0x6EDCE65403992e310A62460808c4b910D972f10f",
       "0x0beC539Fd761caE579802072d9eE7fde86ED05A3"
     ],
-    "timestamp": 1754059302459
+    "timestamp": 1755174588882
   },
   "extended_LookCoin": {
-    "factoryByteCodeHash": "0x035df318e7b4d02767fc5d749d77c0cd1f8a24e45950df940b71de21b6b81d49",
-    "implementationHash": "0x035df318e7b4d02767fc5d749d77c0cd1f8a24e45950df940b71de21b6b81d49",
-    "timestamp": 1754079610609
+    "factoryByteCodeHash": "0x543f53aad1d25e76e465e66fcc4c71ffd41aad170c6c9122e70cd8afc3720c54",
+    "implementationHash": "0x543f53aad1d25e76e465e66fcc4c71ffd41aad170c6c9122e70cd8afc3720c54",
+    "deploymentArgs": [],
+    "timestamp": 1755174559210
   },
   "extended_SupplyOracle": {
-    "factoryByteCodeHash": "0xf159f83ef568998f00591e56d9f411ff8a9af9fce5c312e7812927d78e1d9995",
-    "implementationHash": "0xf159f83ef568998f00591e56d9f411ff8a9af9fce5c312e7812927d78e1d9995",
-    "timestamp": 1754079610609
+    "factoryByteCodeHash": "0x2e08fc1a3dd68863c30354c2e385ff9a940958f206beb46c65a6e38ad0fa51f1",
+    "implementationHash": "0x2e08fc1a3dd68863c30354c2e385ff9a940958f206beb46c65a6e38ad0fa51f1",
+    "timestamp": 1755174589623
   }
 }

@@ -1,0 +1,33 @@
+{
+  "network": "basesepolia",
+  "chainId": 84532,
+  "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
+  "timestamp": "2025-08-14T12:45:08.993Z",
+  "deploymentMode": "standard",
+  "protocolsDeployed": [
+    "layerZero"
+  ],
+  "contracts": {
+    "LookCoin": {
+      "proxy": "0xF936F96de720753D01B27C8Bb4805bE9714D612e",
+      "implementation": "0x6B8A47b3BFae0dF2AE6bAeEFf96f686F4c653601"
+    },
+    "SupplyOracle": {
+      "proxy": "0x959bC8859Af2adF2da6168cc1fB9F434fd573a4e",
+      "implementation": "0xB0E797Ed029886BfFE6A2583dC644BF5CA2096B7"
+    }
+  },
+  "config": {
+    "layerZeroEndpoint": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+    "celerMessageBus": "0x0000000000000000000000000000000000000000",
+    "governanceVault": "0x0bec539fd761cae579802072d9ee7fde86ed05a3"
+  },
+  "implementationHashes": {
+    "LookCoin": "0x543f53aad1d25e76e465e66fcc4c71ffd41aad170c6c9122e70cd8afc3720c54",
+    "SupplyOracle": "0x2e08fc1a3dd68863c30354c2e385ff9a940958f206beb46c65a6e38ad0fa51f1"
+  },
+  "lastDeployed": "2025-08-14T12:45:08.993Z",
+  "protocolContracts": {
+    "layerZeroModule": "0xe71BEF0472C96c0D255Bd4ec40CB4A0618B53A2C"
+  }
+}

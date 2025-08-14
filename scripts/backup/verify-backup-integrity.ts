@@ -11,6 +11,7 @@
  */
 
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
@@ -138,7 +139,7 @@ class BackupIntegrityVerifier {
     const backupsDir = path.join(this.projectRoot, 'backups');
     
     try {
-      const backups = require('fs').readdirSync(backupsDir)
+      const backups = fsSync.readdirSync(backupsDir)
         .filter((name: string) => name.startsWith('migration-'))
         .sort()
         .reverse();
@@ -195,13 +196,14 @@ class BackupIntegrityVerifier {
       this.report.summary.totalSizeExpected = manifest.totalSize;
       
       // Initialize category verifications
-      for (const [categoryName, categoryData] of Object.entries(manifest.categories as any)) {
+      for (const [categoryName, categoryData] of Object.entries(manifest.categories as Record<string, { files: number; sizeBytes: number }>)) {
+        const typedCategoryData = categoryData as { files: number; sizeBytes: number };
         this.report.categories[categoryName] = {
           expected: true,
           found: false,
-          filesExpected: categoryData.files,
+          filesExpected: typedCategoryData.files,
           filesFound: 0,
-          sizeExpected: categoryData.sizeBytes,
+          sizeExpected: typedCategoryData.sizeBytes,
           sizeActual: 0,
           checksumsPassed: 0,
           checksumsFailed: 0,

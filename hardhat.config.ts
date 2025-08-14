@@ -191,6 +191,27 @@ const config: HardhatUserConfig = {
   sourcify: {
     enabled: true,
   },
+  typechain: {
+    outDir: "typechain-types",
+    target: "ethers-v6",
+  },
+  mocha: {
+    timeout: 100000,
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS === "true",
+    currency: "USD",
+    gasPrice: 20, // gwei
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY,
+    token: "BNB",
+    gasPriceApi: "https://api.bscscan.com/api?module=proxy&action=eth_gasPrice",
+    showTimeSpent: true,
+    showMethodSig: true,
+    excludeContracts: ["Mock", "Test"],
+    outputFile: process.env.GAS_REPORT_FILE || "gas-report.txt",
+    rst: true,
+    rstTitle: "Gas Usage Report",
+  },
 };
 
 // Celer Chain IDs mapping

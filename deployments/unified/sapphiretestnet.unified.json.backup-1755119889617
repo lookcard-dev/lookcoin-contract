@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "3.0.0",
+  "fileVersion": 1,
+  "network": "sapphiretestnet",
+  "chainId": 23295,
+  "networkTier": "testnet",
+  "metadata": {
+    "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
+    "deploymentMode": "standard",
+    "timestamp": "2025-08-01T15:28:24.176Z",
+    "lastUpdated": "2025-08-13T21:18:09.023Z",
+    "protocolsEnabled": [
+      "celer"
+    ],
+    "protocolsDeployed": [
+      "celer"
+    ],
+    "protocolsConfigured": [],
+    "migrationHistory": [
+      {
+        "from": "v1.0.0",
+        "to": "3.0.0",
+        "timestamp": "2025-08-13T07:38:39.007Z",
+        "migrator": "consolidate-to-unified",
+        "notes": "Consolidated sapphiretestnet.json"
+      }
+    ],
+    "dataSources": {
+      "originalFormat": "json-v1",
+      "importedFrom": [
+        "sapphiretestnet.json"
+      ],
+      "consolidatedAt": "2025-08-13T07:38:39.007Z"
+    }
+  },
+  "contracts": {
+    "core": {
+      "LookCoin": {
+        "proxy": "0xe71BEF0472C96c0D255Bd4ec40CB4A0618B53A2C",
+        "implementation": "0x2E29Ad79DFEFE4c6edB6Ed0C8803Ca5B9953c87A"
+      },
+      "SupplyOracle": {
+        "proxy": "0x7Cb7AaA5C7098BaF3BE1E6649d64b1e236E98ca8",
+        "implementation": "0xED16E89132EaE0b001daD51abE620b10e0507a40"
+      }
+    },
+    "protocol": {
+      "CelerIMModule": {
+        "proxy": "0x12EbF0ca24831d0553C073289F13E1cc014B29fF",
+        "implementation": "0x353474fcA012ED8511280688F5C9358e5086F82e"
+      }
+    }
+  },
+  "configuration": {
+    "governance": {
+      "vault": "0x0bec539fd761cae579802072d9ee7fde86ed05a3"
+    },
+    "protocols": {
+      "layerZero": {
+        "endpoint": "0x0000000000000000000000000000000000000000",
+        "lzChainId": 0,
+        "remotes": []
+      },
+      "celer": {
+        "messageBus": "0x9Bb46D5100d2Db4608112026951c9C965b233f4D",
+        "celerChainId": 23295,
+        "remotes": []
+      }
+    },
+    "security": {
+      "pauseEnabled": true,
+      "emergencyDelay": 86400
+    },
+    "supplyOracle": {}
+  },
+  "topology": {
+    "connectedChains": [],
+    "tierValidation": {
+      "crossTierAllowed": false,
+      "crossTierDetected": false,
+      "validatedAt": "2025-08-13T07:38:39.007Z"
+    },
+    "configurationStatus": {
+      "lastConfigured": "2025-08-13T07:38:39.007Z",
+      "pendingConfigurations": [],
+      "failedConfigurations": []
+    }
+  },
+  "verification": {
+    "contractVerification": {},
+    "implementationHashes": {
+      "LookCoin": "0x543f53aad1d25e76e465e66fcc4c71ffd41aad170c6c9122e70cd8afc3720c54",
+      "SupplyOracle": "0x2e08fc1a3dd68863c30354c2e385ff9a940958f206beb46c65a6e38ad0fa51f1",
+      "CelerIMModule": "0xb8582fde962eabcbbde479834fe29d7335980c319c1e0a9358153f7a71001d05"
+    },
+    "dataIntegrity": {
+      "lastValidated": "2025-08-13T07:38:39.007Z",
+      "checksums": {
+        "contracts": "1197a23a5bf81a7a",
+        "configuration": "608d6056420f16f0",
+        "topology": "5386e6b2ad84d6e5"
+      }
+    }
+  },
+  "operations": {
+    "deploymentHistory": [],
+    "upgradeHistory": [],
+    "metrics": {}
+  },
+  "extended_CelerIMModule": {
+    "factoryByteCodeHash": "0xb8582fde962eabcbbde479834fe29d7335980c319c1e0a9358153f7a71001d05",
+    "implementationHash": "0xb8582fde962eabcbbde479834fe29d7335980c319c1e0a9358153f7a71001d05",
+    "deploymentArgs": [],
+    "timestamp": 1755119797699
+  },
+  "extended_LookCoin": {
+    "factoryByteCodeHash": "0x543f53aad1d25e76e465e66fcc4c71ffd41aad170c6c9122e70cd8afc3720c54",
+    "implementationHash": "0x543f53aad1d25e76e465e66fcc4c71ffd41aad170c6c9122e70cd8afc3720c54",
+    "deploymentArgs": [],
+    "timestamp": 1755119523765
+  },
+  "extended_SupplyOracle": {
+    "factoryByteCodeHash": "0x2e08fc1a3dd68863c30354c2e385ff9a940958f206beb46c65a6e38ad0fa51f1",
+    "implementationHash": "0x2e08fc1a3dd68863c30354c2e385ff9a940958f206beb46c65a6e38ad0fa51f1",
+    "deploymentArgs": [],
+    "timestamp": 1755119889020
+  }
+}

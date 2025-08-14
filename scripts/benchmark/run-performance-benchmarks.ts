@@ -18,6 +18,8 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
+import * as os from 'os';
+import { execSync } from 'child_process';
 import { runPerformanceBenchmarkSuite } from './performance-suite';
 
 interface BenchmarkOptions {
@@ -65,7 +67,7 @@ class BenchmarkRunner {
       console.log(`   📊 Node.js: ${process.version}`);
       console.log(`   💻 Platform: ${process.platform} ${process.arch}`);
       console.log(`   🧠 Memory: ${Math.round(process.memoryUsage().heapTotal / 1024 / 1024)}MB available`);
-      console.log(`   ⚙️  CPU Cores: ${require('os').cpus().length}`);
+      console.log(`   ⚙️  CPU Cores: ${os.cpus().length}`);
     }
 
     // Configure garbage collection if available
@@ -147,9 +149,9 @@ class BenchmarkRunner {
         nodeVersion: process.version,
         platform: process.platform,
         arch: process.arch,
-        cpuCount: require('os').cpus().length,
-        totalMemory: require('os').totalmem(),
-        freeMemory: require('os').freemem()
+        cpuCount: os.cpus().length,
+        totalMemory: os.totalmem(),
+        freeMemory: os.freemem()
       },
       gitInfo: await this.getGitInfo()
     };
@@ -163,9 +165,8 @@ class BenchmarkRunner {
     console.log(`   📋 Execution summary: ${summaryPath}`);
   }
 
-  private async getGitInfo(): Promise<any> {
+  private async getGitInfo(): Promise<{ branch: string; commit: string; timestamp: string }> {
     try {
-      const { execSync } = require('child_process');
       return {
         branch: execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim(),
         commit: execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim(),

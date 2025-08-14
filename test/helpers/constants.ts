@@ -128,12 +128,18 @@ export const TEST_CHAINS = {
   BASE_MAINNET: 8453,
   BASE_SEPOLIA: 84532,
   OPTIMISM_SEPOLIA: 11155420,
+  SAPPHIRE_MAINNET: 23295,
+  SAPPHIRE_TESTNET: 23296,
+  AKASHIC: 9070,
   
   // Test chain IDs
   TEST_CHAIN_1: 31337,
   TEST_CHAIN_2: 31338,
   INVALID_CHAIN: 999999,
 };
+
+// Alias for backward compatibility
+export const CHAIN_IDS = TEST_CHAINS;
 
 // LayerZero endpoint IDs (different from chain IDs)
 export const LAYERZERO_CHAIN_IDS = {
@@ -174,10 +180,11 @@ export const AMOUNTS = {
   ZERO: BigInt(0),
   ONE_TOKEN: ethers.parseEther("1"),
   TEN_TOKENS: ethers.parseEther("10"),
+  FIFTY_TOKENS: ethers.parseEther("50"),
   HUNDRED_TOKENS: ethers.parseEther("100"),
   THOUSAND_TOKENS: ethers.parseEther("1000"),
   MILLION_TOKENS: ethers.parseEther("1000000"),
-  MAX_SUPPLY: ethers.parseEther("1000000000"), // 1B tokens
+  MAX_SUPPLY: ethers.parseEther("5000000000"), // 5B tokens (LookCoin cap)
   
   // Small amounts for precision testing
   ONE_WEI: BigInt(1),

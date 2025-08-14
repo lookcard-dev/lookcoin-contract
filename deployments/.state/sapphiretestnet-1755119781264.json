@@ -1,0 +1,25 @@
+{
+  "network": "sapphiretestnet",
+  "chainId": 23295,
+  "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
+  "startTime": "2025-08-13T21:16:21.264Z",
+  "steps": [
+    {
+      "name": "ProtocolDetection",
+      "status": "pending"
+    },
+    {
+      "name": "CoreContracts",
+      "status": "pending"
+    },
+    {
+      "name": "ProtocolModules",
+      "status": "pending"
+    },
+    {
+      "name": "Infrastructure",
+      "status": "pending"
+    }
+  ],
+  "checkpoint": null
+}

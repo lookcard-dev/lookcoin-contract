@@ -13,6 +13,8 @@ import {
   coverageTracker,
   DeploymentFixture,
 } from "../utils/comprehensiveTestHelpers";
+import { CrossChainSimulator, createCrossChainSimulator, CrossChainTestUtils } from "../helpers/crossChainSimulator";
+import { NetworkProviderManager, NetworkTestUtils } from "../helpers/networkProvider";
 import { TEST_CHAINS } from "../utils/testConfig";
 
 describe("Cross-Chain Transfers - Comprehensive Multi-Protocol Integration", function () {

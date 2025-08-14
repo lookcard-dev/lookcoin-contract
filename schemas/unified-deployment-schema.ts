@@ -312,7 +312,7 @@ export interface ContractInfo {
   // Contract metadata
   version?: string; // Contract version
   gitCommit?: string; // Git commit hash at deployment
-  constructor?: any[]; // Constructor arguments
+  constructor?: unknown[]; // Constructor arguments
   
   // Verification
   verified?: boolean;
@@ -367,7 +367,7 @@ export interface MigrationContext {
 // ============================================================================
 
 export function isUnifiedDeployment(data: unknown): data is UnifiedDeployment {
-  const d = data as any;
+  const d = data as Record<string, unknown>;
   return (
     d &&
     typeof d === 'object' &&

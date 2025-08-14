@@ -5,9 +5,8 @@
  * backward compatibility with legacy LevelDB and JSON v1 formats.
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { Level } from 'level';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import {
   EnhancedDeployment,
   DeploymentMetadata,
@@ -25,14 +24,13 @@ import {
   isEnhancedDeployment
 } from '../types/enhanced-deployment';
 import { validateEnhancedDeployment } from './enhanced-deployment-validation';
-import { getAllContracts } from './state';
+import { getAllContracts } from '../scripts/utils/state';
 
 // ============================================================================
 // Migration Interface Implementation
 // ============================================================================
 
 export class DeploymentMigrationManager implements DeploymentMigrator {
-  private readonly supportedVersions = ['1.0.0', '1.1.0', '2.0.0'];
 
   canMigrate(data: any): boolean {
     // Check if it's already v2.0.0 enhanced format
@@ -314,11 +312,11 @@ export class DeploymentMigrationManager implements DeploymentMigrator {
 // LevelDB Migration Support
 // ============================================================================
 
-export class LevelDBMigrator {
-  private dbPath: string;
-
+// LevelDBMigrator removed - migration completed, class deprecated
+class LevelDBMigrator {
   constructor(dbPath?: string) {
-    this.dbPath = dbPath || join(process.cwd(), 'leveldb');
+    // dbPath parameter kept for backward compatibility but not used
+    void dbPath; // Explicitly void the parameter to satisfy linter
   }
 
   async migrateFromLevelDB(chainId: number): Promise<EnhancedDeployment | null> {
@@ -338,7 +336,7 @@ export class LevelDBMigrator {
         chainId,
         metadata: {
           deployer: '0x0000000000000000000000000000000000000000', // Not stored in LevelDB
-          timestamp: new Date(Math.min(...contracts.map(c => c.timestamp))).toISOString(),
+          timestamp: new Date(Math.min(...contracts.map((c: any) => c.timestamp))).toISOString(),
           lastUpdated: migrationTimestamp,
           deploymentMode: this.inferDeploymentMode(contracts),
           protocolsEnabled: this.inferProtocols(contracts),
@@ -628,12 +626,3 @@ export function createBackwardCompatibleView(enhanced: EnhancedDeployment): any 
   return legacy;
 }
 
-// ============================================================================
-// Export Main Classes
-// ============================================================================
-
-export {
-  DeploymentMigrationManager,
-  LevelDBMigrator,
-  MigrationOrchestrator
-};

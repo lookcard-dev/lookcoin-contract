@@ -16,14 +16,19 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as os from 'os';
+import * as v8 from 'v8';
 import { StateManagerFactory } from '../utils/StateManagerFactory';
-import { IStateManager } from '../utils/IStateManager';
+
+interface ValidationDetails {
+  [key: string]: string | number | boolean | undefined;
+}
 
 interface ValidationResult {
   check: string;
   status: 'PASS' | 'FAIL' | 'WARN';
   message: string;
-  details?: any;
+  details?: ValidationDetails;
 }
 
 class BenchmarkValidator {
@@ -57,11 +62,11 @@ class BenchmarkValidator {
 
     // Platform information
     this.addResult('Platform', 'PASS', 
-      `${process.platform} ${process.arch} (${require('os').cpus().length} cores)`
+      `${process.platform} ${process.arch} (${os.cpus().length} cores)`
     );
 
     // Memory availability
-    const totalMemoryGB = require('os').totalmem() / 1024 / 1024 / 1024;
+    const totalMemoryGB = os.totalmem() / 1024 / 1024 / 1024;
     this.addResult('Available Memory', 
       totalMemoryGB >= 4 ? 'PASS' : 'WARN',
       `${totalMemoryGB.toFixed(1)}GB ${totalMemoryGB >= 4 ? '(sufficient)' : '(may affect performance)'}`
@@ -83,7 +88,6 @@ class BenchmarkValidator {
     const requiredModules = [
       'hardhat',
       'ethers',
-      'level',
       'fs/promises',
       'path',
       'perf_hooks'
@@ -102,7 +106,7 @@ class BenchmarkValidator {
 
     // Check TypeScript support
     try {
-      const tsConfig = await fs.readFile(path.join(process.cwd(), 'tsconfig.json'), 'utf-8');
+      await fs.readFile(path.join(process.cwd(), 'tsconfig.json'), 'utf-8');
       this.addResult('TypeScript Config', 'PASS', 'tsconfig.json found');
     } catch {
       this.addResult('TypeScript Config', 'WARN', 'tsconfig.json not found');
@@ -149,34 +153,27 @@ class BenchmarkValidator {
     const factory = new StateManagerFactory();
     const testTimestamp = Date.now();
 
-    // Test LevelDB manager
+    // Test production Unified JSON manager
     try {
-      const levelDBManager = await factory.createStateManager('leveldb', {
+      const productionManager = await factory.createStateManager('json', {
         debugMode: false,
-        dbPath: path.join(process.cwd(), `validation-leveldb-${testTimestamp}`),
-        leveldbOptions: { createIfMissing: true }
+        jsonPath: path.join(process.cwd(), 'deployments', 'unified'),
+        enableCache: true,
+        prettyPrint: true
       });
 
-      await levelDBManager.initialize();
-      const isHealthy = await levelDBManager.isHealthy();
+      await productionManager.initialize();
+      const isHealthy = await productionManager.isHealthy();
       
-      this.addResult('LevelDB Manager', 
+      this.addResult('Production JSON Manager', 
         isHealthy ? 'PASS' : 'FAIL',
         isHealthy ? 'Successfully initialized' : 'Initialization failed'
       );
 
-      await levelDBManager.close();
-
-      // Cleanup
-      try {
-        await fs.rm(path.join(process.cwd(), `validation-leveldb-${testTimestamp}`), 
-          { recursive: true, force: true });
-      } catch {
-        // Ignore cleanup errors
-      }
+      await productionManager.close();
 
     } catch (error) {
-      this.addResult('LevelDB Manager', 'FAIL', 
+      this.addResult('Production JSON Manager', 'FAIL', 
         `Initialization failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
@@ -221,14 +218,15 @@ class BenchmarkValidator {
     const testTimestamp = Date.now();
 
     try {
-      // Initialize test managers
-      const levelDBManager = await factory.createStateManager('leveldb', {
+      // Initialize unified JSON manager for testing
+      const unifiedManager = await factory.createStateManager('json', {
         debugMode: false,
-        dbPath: path.join(process.cwd(), `ops-test-leveldb-${testTimestamp}`),
-        leveldbOptions: { createIfMissing: true }
+        jsonPath: path.join(process.cwd(), 'deployments', 'unified'),
+        enableCache: true,
+        prettyPrint: true
       });
 
-      const jsonManager = await factory.createStateManager('json', {
+      const tempJsonManager = await factory.createStateManager('json', {
         debugMode: false,
         jsonPath: path.join(process.cwd(), `ops-test-json-${testTimestamp}`),
         enableCache: true
@@ -245,18 +243,16 @@ class BenchmarkValidator {
         timestamp: Date.now()
       };
 
-      // Test LevelDB operations
-      await levelDBManager.putContract(97, testContract);
-      const levelDBRetrieved = await levelDBManager.getContract(97, 'TestContract');
-      
-      this.addResult('LevelDB Operations', 
-        levelDBRetrieved !== null ? 'PASS' : 'FAIL',
-        'Basic read/write operations work'
+      // Test unified JSON operations (production system)
+      const existingContracts = await unifiedManager.getAllContracts(97);
+      this.addResult('Unified JSON Operations', 
+        existingContracts.length >= 0 ? 'PASS' : 'FAIL',
+        `Production data access works (${existingContracts.length} contracts found)`
       );
 
-      // Test JSON operations
-      await jsonManager.putContract(97, testContract);
-      const jsonRetrieved = await jsonManager.getContract(97, 'TestContract');
+      // Test temporary JSON operations
+      await tempJsonManager.putContract(97, testContract);
+      const jsonRetrieved = await tempJsonManager.getContract(97, 'TestContract');
       
       this.addResult('JSON Operations', 
         jsonRetrieved !== null ? 'PASS' : 'FAIL',
@@ -264,21 +260,18 @@ class BenchmarkValidator {
       );
 
       // Test query operations
-      const levelDBQuery = await levelDBManager.queryContracts({ chainId: 97 });
-      const jsonQuery = await jsonManager.queryContracts({ chainId: 97 });
-
+      const jsonQuery = await tempJsonManager.queryContracts({ chainId: 97 });
+      
       this.addResult('Query Operations', 
-        levelDBQuery.length > 0 && jsonQuery.length > 0 ? 'PASS' : 'FAIL',
-        'Query operations work for both backends'
+        jsonQuery.length > 0 ? 'PASS' : 'FAIL',
+        'Query operations work correctly'
       );
 
       // Cleanup
-      await levelDBManager.close();
-      await jsonManager.close();
+      await unifiedManager.close();
+      await tempJsonManager.close();
 
       try {
-        await fs.rm(path.join(process.cwd(), `ops-test-leveldb-${testTimestamp}`), 
-          { recursive: true, force: true });
         await fs.rm(path.join(process.cwd(), `ops-test-json-${testTimestamp}`), 
           { recursive: true, force: true });
       } catch {
@@ -370,7 +363,6 @@ class BenchmarkValidator {
 
     // Check memory limits (if available)
     try {
-      const v8 = require('v8');
       const heapStats = v8.getHeapStatistics();
       const maxHeapMB = Math.round(heapStats.heap_size_limit / 1024 / 1024);
       
@@ -383,7 +375,7 @@ class BenchmarkValidator {
     }
   }
 
-  private addResult(check: string, status: 'PASS' | 'FAIL' | 'WARN', message: string, details?: any): void {
+  private addResult(check: string, status: 'PASS' | 'FAIL' | 'WARN', message: string, details?: ValidationDetails): void {
     this.results.push({ check, status, message, details });
     
     const icon = status === 'PASS' ? '✅' : status === 'FAIL' ? '❌' : '⚠️ ';

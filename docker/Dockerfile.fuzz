@@ -1,0 +1,33 @@
+# Docker container for secure fuzz testing execution
+# Uses official Foundry image with security isolation
+
+FROM ghcr.io/foundry-rs/foundry:latest
+
+# Set working directory
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup --system fuzztest && adduser --system --group fuzztest
+
+# Install additional dependencies if needed
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy project files
+COPY . .
+
+# Set ownership
+RUN chown -R fuzztest:fuzztest /app
+
+# Switch to non-root user
+USER fuzztest
+
+# Set environment variables
+ENV FOUNDRY_PROFILE=default
+ENV RUST_LOG=info
+
+# Default command
+CMD ["forge", "test", "--match-contract", "FuzzTests", "--fuzz-runs", "10000", "-vv"]

@@ -8,7 +8,7 @@
     "deployer": "0x0beC539Fd761caE579802072d9eE7fde86ED05A3",
     "deploymentMode": "standard",
     "timestamp": "2025-08-01T15:28:24.176Z",
-    "lastUpdated": "2025-08-13T07:38:39.007Z",
+    "lastUpdated": "2025-08-13T21:30:21.188Z",
     "protocolsEnabled": [
       "celer"
     ],
@@ -37,17 +37,17 @@
     "core": {
       "LookCoin": {
         "proxy": "0xe71BEF0472C96c0D255Bd4ec40CB4A0618B53A2C",
-        "implementation": "0xE6285525A8756b0cEd73E673902A017BEf5154BD"
+        "implementation": "0x2E29Ad79DFEFE4c6edB6Ed0C8803Ca5B9953c87A"
       },
       "SupplyOracle": {
         "proxy": "0x7Cb7AaA5C7098BaF3BE1E6649d64b1e236E98ca8",
-        "implementation": "0x23cB8692F409AFF342220657685744e42f2aa8C5"
+        "implementation": "0xED16E89132EaE0b001daD51abE620b10e0507a40"
       }
     },
     "protocol": {
       "CelerIMModule": {
         "proxy": "0x12EbF0ca24831d0553C073289F13E1cc014B29fF",
-        "implementation": "0xCC29079424F48ecb569B79E3257d736ea4e7FDee"
+        "implementation": "0x353474fcA012ED8511280688F5C9358e5086F82e"
       }
     }
   },
@@ -89,9 +89,9 @@
   "verification": {
     "contractVerification": {},
     "implementationHashes": {
-      "LookCoin": "0x035df318e7b4d02767fc5d749d77c0cd1f8a24e45950df940b71de21b6b81d49",
-      "SupplyOracle": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
-      "CelerIMModule": "0xefc292208ede616ee62527e07708925ea60a9bfe42d7e1d7dd40082cc7d365fe"
+      "LookCoin": "0x543f53aad1d25e76e465e66fcc4c71ffd41aad170c6c9122e70cd8afc3720c54",
+      "SupplyOracle": "0x2e08fc1a3dd68863c30354c2e385ff9a940958f206beb46c65a6e38ad0fa51f1",
+      "CelerIMModule": "0xb8582fde962eabcbbde479834fe29d7335980c319c1e0a9358153f7a71001d05"
     },
     "dataIntegrity": {
       "lastValidated": "2025-08-13T07:38:39.007Z",
@@ -108,18 +108,19 @@
     "metrics": {}
   },
   "extended_CelerIMModule": {
-    "factoryByteCodeHash": "0xefc292208ede616ee62527e07708925ea60a9bfe42d7e1d7dd40082cc7d365fe",
-    "implementationHash": "0xefc292208ede616ee62527e07708925ea60a9bfe42d7e1d7dd40082cc7d365fe",
-    "timestamp": 1754062104177
+    "factoryByteCodeHash": "0xb8582fde962eabcbbde479834fe29d7335980c319c1e0a9358153f7a71001d05",
+    "implementationHash": "0xb8582fde962eabcbbde479834fe29d7335980c319c1e0a9358153f7a71001d05",
+    "timestamp": 1755120621187
   },
   "extended_LookCoin": {
-    "factoryByteCodeHash": "0x035df318e7b4d02767fc5d749d77c0cd1f8a24e45950df940b71de21b6b81d49",
-    "implementationHash": "0x035df318e7b4d02767fc5d749d77c0cd1f8a24e45950df940b71de21b6b81d49",
-    "timestamp": 1754062104177
+    "factoryByteCodeHash": "0x543f53aad1d25e76e465e66fcc4c71ffd41aad170c6c9122e70cd8afc3720c54",
+    "implementationHash": "0x543f53aad1d25e76e465e66fcc4c71ffd41aad170c6c9122e70cd8afc3720c54",
+    "deploymentArgs": [],
+    "timestamp": 1755120282483
   },
   "extended_SupplyOracle": {
-    "factoryByteCodeHash": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
-    "implementationHash": "0x412d16e015a72d561a68f50bc6fd40075a8274ac4e6651c2cdba7a7ef111b33b",
-    "timestamp": 1754062104177
+    "factoryByteCodeHash": "0x2e08fc1a3dd68863c30354c2e385ff9a940958f206beb46c65a6e38ad0fa51f1",
+    "implementationHash": "0x2e08fc1a3dd68863c30354c2e385ff9a940958f206beb46c65a6e38ad0fa51f1",
+    "timestamp": 1755120586922
   }
 }

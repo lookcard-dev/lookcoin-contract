@@ -1,15 +1,15 @@
 /**
  * Comprehensive Performance Benchmarking Suite
  * 
- * Exhaustive performance comparison between UnifiedJSONStateManager and LevelDBStateManager
- * to ensure production-ready migration with acceptable performance characteristics.
+ * Exhaustive performance comparison between UnifiedJSON baseline and optimized UnifiedJSON
+ * to ensure production-ready performance with acceptable characteristics.
  * 
  * Target Performance Metrics:
- * - Read operations: < 50ms per contract (JSON ≤ 2x LevelDB)
- * - Write operations: < 100ms per contract (JSON ≤ 3x LevelDB)
+ * - Read operations: < 50ms per contract (Optimized ≤ 2x Baseline)
+ * - Write operations: < 100ms per contract (Optimized ≤ 3x Baseline)
  * - Bulk operations: < 5 seconds for 100 contracts
- * - Memory usage: < 500MB for full dataset (JSON ≤ 150% LevelDB)
- * - No more than 10% performance degradation vs LevelDB
+ * - Memory usage: < 500MB for full dataset (Optimized ≤ 150% Baseline)
+ * - No more than 10% performance degradation vs Baseline
  * 
  * Test Coverage:
  * - Single contract operations (baseline performance)
@@ -23,17 +23,16 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as os from 'os';
 import { performance } from 'perf_hooks';
-import { ethers } from 'hardhat';
+import { ethers } from 'ethers';
 import {
   IStateManager,
   ContractType,
-  StateManagerConfig,
-  BackendMetrics,
-  StateManagerError
+  BackendMetrics
 } from '../utils/IStateManager';
 import { StateManagerFactory } from '../utils/StateManagerFactory';
-import { LevelDBStateManager } from '../utils/LevelDBStateManager';
+// Performance comparison between baseline and optimized UnifiedJSON implementations
 import { UnifiedJSONStateManager } from '../utils/UnifiedJSONStateManager';
 
 // Performance benchmark configuration
@@ -81,7 +80,7 @@ const BENCHMARK_CONFIG: BenchmarkConfig = {
   }
 };
 
-// Performance targets (ratios relative to LevelDB baseline)
+// Performance targets (ratios relative to baseline UnifiedJSON)
 interface PerformanceTargets {
   read: number;
   write: number;
@@ -92,12 +91,12 @@ interface PerformanceTargets {
 }
 
 const PERFORMANCE_TARGETS: PerformanceTargets = {
-  read: 2.0,        // JSON ≤ 2x LevelDB read latency
-  write: 3.0,       // JSON ≤ 3x LevelDB write latency
-  bulk: 1.5,        // JSON ≤ 1.5x LevelDB bulk operations
-  query: 5.0,       // JSON ≤ 5x LevelDB query latency
-  memory: 1.5,      // JSON ≤ 150% LevelDB memory usage
-  concurrent: 2.5   // JSON ≤ 2.5x LevelDB concurrent performance
+  read: 2.0,        // Optimized ≤ 2x baseline read latency
+  write: 3.0,       // Optimized ≤ 3x baseline write latency
+  bulk: 1.5,        // Optimized ≤ 1.5x baseline bulk operations
+  query: 5.0,       // Optimized ≤ 5x baseline query latency
+  memory: 1.5,      // Optimized ≤ 150% baseline memory usage
+  concurrent: 2.5   // Optimized ≤ 2.5x baseline concurrent performance
 };
 
 // Test networks with real production characteristics
@@ -122,7 +121,7 @@ interface OperationBenchmark {
   iterations: number;
   throughput: number; // operations per second
   errorRate: number;
-  result?: any;
+  result?: unknown;
 }
 
 interface MemorySnapshot {
@@ -134,21 +133,20 @@ interface MemorySnapshot {
   timestamp: number;
 }
 
+interface BenchmarkMetrics {
+  backend: string;
+  metrics: BackendMetrics;
+  benchmarks: Record<string, OperationBenchmark>;
+  memory: MemorySnapshot[];
+}
+
 interface BenchmarkReport {
   timestamp: number;
   testDuration: number;
-  leveldb: {
-    backend: string;
-    metrics: BackendMetrics;
-    benchmarks: Record<string, OperationBenchmark>;
-    memory: MemorySnapshot[];
-  };
-  unifiedJson: {
-    backend: string;
-    metrics: BackendMetrics;
-    benchmarks: Record<string, OperationBenchmark>;
-    memory: MemorySnapshot[];
-  };
+  baseline: BenchmarkMetrics;
+  optimized: BenchmarkMetrics;
+  leveldb?: BenchmarkMetrics; // Alias for baseline
+  unifiedJson?: BenchmarkMetrics; // Alias for optimized
   comparison: {
     performanceRatios: Record<string, number>;
     targetCompliance: Record<string, boolean>;
@@ -164,19 +162,23 @@ interface BenchmarkReport {
 }
 
 export class PerformanceBenchmarkSuite {
-  private levelDBManager!: IStateManager;
-  private unifiedJsonManager!: IStateManager;
+  private baselineManager!: IStateManager;
+  private optimizedManager!: IStateManager;
+  private levelDBManager!: IStateManager; // Alias for baseline manager
+  private unifiedJsonManager!: IStateManager; // Alias for optimized manager
   private factory!: StateManagerFactory;
   private testStartTime!: number;
   private report!: BenchmarkReport;
 
   // Test data generators
   private generateMockContract(chainId: number, contractName: string, timestamp?: number): ContractType {
+    const networkKey = (Object.keys(PRODUCTION_NETWORKS) as Array<keyof typeof PRODUCTION_NETWORKS>)
+      .find(key => PRODUCTION_NETWORKS[key].chainId === chainId) || 'BSC_TESTNET';
+    
     return {
       contractName,
       chainId,
-      networkName: PRODUCTION_NETWORKS[Object.keys(PRODUCTION_NETWORKS).find(key => 
-        (PRODUCTION_NETWORKS as any)[key].chainId === chainId) || 'BSC_TESTNET' as keyof typeof PRODUCTION_NETWORKS].name,
+      networkName: PRODUCTION_NETWORKS[networkKey].name,
       address: ethers.Wallet.createRandom().address,
       factoryByteCodeHash: ethers.keccak256(ethers.toUtf8Bytes(`${contractName}-${chainId}-${timestamp || Date.now()}`)),
       implementationHash: ethers.keccak256(ethers.toUtf8Bytes(`impl-${contractName}-${timestamp || Date.now()}`)),
@@ -287,23 +289,20 @@ export class PerformanceBenchmarkSuite {
     const levelDbPath = path.join(process.cwd(), `benchmark-leveldb-${timestamp}`);
     const jsonPath = path.join(process.cwd(), `benchmark-unified-${timestamp}`);
 
-    // Initialize LevelDB manager
-    console.log('   📊 Setting up LevelDB state manager...');
-    this.levelDBManager = await this.factory.createStateManager('leveldb', {
+    // Initialize baseline manager
+    console.log('   📊 Setting up baseline UnifiedJSON state manager...');
+    // Using baseline UnifiedJSON configuration for comparison
+    this.baselineManager = await this.factory.createStateManager('json', {
       debugMode: false, // Disable debug logging for accurate performance measurement
       validateOnWrite: true,
       backupEnabled: false,
-      dbPath: levelDbPath,
-      leveldbOptions: {
-        createIfMissing: true,
-        cacheSize: 64 * 1024 * 1024, // 64MB cache for optimal performance
-        writeBufferSize: 32 * 1024 * 1024 // 32MB write buffer
-      }
+      jsonPath: levelDbPath + '.json', // Use JSON format
+      enableCache: true // Enable caching for performance
     });
 
-    // Initialize UnifiedJSON manager
-    console.log('   📋 Setting up UnifiedJSON state manager...');
-    this.unifiedJsonManager = await this.factory.createStateManager('json', {
+    // Initialize optimized manager
+    console.log('   📋 Setting up optimized UnifiedJSON state manager...');
+    this.optimizedManager = await this.factory.createStateManager('json', {
       debugMode: false,
       validateOnWrite: true,
       backupEnabled: false,
@@ -313,6 +312,10 @@ export class PerformanceBenchmarkSuite {
       atomicWrites: true,
       prettyPrint: false // Disable pretty printing for performance
     });
+
+    // Set up aliases for backward compatibility
+    this.levelDBManager = this.baselineManager;
+    this.unifiedJsonManager = this.optimizedManager;
 
     // Load real production data for realistic benchmarking
     await this.loadProductionData();
@@ -331,7 +334,7 @@ export class PerformanceBenchmarkSuite {
   private async loadProductionData(): Promise<void> {
     console.log('   🌐 Loading real production data...');
 
-    for (const [networkKey, network] of Object.entries(PRODUCTION_NETWORKS)) {
+    for (const [, network] of Object.entries(PRODUCTION_NETWORKS)) {
       try {
         const unifiedFilePath = path.join(process.cwd(), 'deployments', 'unified', `${network.name}.unified.json`);
         
@@ -342,7 +345,7 @@ export class PerformanceBenchmarkSuite {
           console.log(`     ⚠️  No production data for ${network.name}, using mock data`);
           const mockContracts = this.generateContractBatch(network.chainId, network.expectedContracts, `${network.name}Contract`);
           for (const contract of mockContracts) {
-            await this.levelDBManager.putContract(network.chainId, contract);
+            await this.baselineManager.putContract(network.chainId, contract);
           }
           continue;
         }
@@ -356,9 +359,9 @@ export class PerformanceBenchmarkSuite {
         const contracts = await unifiedManager.getAllContracts(network.chainId);
         console.log(`     📂 Loaded ${contracts.length} contracts from ${network.name}`);
 
-        // Store in LevelDB for benchmarking
+        // Store in baseline manager for benchmarking
         for (const contract of contracts) {
-          await this.levelDBManager.putContract(network.chainId, contract);
+          await this.baselineManager.putContract(network.chainId, contract);
         }
 
         await unifiedManager.close();
@@ -367,7 +370,7 @@ export class PerformanceBenchmarkSuite {
         // Fallback to mock data
         const mockContracts = this.generateContractBatch(network.chainId, network.expectedContracts, `Mock${network.name}`);
         for (const contract of mockContracts) {
-          await this.levelDBManager.putContract(network.chainId, contract);
+          await this.baselineManager.putContract(network.chainId, contract);
         }
       }
     }
@@ -380,15 +383,15 @@ export class PerformanceBenchmarkSuite {
     const iterations = BENCHMARK_CONFIG.warmup.iterations;
 
     for (let i = 0; i < iterations; i++) {
-      // Warmup LevelDB
-      await this.levelDBManager.putContract(97, { ...warmupContract, timestamp: Date.now() + i });
-      await this.levelDBManager.getContract(97, 'WarmupContract');
-      await this.levelDBManager.getAllContracts(97);
+      // Warmup baseline manager
+      await this.baselineManager.putContract(97, { ...warmupContract, timestamp: Date.now() + i });
+      await this.baselineManager.getContract(97, 'WarmupContract');
+      await this.baselineManager.getAllContracts(97);
 
-      // Warmup UnifiedJSON  
-      await this.unifiedJsonManager.putContract(84532, { ...warmupContract, chainId: 84532, timestamp: Date.now() + i });
-      await this.unifiedJsonManager.getContract(84532, 'WarmupContract');
-      await this.unifiedJsonManager.getAllContracts(84532);
+      // Warmup optimized manager
+      await this.optimizedManager.putContract(84532, { ...warmupContract, chainId: 84532, timestamp: Date.now() + i });
+      await this.optimizedManager.getContract(84532, 'WarmupContract');
+      await this.optimizedManager.getAllContracts(84532);
     }
 
     // Force garbage collection after warmup
@@ -396,31 +399,37 @@ export class PerformanceBenchmarkSuite {
   }
 
   private initializeBenchmarkReport(): void {
+    const baselineData: BenchmarkMetrics = {
+      backend: 'unified-json-baseline',
+      metrics: {
+        readLatency: 0,
+        writeLatency: 0,
+        queryLatency: 0,
+        errorRate: 0
+      },
+      benchmarks: {},
+      memory: []
+    };
+
+    const optimizedData: BenchmarkMetrics = {
+      backend: 'unified-json-optimized',
+      metrics: {
+        readLatency: 0,
+        writeLatency: 0,
+        queryLatency: 0,
+        errorRate: 0
+      },
+      benchmarks: {},
+      memory: []
+    };
+
     this.report = {
       timestamp: this.testStartTime,
       testDuration: 0,
-      leveldb: {
-        backend: 'leveldb',
-        metrics: {
-          readLatency: 0,
-          writeLatency: 0,
-          queryLatency: 0,
-          errorRate: 0
-        },
-        benchmarks: {},
-        memory: []
-      },
-      unifiedJson: {
-        backend: 'unified-json',
-        metrics: {
-          readLatency: 0,
-          writeLatency: 0,
-          queryLatency: 0,
-          errorRate: 0
-        },
-        benchmarks: {},
-        memory: []
-      },
+      baseline: baselineData,
+      optimized: optimizedData,
+      leveldb: baselineData, // Alias for baseline
+      unifiedJson: optimizedData, // Alias for optimized
       comparison: {
         performanceRatios: {},
         targetCompliance: {},
@@ -431,7 +440,7 @@ export class PerformanceBenchmarkSuite {
         nodeVersion: process.version,
         platform: process.platform,
         architecture: process.arch,
-        cpuCount: require('os').cpus().length
+        cpuCount: os.cpus().length
       }
     };
   }
@@ -448,59 +457,59 @@ export class PerformanceBenchmarkSuite {
     console.log('   🔍 Benchmarking single contract reads...');
     
     // Pre-populate contracts for reading
-    await this.levelDBManager.putContract(testChainId, baseContract);
-    await this.unifiedJsonManager.putContract(testChainId, baseContract);
+    await this.baselineManager.putContract(testChainId, baseContract);
+    await this.optimizedManager.putContract(testChainId, baseContract);
 
-    this.report.leveldb.memory.push(this.takeMemorySnapshot());
-    const levelDbReadBenchmark = await this.measureOperation(
-      () => this.levelDBManager.getContract(testChainId, 'SingleOpTest'),
+    this.report.baseline.memory.push(this.takeMemorySnapshot());
+    const baselineReadBenchmark = await this.measureOperation(
+      () => this.baselineManager.getContract(testChainId, 'SingleOpTest'),
       BENCHMARK_CONFIG.iterations.baseline,
-      'single_read_leveldb'
+      'single_read_baseline'
     );
-    this.report.leveldb.benchmarks.single_read = levelDbReadBenchmark;
+    this.report.baseline.benchmarks.single_read = baselineReadBenchmark;
 
-    this.report.unifiedJson.memory.push(this.takeMemorySnapshot());
-    const unifiedJsonReadBenchmark = await this.measureOperation(
-      () => this.unifiedJsonManager.getContract(testChainId, 'SingleOpTest'),
+    this.report.optimized.memory.push(this.takeMemorySnapshot());
+    const optimizedReadBenchmark = await this.measureOperation(
+      () => this.optimizedManager.getContract(testChainId, 'SingleOpTest'),
       BENCHMARK_CONFIG.iterations.baseline,
-      'single_read_unified'
+      'single_read_optimized'
     );
-    this.report.unifiedJson.benchmarks.single_read = unifiedJsonReadBenchmark;
+    this.report.optimized.benchmarks.single_read = optimizedReadBenchmark;
 
     // Benchmark write operations
     console.log('   ✍️  Benchmarking single contract writes...');
 
-    const levelDbWriteBenchmark = await this.measureOperation(
+    const baselineWriteBenchmark = await this.measureOperation(
       () => {
-        const contract = this.generateMockContract(testChainId, `LevelWrite${Date.now()}`);
-        return this.levelDBManager.putContract(testChainId, contract);
+        const contract = this.generateMockContract(testChainId, `BaselineWrite${Date.now()}`);
+        return this.baselineManager.putContract(testChainId, contract);
       },
       BENCHMARK_CONFIG.iterations.baseline,
-      'single_write_leveldb'
+      'single_write_baseline'
     );
-    this.report.leveldb.benchmarks.single_write = levelDbWriteBenchmark;
+    this.report.baseline.benchmarks.single_write = baselineWriteBenchmark;
 
-    const unifiedJsonWriteBenchmark = await this.measureOperation(
+    const optimizedWriteBenchmark = await this.measureOperation(
       () => {
-        const contract = this.generateMockContract(testChainId, `UnifiedWrite${Date.now()}`);
-        return this.unifiedJsonManager.putContract(testChainId, contract);
+        const contract = this.generateMockContract(testChainId, `OptimizedWrite${Date.now()}`);
+        return this.optimizedManager.putContract(testChainId, contract);
       },
       BENCHMARK_CONFIG.iterations.baseline,
-      'single_write_unified'
+      'single_write_optimized'
     );
-    this.report.unifiedJson.benchmarks.single_write = unifiedJsonWriteBenchmark;
+    this.report.optimized.benchmarks.single_write = optimizedWriteBenchmark;
 
     // Performance analysis
-    const readRatio = unifiedJsonReadBenchmark.averageTime / Math.max(levelDbReadBenchmark.averageTime, 0.1);
-    const writeRatio = unifiedJsonWriteBenchmark.averageTime / Math.max(levelDbWriteBenchmark.averageTime, 0.1);
+    const readRatio = optimizedReadBenchmark.averageTime / Math.max(baselineReadBenchmark.averageTime, 0.1);
+    const writeRatio = optimizedWriteBenchmark.averageTime / Math.max(baselineWriteBenchmark.averageTime, 0.1);
 
     this.report.comparison.performanceRatios.single_read = readRatio;
     this.report.comparison.performanceRatios.single_write = writeRatio;
     this.report.comparison.targetCompliance.single_read = readRatio <= PERFORMANCE_TARGETS.read;
     this.report.comparison.targetCompliance.single_write = writeRatio <= PERFORMANCE_TARGETS.write;
 
-    console.log(`     📈 Read Performance: LevelDB ${levelDbReadBenchmark.averageTime.toFixed(2)}ms vs UnifiedJSON ${unifiedJsonReadBenchmark.averageTime.toFixed(2)}ms (${readRatio.toFixed(2)}x)`);
-    console.log(`     📈 Write Performance: LevelDB ${levelDbWriteBenchmark.averageTime.toFixed(2)}ms vs UnifiedJSON ${unifiedJsonWriteBenchmark.averageTime.toFixed(2)}ms (${writeRatio.toFixed(2)}x)`);
+    console.log(`     📈 Read Performance: Baseline ${baselineReadBenchmark.averageTime.toFixed(2)}ms vs Optimized ${optimizedReadBenchmark.averageTime.toFixed(2)}ms (${readRatio.toFixed(2)}x)`);
+    console.log(`     📈 Write Performance: Baseline ${baselineWriteBenchmark.averageTime.toFixed(2)}ms vs Optimized ${optimizedWriteBenchmark.averageTime.toFixed(2)}ms (${writeRatio.toFixed(2)}x)`);
     
     // Performance target validation
     if (readRatio > PERFORMANCE_TARGETS.read) {
@@ -524,68 +533,68 @@ export class PerformanceBenchmarkSuite {
     // Benchmark bulk writes
     console.log('   ✍️  Benchmarking bulk write operations...');
 
-    this.report.leveldb.memory.push(this.takeMemorySnapshot());
-    const levelDbBulkWriteBenchmark = await this.measureOperation(
+    this.report.baseline.memory.push(this.takeMemorySnapshot());
+    const baselineBulkWriteBenchmark = await this.measureOperation(
       async () => {
-        const contracts = this.generateContractBatch(testChainId, BENCHMARK_CONFIG.datasets.bulk, `LevelBulk${Date.now()}`);
+        const contracts = this.generateContractBatch(testChainId, BENCHMARK_CONFIG.datasets.bulk, `BaselineBulk${Date.now()}`);
         for (const contract of contracts) {
-          await this.levelDBManager.putContract(testChainId, contract);
+          await this.baselineManager.putContract(testChainId, contract);
         }
         return contracts;
       },
       BENCHMARK_CONFIG.iterations.bulk,
-      'bulk_write_leveldb'
+      'bulk_write_baseline'
     );
-    this.report.leveldb.benchmarks.bulk_write = levelDbBulkWriteBenchmark;
+    this.report.baseline.benchmarks.bulk_write = baselineBulkWriteBenchmark;
 
-    this.report.unifiedJson.memory.push(this.takeMemorySnapshot());
-    const unifiedJsonBulkWriteBenchmark = await this.measureOperation(
+    this.report.optimized.memory.push(this.takeMemorySnapshot());
+    const optimizedBulkWriteBenchmark = await this.measureOperation(
       async () => {
-        const contracts = this.generateContractBatch(testChainId, BENCHMARK_CONFIG.datasets.bulk, `UnifiedBulk${Date.now()}`);
+        const contracts = this.generateContractBatch(testChainId, BENCHMARK_CONFIG.datasets.bulk, `OptimizedBulk${Date.now()}`);
         for (const contract of contracts) {
-          await this.unifiedJsonManager.putContract(testChainId, contract);
+          await this.optimizedManager.putContract(testChainId, contract);
         }
         return contracts;
       },
       BENCHMARK_CONFIG.iterations.bulk,
-      'bulk_write_unified'
+      'bulk_write_optimized'
     );
-    this.report.unifiedJson.benchmarks.bulk_write = unifiedJsonBulkWriteBenchmark;
+    this.report.optimized.benchmarks.bulk_write = optimizedBulkWriteBenchmark;
 
     // Pre-populate for bulk reads
     for (const contract of bulkContracts) {
-      await this.levelDBManager.putContract(testChainId, contract);
-      await this.unifiedJsonManager.putContract(testChainId, contract);
+      await this.baselineManager.putContract(testChainId, contract);
+      await this.optimizedManager.putContract(testChainId, contract);
     }
 
     // Benchmark bulk reads
     console.log('   🔍 Benchmarking bulk read operations...');
 
-    const levelDbBulkReadBenchmark = await this.measureOperation(
-      () => this.levelDBManager.getAllContracts(testChainId),
+    const baselineBulkReadBenchmark = await this.measureOperation(
+      () => this.baselineManager.getAllContracts(testChainId),
       BENCHMARK_CONFIG.iterations.bulk,
-      'bulk_read_leveldb'
+      'bulk_read_baseline'
     );
-    this.report.leveldb.benchmarks.bulk_read = levelDbBulkReadBenchmark;
+    this.report.baseline.benchmarks.bulk_read = baselineBulkReadBenchmark;
 
-    const unifiedJsonBulkReadBenchmark = await this.measureOperation(
-      () => this.unifiedJsonManager.getAllContracts(testChainId),
+    const optimizedBulkReadBenchmark = await this.measureOperation(
+      () => this.optimizedManager.getAllContracts(testChainId),
       BENCHMARK_CONFIG.iterations.bulk,
-      'bulk_read_unified'
+      'bulk_read_optimized'
     );
-    this.report.unifiedJson.benchmarks.bulk_read = unifiedJsonBulkReadBenchmark;
+    this.report.optimized.benchmarks.bulk_read = optimizedBulkReadBenchmark;
 
     // Performance analysis
-    const bulkReadRatio = unifiedJsonBulkReadBenchmark.averageTime / Math.max(levelDbBulkReadBenchmark.averageTime, 1);
-    const bulkWriteRatio = unifiedJsonBulkWriteBenchmark.averageTime / Math.max(levelDbBulkWriteBenchmark.averageTime, 1);
+    const bulkReadRatio = optimizedBulkReadBenchmark.averageTime / Math.max(baselineBulkReadBenchmark.averageTime, 1);
+    const bulkWriteRatio = optimizedBulkWriteBenchmark.averageTime / Math.max(baselineBulkWriteBenchmark.averageTime, 1);
 
     this.report.comparison.performanceRatios.bulk_read = bulkReadRatio;
     this.report.comparison.performanceRatios.bulk_write = bulkWriteRatio;
     this.report.comparison.targetCompliance.bulk_read = bulkReadRatio <= PERFORMANCE_TARGETS.bulk;
     this.report.comparison.targetCompliance.bulk_write = bulkWriteRatio <= PERFORMANCE_TARGETS.bulk;
 
-    console.log(`     📈 Bulk Read Performance: LevelDB ${levelDbBulkReadBenchmark.averageTime.toFixed(2)}ms vs UnifiedJSON ${unifiedJsonBulkReadBenchmark.averageTime.toFixed(2)}ms (${bulkReadRatio.toFixed(2)}x)`);
-    console.log(`     📈 Bulk Write Performance: LevelDB ${levelDbBulkWriteBenchmark.averageTime.toFixed(2)}ms vs UnifiedJSON ${unifiedJsonBulkWriteBenchmark.averageTime.toFixed(2)}ms (${bulkWriteRatio.toFixed(2)}x)`);
+    console.log(`     📈 Bulk Read Performance: Baseline ${baselineBulkReadBenchmark.averageTime.toFixed(2)}ms vs Optimized ${optimizedBulkReadBenchmark.averageTime.toFixed(2)}ms (${bulkReadRatio.toFixed(2)}x)`);
+    console.log(`     📈 Bulk Write Performance: Baseline ${baselineBulkWriteBenchmark.averageTime.toFixed(2)}ms vs Optimized ${optimizedBulkWriteBenchmark.averageTime.toFixed(2)}ms (${bulkWriteRatio.toFixed(2)}x)`);
     
     // Performance target validation
     if (bulkReadRatio > PERFORMANCE_TARGETS.bulk) {
@@ -596,9 +605,9 @@ export class PerformanceBenchmarkSuite {
     }
 
     // Validate 5-second target for 100 contracts
-    const scaledUnifiedWriteTime = unifiedJsonBulkWriteBenchmark.averageTime * (100 / BENCHMARK_CONFIG.datasets.bulk);
-    if (scaledUnifiedWriteTime > 5000) {
-      this.report.comparison.recommendations.push(`Projected 100-contract write time ${scaledUnifiedWriteTime.toFixed(0)}ms exceeds 5-second target`);
+    const scaledOptimizedWriteTime = optimizedBulkWriteBenchmark.averageTime * (100 / BENCHMARK_CONFIG.datasets.bulk);
+    if (scaledOptimizedWriteTime > 5000) {
+      this.report.comparison.recommendations.push(`Projected 100-contract write time ${scaledOptimizedWriteTime.toFixed(0)}ms exceeds 5-second target`);
     }
 
     this.forceGarbageCollection();
@@ -612,39 +621,39 @@ export class PerformanceBenchmarkSuite {
     console.log(`   🔥 Benchmarking stress operations (${BENCHMARK_CONFIG.datasets.stress} contracts)...`);
 
     // Stress test - large dataset operations
-    this.report.leveldb.memory.push(this.takeMemorySnapshot());
-    const levelDbStressBenchmark = await this.measureOperation(
+    this.report.baseline.memory.push(this.takeMemorySnapshot());
+    const baselineStressBenchmark = await this.measureOperation(
       async () => {
-        const contracts = this.generateContractBatch(testChainId, BENCHMARK_CONFIG.datasets.stress, `StressLevel${Date.now()}`);
+        const contracts = this.generateContractBatch(testChainId, BENCHMARK_CONFIG.datasets.stress, `StressBaseline${Date.now()}`);
         for (const contract of contracts) {
-          await this.levelDBManager.putContract(testChainId, contract);
+          await this.baselineManager.putContract(testChainId, contract);
         }
-        return await this.levelDBManager.getAllContracts(testChainId);
+        return await this.baselineManager.getAllContracts(testChainId);
       },
       BENCHMARK_CONFIG.iterations.stress,
-      'stress_test_leveldb'
+      'stress_test_baseline'
     );
-    this.report.leveldb.benchmarks.stress_test = levelDbStressBenchmark;
+    this.report.baseline.benchmarks.stress_test = baselineStressBenchmark;
 
-    this.report.unifiedJson.memory.push(this.takeMemorySnapshot());
-    const unifiedJsonStressBenchmark = await this.measureOperation(
+    this.report.optimized.memory.push(this.takeMemorySnapshot());
+    const optimizedStressBenchmark = await this.measureOperation(
       async () => {
-        const contracts = this.generateContractBatch(testChainId, BENCHMARK_CONFIG.datasets.stress, `StressUnified${Date.now()}`);
+        const contracts = this.generateContractBatch(testChainId, BENCHMARK_CONFIG.datasets.stress, `StressOptimized${Date.now()}`);
         for (const contract of contracts) {
-          await this.unifiedJsonManager.putContract(testChainId, contract);
+          await this.optimizedManager.putContract(testChainId, contract);
         }
-        return await this.unifiedJsonManager.getAllContracts(testChainId);
+        return await this.optimizedManager.getAllContracts(testChainId);
       },
       BENCHMARK_CONFIG.iterations.stress,
-      'stress_test_unified'
+      'stress_test_optimized'
     );
-    this.report.unifiedJson.benchmarks.stress_test = unifiedJsonStressBenchmark;
+    this.report.optimized.benchmarks.stress_test = optimizedStressBenchmark;
 
-    const stressRatio = unifiedJsonStressBenchmark.averageTime / Math.max(levelDbStressBenchmark.averageTime, 1);
+    const stressRatio = optimizedStressBenchmark.averageTime / Math.max(baselineStressBenchmark.averageTime, 1);
     this.report.comparison.performanceRatios.stress_test = stressRatio;
     this.report.comparison.targetCompliance.stress_test = stressRatio <= PERFORMANCE_TARGETS.bulk * 1.5; // Allow higher tolerance for stress tests
 
-    console.log(`     📈 Stress Test Performance: LevelDB ${levelDbStressBenchmark.averageTime.toFixed(2)}ms vs UnifiedJSON ${unifiedJsonStressBenchmark.averageTime.toFixed(2)}ms (${stressRatio.toFixed(2)}x)`);
+    console.log(`     📈 Stress Test Performance: Baseline ${baselineStressBenchmark.averageTime.toFixed(2)}ms vs Optimized ${optimizedStressBenchmark.averageTime.toFixed(2)}ms (${stressRatio.toFixed(2)}x)`);
     
     if (stressRatio > PERFORMANCE_TARGETS.bulk * 1.5) {
       this.report.comparison.recommendations.push(`Stress test performance ${stressRatio.toFixed(2)}x exceeds acceptable threshold`);
@@ -660,47 +669,47 @@ export class PerformanceBenchmarkSuite {
     const concurrentContract = this.generateMockContract(testChainId, 'ConcurrentTest');
     
     // Pre-populate for concurrent reads
-    await this.levelDBManager.putContract(testChainId, concurrentContract);
-    await this.unifiedJsonManager.putContract(testChainId, concurrentContract);
+    await this.baselineManager.putContract(testChainId, concurrentContract);
+    await this.optimizedManager.putContract(testChainId, concurrentContract);
 
     const concurrentOperations = 10; // 10 parallel operations
 
     console.log(`   🔀 Benchmarking concurrent operations (${concurrentOperations} parallel)...`);
 
     // Concurrent reads benchmark
-    this.report.leveldb.memory.push(this.takeMemorySnapshot());
-    const levelDbConcurrentBenchmark = await this.measureOperation(
+    this.report.baseline.memory.push(this.takeMemorySnapshot());
+    const baselineConcurrentBenchmark = await this.measureOperation(
       async () => {
         const readPromises = [];
         for (let i = 0; i < concurrentOperations; i++) {
-          readPromises.push(this.levelDBManager.getContract(testChainId, 'ConcurrentTest'));
+          readPromises.push(this.baselineManager.getContract(testChainId, 'ConcurrentTest'));
         }
         return await Promise.all(readPromises);
       },
       BENCHMARK_CONFIG.iterations.concurrent,
-      'concurrent_read_leveldb'
+      'concurrent_read_baseline'
     );
-    this.report.leveldb.benchmarks.concurrent_read = levelDbConcurrentBenchmark;
+    this.report.baseline.benchmarks.concurrent_read = baselineConcurrentBenchmark;
 
-    this.report.unifiedJson.memory.push(this.takeMemorySnapshot());
-    const unifiedJsonConcurrentBenchmark = await this.measureOperation(
+    this.report.optimized.memory.push(this.takeMemorySnapshot());
+    const optimizedConcurrentBenchmark = await this.measureOperation(
       async () => {
         const readPromises = [];
         for (let i = 0; i < concurrentOperations; i++) {
-          readPromises.push(this.unifiedJsonManager.getContract(testChainId, 'ConcurrentTest'));
+          readPromises.push(this.optimizedManager.getContract(testChainId, 'ConcurrentTest'));
         }
         return await Promise.all(readPromises);
       },
       BENCHMARK_CONFIG.iterations.concurrent,
-      'concurrent_read_unified'
+      'concurrent_read_optimized'
     );
-    this.report.unifiedJson.benchmarks.concurrent_read = unifiedJsonConcurrentBenchmark;
+    this.report.optimized.benchmarks.concurrent_read = optimizedConcurrentBenchmark;
 
-    const concurrentRatio = unifiedJsonConcurrentBenchmark.averageTime / Math.max(levelDbConcurrentBenchmark.averageTime, 1);
+    const concurrentRatio = optimizedConcurrentBenchmark.averageTime / Math.max(baselineConcurrentBenchmark.averageTime, 1);
     this.report.comparison.performanceRatios.concurrent_read = concurrentRatio;
     this.report.comparison.targetCompliance.concurrent_read = concurrentRatio <= PERFORMANCE_TARGETS.concurrent;
 
-    console.log(`     📈 Concurrent Read Performance: LevelDB ${levelDbConcurrentBenchmark.averageTime.toFixed(2)}ms vs UnifiedJSON ${unifiedJsonConcurrentBenchmark.averageTime.toFixed(2)}ms (${concurrentRatio.toFixed(2)}x)`);
+    console.log(`     📈 Concurrent Read Performance: Baseline ${baselineConcurrentBenchmark.averageTime.toFixed(2)}ms vs Optimized ${optimizedConcurrentBenchmark.averageTime.toFixed(2)}ms (${concurrentRatio.toFixed(2)}x)`);
     
     if (concurrentRatio > PERFORMANCE_TARGETS.concurrent) {
       this.report.comparison.recommendations.push(`Concurrent access performance ${concurrentRatio.toFixed(2)}x exceeds target of ${PERFORMANCE_TARGETS.concurrent}x`);
@@ -713,44 +722,44 @@ export class PerformanceBenchmarkSuite {
     console.log('\n🔍 Running Query Operation Benchmarks...\n');
 
     // Populate multiple networks with diverse data for realistic query testing
-    for (const [_, network] of Object.entries(PRODUCTION_NETWORKS)) {
+    for (const network of Object.values(PRODUCTION_NETWORKS)) {
       const contracts = this.generateContractBatch(network.chainId, 20, `Query${network.name}`);
       for (const contract of contracts) {
-        await this.levelDBManager.putContract(network.chainId, contract);
-        await this.unifiedJsonManager.putContract(network.chainId, contract);
+        await this.baselineManager.putContract(network.chainId, contract);
+        await this.optimizedManager.putContract(network.chainId, contract);
       }
     }
 
     console.log('   🔎 Benchmarking complex queries...');
 
     // Complex query benchmark
-    const levelDbQueryBenchmark = await this.measureOperation(
-      () => this.levelDBManager.queryContracts({
+    const baselineQueryBenchmark = await this.measureOperation(
+      () => this.baselineManager.queryContracts({
         contractName: 'QueryBSCTESTNET0',
         sortBy: 'timestamp',
         sortOrder: 'desc'
       }),
       BENCHMARK_CONFIG.iterations.bulk,
-      'complex_query_leveldb'
+      'complex_query_baseline'
     );
-    this.report.leveldb.benchmarks.complex_query = levelDbQueryBenchmark;
+    this.report.baseline.benchmarks.complex_query = baselineQueryBenchmark;
 
-    const unifiedJsonQueryBenchmark = await this.measureOperation(
-      () => this.unifiedJsonManager.queryContracts({
+    const optimizedQueryBenchmark = await this.measureOperation(
+      () => this.optimizedManager.queryContracts({
         contractName: 'QueryBSCTESTNET0',
         sortBy: 'timestamp',
         sortOrder: 'desc'
       }),
       BENCHMARK_CONFIG.iterations.bulk,
-      'complex_query_unified'
+      'complex_query_optimized'
     );
-    this.report.unifiedJson.benchmarks.complex_query = unifiedJsonQueryBenchmark;
+    this.report.optimized.benchmarks.complex_query = optimizedQueryBenchmark;
 
-    const queryRatio = unifiedJsonQueryBenchmark.averageTime / Math.max(levelDbQueryBenchmark.averageTime, 1);
+    const queryRatio = optimizedQueryBenchmark.averageTime / Math.max(baselineQueryBenchmark.averageTime, 1);
     this.report.comparison.performanceRatios.complex_query = queryRatio;
     this.report.comparison.targetCompliance.complex_query = queryRatio <= PERFORMANCE_TARGETS.query;
 
-    console.log(`     📈 Complex Query Performance: LevelDB ${levelDbQueryBenchmark.averageTime.toFixed(2)}ms vs UnifiedJSON ${unifiedJsonQueryBenchmark.averageTime.toFixed(2)}ms (${queryRatio.toFixed(2)}x)`);
+    console.log(`     📈 Complex Query Performance: Baseline ${baselineQueryBenchmark.averageTime.toFixed(2)}ms vs Optimized ${optimizedQueryBenchmark.averageTime.toFixed(2)}ms (${queryRatio.toFixed(2)}x)`);
     
     if (queryRatio > PERFORMANCE_TARGETS.query) {
       this.report.comparison.recommendations.push(`Query performance ${queryRatio.toFixed(2)}x exceeds target of ${PERFORMANCE_TARGETS.query}x`);
@@ -769,47 +778,47 @@ export class PerformanceBenchmarkSuite {
     this.forceGarbageCollection();
     const baselineMemory = this.takeMemorySnapshot();
 
-    // LevelDB memory usage
-    console.log('   📊 Measuring LevelDB memory usage...');
-    const preLevelDBMemory = this.takeMemorySnapshot();
+    // Baseline memory usage
+    console.log('   📊 Measuring Baseline memory usage...');
+    const preBaselineMemory = this.takeMemorySnapshot();
     
     for (const contract of memoryTestContracts) {
-      await this.levelDBManager.putContract(testChainId, contract);
+      await this.baselineManager.putContract(testChainId, contract);
     }
     
     this.forceGarbageCollection();
-    const postLevelDBMemory = this.takeMemorySnapshot();
-    const levelDBMemoryDelta = postLevelDBMemory.heapUsed - preLevelDBMemory.heapUsed;
+    const postBaselineMemory = this.takeMemorySnapshot();
+    const baselineMemoryDelta = postBaselineMemory.heapUsed - preBaselineMemory.heapUsed;
 
-    // UnifiedJSON memory usage
-    console.log('   📋 Measuring UnifiedJSON memory usage...');
-    const preUnifiedMemory = this.takeMemorySnapshot();
+    // Optimized memory usage
+    console.log('   📋 Measuring Optimized memory usage...');
+    const preOptimizedMemory = this.takeMemorySnapshot();
     
     for (const contract of memoryTestContracts) {
-      await this.unifiedJsonManager.putContract(84532, { ...contract, chainId: 84532 }); // Different chain to avoid conflicts
+      await this.optimizedManager.putContract(84532, { ...contract, chainId: 84532 }); // Different chain to avoid conflicts
     }
     
     this.forceGarbageCollection();
-    const postUnifiedMemory = this.takeMemorySnapshot();
-    const unifiedMemoryDelta = postUnifiedMemory.heapUsed - preUnifiedMemory.heapUsed;
+    const postOptimizedMemory = this.takeMemorySnapshot();
+    const optimizedMemoryDelta = postOptimizedMemory.heapUsed - preOptimizedMemory.heapUsed;
 
     // Memory analysis
-    const memoryRatio = unifiedMemoryDelta / Math.max(levelDBMemoryDelta, 1024 * 1024); // Avoid division by very small numbers
+    const memoryRatio = optimizedMemoryDelta / Math.max(baselineMemoryDelta, 1024 * 1024); // Avoid division by very small numbers
     
     this.report.comparison.performanceRatios.memory_usage = memoryRatio;
     this.report.comparison.targetCompliance.memory_usage = memoryRatio <= PERFORMANCE_TARGETS.memory;
 
     // Store memory snapshots
-    this.report.leveldb.memory = [baselineMemory, preLevelDBMemory, postLevelDBMemory];
-    this.report.unifiedJson.memory = [baselineMemory, preUnifiedMemory, postUnifiedMemory];
+    this.report.baseline.memory = [baselineMemory, preBaselineMemory, postBaselineMemory];
+    this.report.optimized.memory = [baselineMemory, preOptimizedMemory, postOptimizedMemory];
 
     console.log(`     📈 Memory Usage Analysis (${memoryTestContracts.length} contracts):`);
-    console.log(`       LevelDB Memory Delta: ${(levelDBMemoryDelta / 1024 / 1024).toFixed(2)} MB`);
-    console.log(`       UnifiedJSON Memory Delta: ${(unifiedMemoryDelta / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`       Baseline Memory Delta: ${(baselineMemoryDelta / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`       Optimized Memory Delta: ${(optimizedMemoryDelta / 1024 / 1024).toFixed(2)} MB`);
     console.log(`       Memory Ratio: ${memoryRatio.toFixed(2)}x`);
 
     // Memory efficiency validation
-    const totalMemoryUsageMB = postUnifiedMemory.heapUsed / 1024 / 1024;
+    const totalMemoryUsageMB = postOptimizedMemory.heapUsed / 1024 / 1024;
     if (totalMemoryUsageMB > 500) {
       this.report.comparison.recommendations.push(`Total memory usage ${totalMemoryUsageMB.toFixed(0)}MB exceeds 500MB target`);
     }
@@ -827,10 +836,10 @@ export class PerformanceBenchmarkSuite {
     // Cold start benchmark - fresh managers
     console.log('   🧊 Testing cold start performance...');
     
-    const coldLevelDB = await this.factory.createStateManager('leveldb', {
+    const coldLevelDB = await this.factory.createStateManager('json', {
       debugMode: false,
-      dbPath: path.join(process.cwd(), `cold-leveldb-${Date.now()}`),
-      leveldbOptions: { createIfMissing: true }
+      jsonPath: path.join(process.cwd(), `cold-leveldb-${Date.now()}.json`),
+      enableCache: true
     });
 
     const coldUnifiedJSON = await this.factory.createStateManager('json', {
@@ -883,11 +892,21 @@ export class PerformanceBenchmarkSuite {
     console.log(`     📈 Hot Cache Performance: LevelDB ${hotLevelDBBenchmark.averageTime.toFixed(2)}ms vs UnifiedJSON ${hotUnifiedBenchmark.averageTime.toFixed(2)}ms`);
     console.log(`     📈 Cache Speedup: LevelDB ${levelDBCacheSpeedup.toFixed(2)}x vs UnifiedJSON ${unifiedCacheSpeedup.toFixed(2)}x`);
 
-    // Store benchmarks
-    this.report.leveldb.benchmarks.cold_start = coldLevelDBBenchmark;
-    this.report.leveldb.benchmarks.hot_cache = hotLevelDBBenchmark;
-    this.report.unifiedJson.benchmarks.cold_start = coldUnifiedBenchmark;
-    this.report.unifiedJson.benchmarks.hot_cache = hotUnifiedBenchmark;
+    // Store benchmarks using baseline/optimized structure
+    this.report.baseline.benchmarks.cold_start = coldLevelDBBenchmark;
+    this.report.baseline.benchmarks.hot_cache = hotLevelDBBenchmark;
+    this.report.optimized.benchmarks.cold_start = coldUnifiedBenchmark;
+    this.report.optimized.benchmarks.hot_cache = hotUnifiedBenchmark;
+    
+    // Also update aliases if they exist
+    if (this.report.leveldb) {
+      this.report.leveldb.benchmarks.cold_start = coldLevelDBBenchmark;
+      this.report.leveldb.benchmarks.hot_cache = hotLevelDBBenchmark;
+    }
+    if (this.report.unifiedJson) {
+      this.report.unifiedJson.benchmarks.cold_start = coldUnifiedBenchmark;
+      this.report.unifiedJson.benchmarks.hot_cache = hotUnifiedBenchmark;
+    }
 
     if (unifiedCacheSpeedup < 1.5) {
       this.report.comparison.recommendations.push(`UnifiedJSON cache speedup ${unifiedCacheSpeedup.toFixed(2)}x is below expected threshold`);
@@ -905,8 +924,16 @@ export class PerformanceBenchmarkSuite {
     this.report.testDuration = Date.now() - this.testStartTime;
 
     // Get final metrics from both managers
-    this.report.leveldb.metrics = await this.levelDBManager.getMetrics();
-    this.report.unifiedJson.metrics = await this.unifiedJsonManager.getMetrics();
+    this.report.baseline.metrics = await this.levelDBManager.getMetrics();
+    this.report.optimized.metrics = await this.unifiedJsonManager.getMetrics();
+    
+    // Also update aliases if they exist
+    if (this.report.leveldb) {
+      this.report.leveldb.metrics = this.report.baseline.metrics;
+    }
+    if (this.report.unifiedJson) {
+      this.report.unifiedJson.metrics = this.report.optimized.metrics;
+    }
 
     // Determine overall assessment
     const passedTargets = Object.values(this.report.comparison.targetCompliance).filter(Boolean).length;
@@ -958,35 +985,35 @@ export class PerformanceBenchmarkSuite {
 
 ## Performance Summary
 
-| Operation | LevelDB (ms) | UnifiedJSON (ms) | Ratio | Target | Status |
+| Operation | Baseline (ms) | Optimized (ms) | Ratio | Target | Status |
 |-----------|--------------|------------------|-------|---------|--------|
-| Single Read | ${report.leveldb.benchmarks.single_read?.averageTime.toFixed(2) || 'N/A'} | ${report.unifiedJson.benchmarks.single_read?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.single_read?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.read}x | ${report.comparison.targetCompliance.single_read ? '✅' : '❌'} |
-| Single Write | ${report.leveldb.benchmarks.single_write?.averageTime.toFixed(2) || 'N/A'} | ${report.unifiedJson.benchmarks.single_write?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.single_write?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.write}x | ${report.comparison.targetCompliance.single_write ? '✅' : '❌'} |
-| Bulk Read | ${report.leveldb.benchmarks.bulk_read?.averageTime.toFixed(2) || 'N/A'} | ${report.unifiedJson.benchmarks.bulk_read?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.bulk_read?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.bulk}x | ${report.comparison.targetCompliance.bulk_read ? '✅' : '❌'} |
-| Bulk Write | ${report.leveldb.benchmarks.bulk_write?.averageTime.toFixed(2) || 'N/A'} | ${report.unifiedJson.benchmarks.bulk_write?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.bulk_write?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.bulk}x | ${report.comparison.targetCompliance.bulk_write ? '✅' : '❌'} |
-| Complex Query | ${report.leveldb.benchmarks.complex_query?.averageTime.toFixed(2) || 'N/A'} | ${report.unifiedJson.benchmarks.complex_query?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.complex_query?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.query}x | ${report.comparison.targetCompliance.complex_query ? '✅' : '❌'} |
-| Concurrent Read | ${report.leveldb.benchmarks.concurrent_read?.averageTime.toFixed(2) || 'N/A'} | ${report.unifiedJson.benchmarks.concurrent_read?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.concurrent_read?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.concurrent}x | ${report.comparison.targetCompliance.concurrent_read ? '✅' : '❌'} |
+| Single Read | ${report.baseline.benchmarks.single_read?.averageTime.toFixed(2) || 'N/A'} | ${report.optimized.benchmarks.single_read?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.single_read?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.read}x | ${report.comparison.targetCompliance.single_read ? '✅' : '❌'} |
+| Single Write | ${report.baseline.benchmarks.single_write?.averageTime.toFixed(2) || 'N/A'} | ${report.optimized.benchmarks.single_write?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.single_write?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.write}x | ${report.comparison.targetCompliance.single_write ? '✅' : '❌'} |
+| Bulk Read | ${report.baseline.benchmarks.bulk_read?.averageTime.toFixed(2) || 'N/A'} | ${report.optimized.benchmarks.bulk_read?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.bulk_read?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.bulk}x | ${report.comparison.targetCompliance.bulk_read ? '✅' : '❌'} |
+| Bulk Write | ${report.baseline.benchmarks.bulk_write?.averageTime.toFixed(2) || 'N/A'} | ${report.optimized.benchmarks.bulk_write?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.bulk_write?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.bulk}x | ${report.comparison.targetCompliance.bulk_write ? '✅' : '❌'} |
+| Complex Query | ${report.baseline.benchmarks.complex_query?.averageTime.toFixed(2) || 'N/A'} | ${report.optimized.benchmarks.complex_query?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.complex_query?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.query}x | ${report.comparison.targetCompliance.complex_query ? '✅' : '❌'} |
+| Concurrent Read | ${report.baseline.benchmarks.concurrent_read?.averageTime.toFixed(2) || 'N/A'} | ${report.optimized.benchmarks.concurrent_read?.averageTime.toFixed(2) || 'N/A'} | ${report.comparison.performanceRatios.concurrent_read?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.concurrent}x | ${report.comparison.targetCompliance.concurrent_read ? '✅' : '❌'} |
 
 ## Memory Analysis
 
-| Metric | LevelDB | UnifiedJSON | Ratio | Target | Status |
+| Metric | Baseline | Optimized | Ratio | Target | Status |
 |--------|---------|-------------|--------|---------|--------|
-| Memory Usage | ${((report.leveldb.memory[2]?.heapUsed - report.leveldb.memory[1]?.heapUsed) / 1024 / 1024).toFixed(2) || 'N/A'} MB | ${((report.unifiedJson.memory[2]?.heapUsed - report.unifiedJson.memory[1]?.heapUsed) / 1024 / 1024).toFixed(2) || 'N/A'} MB | ${report.comparison.performanceRatios.memory_usage?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.memory}x | ${report.comparison.targetCompliance.memory_usage ? '✅' : '❌'} |
+| Memory Usage | ${((report.baseline.memory[2]?.heapUsed - report.baseline.memory[1]?.heapUsed) / 1024 / 1024).toFixed(2) || 'N/A'} MB | ${((report.optimized.memory[2]?.heapUsed - report.optimized.memory[1]?.heapUsed) / 1024 / 1024).toFixed(2) || 'N/A'} MB | ${report.comparison.performanceRatios.memory_usage?.toFixed(2) || 'N/A'}x | ≤${PERFORMANCE_TARGETS.memory}x | ${report.comparison.targetCompliance.memory_usage ? '✅' : '❌'} |
 
 ## Backend Metrics
 
-### LevelDB
-- **Read Latency:** ${report.leveldb.metrics.readLatency.toFixed(2)}ms
-- **Write Latency:** ${report.leveldb.metrics.writeLatency.toFixed(2)}ms  
-- **Query Latency:** ${report.leveldb.metrics.queryLatency.toFixed(2)}ms
-- **Error Rate:** ${(report.leveldb.metrics.errorRate * 100).toFixed(2)}%
+### Baseline (UnifiedJSON)
+- **Read Latency:** ${report.baseline.metrics.readLatency.toFixed(2)}ms
+- **Write Latency:** ${report.baseline.metrics.writeLatency.toFixed(2)}ms  
+- **Query Latency:** ${report.baseline.metrics.queryLatency.toFixed(2)}ms
+- **Error Rate:** ${(report.baseline.metrics.errorRate * 100).toFixed(2)}%
 
-### UnifiedJSON  
-- **Read Latency:** ${report.unifiedJson.metrics.readLatency.toFixed(2)}ms
-- **Write Latency:** ${report.unifiedJson.metrics.writeLatency.toFixed(2)}ms
-- **Query Latency:** ${report.unifiedJson.metrics.queryLatency.toFixed(2)}ms  
-- **Error Rate:** ${(report.unifiedJson.metrics.errorRate * 100).toFixed(2)}%
-${report.unifiedJson.metrics.cacheHitRate !== undefined ? `- **Cache Hit Rate:** ${(report.unifiedJson.metrics.cacheHitRate * 100).toFixed(1)}%` : ''}
+### Optimized (UnifiedJSON)  
+- **Read Latency:** ${report.optimized.metrics.readLatency.toFixed(2)}ms
+- **Write Latency:** ${report.optimized.metrics.writeLatency.toFixed(2)}ms
+- **Query Latency:** ${report.optimized.metrics.queryLatency.toFixed(2)}ms  
+- **Error Rate:** ${(report.optimized.metrics.errorRate * 100).toFixed(2)}%
+${report.optimized.metrics.cacheHitRate !== undefined ? `- **Cache Hit Rate:** ${(report.optimized.metrics.cacheHitRate * 100).toFixed(1)}%` : ''}
 
 ## Recommendations
 

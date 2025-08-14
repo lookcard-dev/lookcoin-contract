@@ -14,6 +14,7 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { existsSync } from 'fs';
 import { 
   IStateManager, 
   ContractType, 
@@ -24,6 +25,30 @@ import {
   StateManagerErrorCode,
   StateManagerConfig 
 } from "./IStateManager";
+
+/**
+ * Get the network tier based on chain ID
+ */
+function getNetworkTier(chainId: number): 'mainnet' | 'testnet' | 'dev' | 'unknown' {
+  // Mainnet chain IDs
+  const mainnetChainIds = [56, 8453, 10, 23294, 9070]; // BSC, Base, Optimism, Sapphire, Akashic
+  if (mainnetChainIds.includes(chainId)) {
+    return 'mainnet';
+  }
+
+  // Testnet chain IDs  
+  const testnetChainIds = [97, 84532, 11155420, 23295]; // BSC Testnet, Base Sepolia, Optimism Sepolia, Sapphire Testnet
+  if (testnetChainIds.includes(chainId)) {
+    return 'testnet';
+  }
+
+  // Hardhat network
+  if (chainId === 31337) {
+    return 'dev';
+  }
+
+  return 'unknown';
+}
 
 interface UnifiedJSONDeployment {
   schemaVersion: string;
@@ -59,11 +84,26 @@ interface UnifiedJSONDeployment {
     legacy?: { [name: string]: LegacyContractEntry };
   };
   configuration?: {
-    governance?: { vault: string };
+    governance?: { 
+      vault?: string;
+      admin?: string;
+      operators?: string[];
+      upgraders?: string[];
+    };
     protocols?: { [protocol: string]: { [key: string]: string } };
+  };
+  topology?: {
+    connectedChains?: number[];
+    routingPaths?: any;
+  };
+  verification?: {
+    contractVerification?: Record<string, any>;
+    implementationHashes?: Record<string, string>;
   };
   implementationHashes?: { [name: string]: string };
   factoryBytecodeHashes?: { [name: string]: string };
+  // Allow extended fields at root level
+  [key: string]: any;
 }
 
 interface ContractEntry {
@@ -96,8 +136,8 @@ export class UnifiedJSONStateManager implements IStateManager {
     97: 'bsctestnet', 
     84532: 'basesepolia',
     11155420: 'optimismsepolia',
-    23295: 'sapphiremainnet',
-    23294: 'sapphiretestnet',
+    23295: 'sapphiretestnet',
+    23294: 'sapphiremainnet',
     8453: 'basemainnet',
     10: 'optimismmainnet'
   };
@@ -198,14 +238,49 @@ export class UnifiedJSONStateManager implements IStateManager {
   }
 
   /**
-   * Store contract (Not implemented for comparison tool)
+   * Store contract - updates or adds a contract in the unified deployment
    */
   async putContract(chainId: number, contract: ContractType): Promise<void> {
-    throw new StateManagerError(
-      StateManagerErrorCode.WRITE_FAILED,
-      'UnifiedJSONStateManager is read-only for comparison purposes',
-      { chainId, contract }
-    );
+    await this.ensureInitialized();
+    const startTime = Date.now();
+
+    try {
+      // Load existing deployment or create new one
+      let deployment = await this.loadUnifiedDeployment(chainId);
+      
+      if (!deployment) {
+        // Create new deployment structure
+        deployment = this.createEmptyDeployment(chainId);
+      }
+
+      // Update the contract in the appropriate category
+      const updated = this.updateContract(deployment, contract);
+      
+      if (!updated) {
+        throw new StateManagerError(
+          StateManagerErrorCode.WRITE_FAILED,
+          `Failed to update contract ${contract.contractName} in deployment`,
+          { chainId, contract }
+        );
+      }
+
+      // Save the updated deployment
+      await this.saveUnifiedDeployment(chainId, deployment);
+      
+      if (this.config.debugMode) {
+        console.log(`[DEBUG] Stored ${contract.contractName} to Unified JSON for chain ${chainId}`);
+        console.log(`[DEBUG]   - Implementation hash: ${contract.implementationHash}`);
+      }
+
+      this.updateReadMetrics(Date.now() - startTime, false);
+    } catch (error) {
+      this.updateReadMetrics(Date.now() - startTime, true);
+      throw new StateManagerError(
+        StateManagerErrorCode.WRITE_FAILED,
+        `Failed to store contract ${contract.contractName} for chain ${chainId}`,
+        { chainId, contract, error }
+      );
+    }
   }
 
   /**
@@ -320,7 +395,8 @@ export class UnifiedJSONStateManager implements IStateManager {
   /**
    * Import data (Not implemented for comparison tool)
    */
-  async importAll(data: string, overwrite: boolean = false): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async importAll(data: string, _overwrite?: boolean): Promise<void> {
     throw new StateManagerError(
       StateManagerErrorCode.VALIDATION_FAILED,
       'Import not implemented for UnifiedJSONStateManager',
@@ -357,20 +433,22 @@ export class UnifiedJSONStateManager implements IStateManager {
         contractCount += contracts.length;
 
         for (const contract of contracts) {
+          const contractName = contract.contractName;
+          
           // Validate contract data
           if (!this.validateContractType(contract)) {
-            errors.push(`Invalid contract data: ${contract.contractName} on chain ${chainId}`);
+            errors.push(`Invalid contract data: ${contractName} on chain ${chainId}`);
             continue;
           }
 
           // Check for missing required fields
           if (!contract.address || !contract.factoryByteCodeHash) {
-            warnings.push(`Missing fields in contract: ${contract.contractName} on chain ${chainId}`);
+            warnings.push(`Missing fields in contract: ${contractName} on chain ${chainId}`);
           }
 
           // Validate chainId consistency
           if (contract.chainId !== chainId) {
-            errors.push(`ChainId mismatch for ${contract.contractName}: ${contract.chainId} vs ${chainId}`);
+            errors.push(`ChainId mismatch for ${contractName}: ${contract.chainId} vs ${chainId}`);
           }
         }
       }
@@ -548,15 +626,46 @@ export class UnifiedJSONStateManager implements IStateManager {
       timestamp = new Date(deployment.metadata.timestamp).getTime();
     }
 
+    // Get bytecode hashes from extended fields or verification section
+    const extendedKey = `extended_${contractName}`;
+    const extendedData = (deployment as any)[extendedKey];
+    
+    let factoryByteCodeHash = '';
+    let implementationHash = '';
+    let deploymentArgs: any[] = [];
+    
+    // First try to get from extended fields (primary source)
+    if (extendedData) {
+      factoryByteCodeHash = extendedData.factoryByteCodeHash || '';
+      implementationHash = extendedData.implementationHash || '';
+      deploymentArgs = extendedData.deploymentArgs || [];
+      // Update timestamp if available in extended data
+      if (extendedData.timestamp) {
+        timestamp = extendedData.timestamp;
+      }
+    }
+    
+    // Fallback to verification.implementationHashes if not in extended
+    if (!implementationHash && deployment.verification?.implementationHashes?.[contractName]) {
+      implementationHash = deployment.verification.implementationHashes[contractName];
+      factoryByteCodeHash = factoryByteCodeHash || implementationHash; // Use same hash if factory hash not found
+    }
+    
+    // Final fallback to old location (for backward compatibility)
+    if (!implementationHash) {
+      factoryByteCodeHash = deployment.factoryBytecodeHashes?.[contractName] || '';
+      implementationHash = deployment.implementationHashes?.[contractName] || '';
+    }
+
     return {
       contractName,
       chainId: deployment.chainId,
       networkName: deployment.network,
       address: contractEntry.implementation,
       proxyAddress: contractEntry.proxy !== contractEntry.implementation ? contractEntry.proxy : undefined,
-      factoryByteCodeHash: deployment.factoryBytecodeHashes?.[contractName] || '',
-      implementationHash: deployment.implementationHashes?.[contractName],
-      deploymentArgs: [], // Not available in unified format
+      factoryByteCodeHash,
+      implementationHash,
+      deploymentArgs,
       timestamp
     };
   }
@@ -569,7 +678,7 @@ export class UnifiedJSONStateManager implements IStateManager {
       for (const file of files) {
         if (file.endsWith('.unified.json')) {
           const networkName = file.replace('.unified.json', '');
-          const chainId = Object.entries(this.NETWORK_MAP).find(([_, name]) => name === networkName)?.[0];
+          const chainId = Object.entries(this.NETWORK_MAP).find(([, name]) => name === networkName)?.[0];
           if (chainId) {
             chainIds.push(parseInt(chainId, 10));
           }
@@ -616,6 +725,161 @@ export class UnifiedJSONStateManager implements IStateManager {
       this.metrics.errorRate = Math.min(1, this.metrics.errorRate + 0.01);
     } else {
       this.metrics.errorRate = Math.max(0, this.metrics.errorRate - 0.001);
+    }
+  }
+
+  /**
+   * Create an empty deployment structure
+   */
+  private createEmptyDeployment(chainId: number): UnifiedJSONDeployment {
+    const networkName = this.NETWORK_MAP[chainId] || `chain${chainId}`;
+    const networkTier = getNetworkTier(chainId);
+    
+    return {
+      schemaVersion: '3.0.0',
+      fileVersion: 1,
+      network: networkName,
+      chainId,
+      networkTier,
+      metadata: {
+        deployer: '',
+        deploymentMode: 'standard',
+        timestamp: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        protocolsEnabled: [],
+        protocolsDeployed: [],
+        protocolsConfigured: []
+      },
+      contracts: {
+        core: {},
+        protocol: {},
+        infrastructure: {}
+      },
+      configuration: {
+        protocols: {},
+        governance: {
+          admin: '',
+          operators: [],
+          upgraders: []
+        }
+      },
+      topology: {
+        connectedChains: [],
+        routingPaths: {}
+      },
+      verification: {
+        contractVerification: {},
+        implementationHashes: {}
+      }
+    };
+  }
+
+  /**
+   * Update a contract in the deployment structure
+   */
+  private updateContract(deployment: UnifiedJSONDeployment, contract: ContractType): boolean {
+    const { contractName, proxyAddress, address: implementation } = contract;
+    
+    // Determine which category the contract belongs to
+    let category: 'core' | 'protocol' | 'infrastructure' = 'core';
+    
+    if (contractName === 'LookCoin' || contractName === 'SupplyOracle') {
+      category = 'core';
+    } else if (contractName.includes('Module') || contractName === 'LayerZeroModule' || 
+               contractName === 'CelerIMModule' || contractName === 'HyperlaneModule') {
+      category = 'protocol';
+    } else if (contractName === 'CrossChainRouter' || contractName === 'FeeManager' || 
+               contractName === 'SecurityManager' || contractName === 'ProtocolRegistry') {
+      category = 'infrastructure';
+    }
+    
+    // Update the contract entry
+    if (!deployment.contracts[category]) {
+      deployment.contracts[category] = {};
+    }
+    
+    deployment.contracts[category][contractName] = {
+      proxy: proxyAddress || implementation,
+      implementation
+    };
+    
+    // Store extended data with bytecode hashes
+    const extendedKey = `extended_${contractName}`;
+    (deployment as any)[extendedKey] = {
+      factoryByteCodeHash: contract.factoryByteCodeHash,
+      implementationHash: contract.implementationHash,
+      deploymentArgs: contract.deploymentArgs,
+      timestamp: contract.timestamp
+    };
+    
+    // Also update verification section for compatibility
+    if (!deployment.verification) {
+      deployment.verification = {
+        contractVerification: {},
+        implementationHashes: {}
+      };
+    }
+    
+    if (contract.implementationHash) {
+      deployment.verification.implementationHashes![contractName] = contract.implementationHash;
+    }
+    
+    // Update metadata
+    deployment.metadata.lastUpdated = new Date().toISOString();
+    
+    return true;
+  }
+
+  /**
+   * Save the unified deployment to disk
+   */
+  private async saveUnifiedDeployment(chainId: number, deployment: UnifiedJSONDeployment): Promise<void> {
+    const networkName = this.NETWORK_MAP[chainId] || `chain${chainId}`;
+    const filePath = path.join(this.basePath, `${networkName}.unified.json`);
+    
+    // Ensure directory exists
+    await fs.mkdir(this.basePath, { recursive: true });
+    
+    // Create backup if file exists
+    if (existsSync(filePath) && this.config.backupEnabled) {
+      const backupPath = `${filePath}.backup-${Date.now()}`;
+      try {
+        await fs.copyFile(filePath, backupPath);
+      } catch (error) {
+        if (this.config.debugMode) {
+          console.log(`[DEBUG] Failed to create backup: ${error}`);
+        }
+      }
+    }
+    
+    // Save with pretty print (default to pretty print for readability)
+    const content = this.config.prettyPrint !== false 
+      ? JSON.stringify(deployment, null, 2)
+      : JSON.stringify(deployment);
+    
+    // Try atomic write if configured, with fallback to direct write
+    if (this.config.atomicWrites !== false) {
+      const tempPath = `${filePath}.tmp-${Date.now()}`;
+      try {
+        // Write to temp file first
+        await fs.writeFile(tempPath, content, 'utf8');
+        // Rename atomically
+        await fs.rename(tempPath, filePath);
+      } catch (error) {
+        if (this.config.debugMode) {
+          console.log(`[DEBUG] Atomic write failed, falling back to direct write: ${error}`);
+        }
+        // Fallback to direct write
+        await fs.writeFile(filePath, content, 'utf8');
+        // Clean up temp file if it exists
+        try {
+          await fs.unlink(tempPath);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } else {
+      await fs.writeFile(filePath, content, 'utf8');
     }
   }
 }

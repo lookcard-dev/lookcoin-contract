@@ -1,6 +1,5 @@
 import { ethers } from "hardhat";
 import { SecurityTestRunner, SecurityAudit } from "../../test/utils/securityAudit";
-import { Contract } from "ethers";
 import fs from "fs";
 import path from "path";
 
@@ -74,7 +73,7 @@ async function runSecurityAudit() {
         await runner.runTest(
             "LookCoin Minter Role Access Control",
             async () => {
-                const MINTER_ROLE = await lookCoin.MINTER_ROLE();
+                // Check MINTER_ROLE access
                 const result = await SecurityAudit.testAccessControl(
                     lookCoin,
                     "mint",
@@ -149,7 +148,6 @@ async function runSecurityAudit() {
         await runner.runTest(
             "Unauthorized Upgrade Prevention",
             async () => {
-                const UPGRADER_ROLE = await lookCoin.UPGRADER_ROLE();
                 try {
                     // Attempt upgrade without role
                     const LookCoinV2 = await ethers.getContractFactory("LookCoin");

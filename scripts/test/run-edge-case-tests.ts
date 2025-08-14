@@ -12,7 +12,7 @@
  * - Integration with CI/CD pipelines
  */
 
-import { spawn, exec } from 'child_process';
+import { spawn } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -109,7 +109,6 @@ class EdgeCaseTestRunner {
       });
 
       let stdout = '';
-      let stderr = '';
 
       hardhatProcess.stdout?.on('data', (data) => {
         const output = data.toString();
@@ -119,12 +118,11 @@ class EdgeCaseTestRunner {
 
       hardhatProcess.stderr?.on('data', (data) => {
         const output = data.toString();
-        stderr += output;
         process.stderr.write(output);
       });
 
       hardhatProcess.on('close', (code) => {
-        this.parseTestOutput(stdout, stderr);
+        this.parseTestOutput(stdout);
         
         if (code === 0) {
           console.log('\n✅ Edge case tests completed successfully');
@@ -146,14 +144,15 @@ class EdgeCaseTestRunner {
   /**
    * Parse test output to extract results
    */
-  private parseTestOutput(stdout: string, stderr: string): void {
+  private parseTestOutput(stdout: string): void {
     const lines = stdout.split('\n');
     let currentSuite = '';
     
     for (const line of lines) {
       // Extract test suite names
       if (line.includes('describe(') || line.includes('  📂') || line.includes('  🗂️') || line.includes('  ⚡') || line.includes('  🧠') || line.includes('  🌐') || line.includes('  🔄')) {
-        const match = line.match(/\s+([🔬🗂️⚡🧠🌐🔄📂].*?)(?:\s|$)/);
+        // Use a simpler pattern that avoids character class with emojis
+        const match = line.match(/\s+((?:🔬|🗂️|⚡|🧠|🌐|🔄|📂).*?)(?:\s|$)/u);
         if (match) {
           currentSuite = match[1].trim();
         }

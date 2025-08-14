@@ -1,0 +1,595 @@
+name: Comprehensive Test Suite
+
+on:
+  push:
+    branches: [develop, master, main]
+  pull_request:
+    branches: [develop, master, main]
+  schedule:
+    # Run comprehensive tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_scope:
+        description: 'Test scope to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+        - 'all'
+        - 'unit'
+        - 'integration'
+        - 'security'
+        - 'performance'
+        - 'edge-cases'
+      performance_threshold:
+        description: 'Performance regression threshold (%)'
+        required: false
+        default: '10'
+        type: string
+      coverage_threshold:
+        description: 'Minimum coverage threshold (%)'
+        required: false
+        default: '80'
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.setup.outputs.matrix }}
+      run-security: ${{ steps.setup.outputs.run-security }}
+      run-performance: ${{ steps.setup.outputs.run-performance }}
+    steps:
+      - name: Setup test matrix
+        id: setup
+        run: |
+          if [[ "${{ github.event.inputs.test_scope }}" == "unit" ]]; then
+            echo "matrix={\"test_type\":[\"unit\"]}" >> $GITHUB_OUTPUT
+            echo "run-security=false" >> $GITHUB_OUTPUT
+            echo "run-performance=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.test_scope }}" == "integration" ]]; then
+            echo "matrix={\"test_type\":[\"integration\"]}" >> $GITHUB_OUTPUT
+            echo "run-security=false" >> $GITHUB_OUTPUT
+            echo "run-performance=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.test_scope }}" == "security" ]]; then
+            echo "matrix={\"test_type\":[\"security\"]}" >> $GITHUB_OUTPUT
+            echo "run-security=true" >> $GITHUB_OUTPUT
+            echo "run-performance=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.test_scope }}" == "performance" ]]; then
+            echo "matrix={\"test_type\":[\"performance\"]}" >> $GITHUB_OUTPUT
+            echo "run-security=false" >> $GITHUB_OUTPUT
+            echo "run-performance=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.test_scope }}" == "edge-cases" ]]; then
+            echo "matrix={\"test_type\":[\"edge-cases\"]}" >> $GITHUB_OUTPUT
+            echo "run-security=false" >> $GITHUB_OUTPUT
+            echo "run-performance=false" >> $GITHUB_OUTPUT
+          else
+            echo "matrix={\"test_type\":[\"unit\",\"integration\",\"security\",\"performance\",\"edge-cases\"]}" >> $GITHUB_OUTPUT
+            echo "run-security=true" >> $GITHUB_OUTPUT
+            echo "run-performance=true" >> $GITHUB_OUTPUT
+          fi
+
+  environment-setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup environment
+        run: |
+          chmod +x ./scripts/ci/setup-test-environment.sh
+          ./scripts/ci/setup-test-environment.sh
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile contracts
+        run: npm run compile
+
+      - name: Cache compilation artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            artifacts/
+            cache/
+            typechain-types/
+          key: contracts-${{ runner.os }}-${{ hashFiles('contracts/**/*.sol') }}
+          restore-keys: |
+            contracts-${{ runner.os }}-
+
+      - name: Upload compilation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-contracts
+          path: |
+            artifacts/
+            cache/
+            typechain-types/
+          retention-days: 1
+
+  unit-tests:
+    needs: [setup-matrix, environment-setup]
+    if: contains(needs.setup-matrix.outputs.matrix, 'unit')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20]
+        test-group: ['core', 'bridges', 'security', 'infrastructure']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Download compilation artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-contracts
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests - ${{ matrix.test-group }}
+        run: |
+          case "${{ matrix.test-group }}" in
+            "core")
+              npm run test:unit:lookcoin
+              ;;
+            "bridges")
+              npm run test:unit:bridges
+              ;;
+            "security")
+              npm run test:unit:security
+              ;;
+            "infrastructure")
+              npm run test:unit:router
+              ;;
+          esac
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Generate unit test report
+        if: always()
+        run: |
+          mkdir -p reports/unit
+          echo "{\"test_group\":\"${{ matrix.test-group }}\",\"node_version\":\"${{ matrix.node-version }}\",\"status\":\"${{ job.status }}\"}" > reports/unit/report-${{ matrix.test-group }}-node${{ matrix.node-version }}.json
+
+      - name: Upload unit test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results-${{ matrix.test-group }}-node${{ matrix.node-version }}
+          path: reports/unit/
+          retention-days: 30
+
+  integration-tests:
+    needs: [setup-matrix, environment-setup]
+    if: contains(needs.setup-matrix.outputs.matrix, 'integration')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-suite: ['flows', 'deployment', 'governance', 'emergency']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Download compilation artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-contracts
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests - ${{ matrix.test-suite }}
+        run: |
+          case "${{ matrix.test-suite }}" in
+            "flows")
+              npm run test:integration:flows
+              ;;
+            "deployment")
+              npm run test:integration:deployment
+              ;;
+            "governance")
+              npx hardhat test test/integration/GovernanceFlow.test.ts
+              ;;
+            "emergency")
+              npx hardhat test test/integration/EmergencyScenarios.test.ts
+              ;;
+          esac
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        timeout-minutes: 30
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results-${{ matrix.test-suite }}
+          path: |
+            reports/
+            coverage/
+          retention-days: 30
+
+  security-tests:
+    needs: [setup-matrix, environment-setup]
+    if: needs.setup-matrix.outputs.run-security == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Download compilation artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-contracts
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security test suite
+        run: npm run security:test
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Run vulnerability scanner
+        run: npm run security:scan
+
+      - name: Run Slither analysis
+        uses: crytic/slither-action@v0.4.1
+        id: slither
+        with:
+          node-version: 20
+          solc-version: 0.8.28
+          sarif: security-results.sarif
+          fail-on: none
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.slither.outputs.sarif }}
+
+      - name: Run economic attack tests
+        run: npx hardhat test test/security/EconomicAttackTests.test.ts --timeout 300000
+
+      - name: Generate security report
+        if: always()
+        run: |
+          mkdir -p reports/security
+          tsx scripts/test/test-orchestrator.ts --mode security --output reports/security/
+
+      - name: Upload security results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-test-results
+          path: reports/security/
+          retention-days: 30
+
+  performance-tests:
+    needs: [setup-matrix, environment-setup]
+    if: needs.setup-matrix.outputs.run-performance == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-type: ['gas-benchmarks', 'load-tests', 'concurrency']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Download compilation artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-contracts
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Foundry (for concurrency tests)
+        if: matrix.test-type == 'concurrency'
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Run performance tests - ${{ matrix.test-type }}
+        run: |
+          case "${{ matrix.test-type }}" in
+            "gas-benchmarks")
+              npm run test:gas:benchmarks
+              npm run benchmark:gas
+              ;;
+            "load-tests")
+              npm run test:load
+              ;;
+            "concurrency")
+              npm run test:concurrency
+              ;;
+          esac
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          PERFORMANCE_THRESHOLD: ${{ github.event.inputs.performance_threshold || '10' }}
+        timeout-minutes: 60
+
+      - name: Check performance regression
+        if: matrix.test-type == 'gas-benchmarks'
+        run: npm run test:gas:regression
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-test-results-${{ matrix.test-type }}
+          path: |
+            reports/
+            gas-report.html
+          retention-days: 30
+
+  edge-case-tests:
+    needs: [setup-matrix, environment-setup]
+    if: contains(needs.setup-matrix.outputs.matrix, 'edge-cases')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Download compilation artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-contracts
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run edge case tests
+        run: npm run test:edge-cases:report
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        timeout-minutes: 45
+
+      - name: Upload edge case results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: edge-case-test-results
+          path: |
+            edge-case-report-*.json
+            reports/
+          retention-days: 30
+
+  coverage-analysis:
+    needs: [unit-tests, integration-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Download compilation artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-contracts
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate comprehensive coverage
+        run: |
+          npm run coverage
+          npm run test:migration:coverage
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      - name: Check coverage threshold
+        run: |
+          THRESHOLD=${{ github.event.inputs.coverage_threshold || '80' }}
+          tsx scripts/test/test-orchestrator.ts --mode coverage --threshold $THRESHOLD
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            coverage/
+            coverage.json
+          retention-days: 30
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: lookcoin-contract-coverage
+
+  test-orchestration:
+    needs: [unit-tests, integration-tests, security-tests, performance-tests, edge-case-tests, coverage-analysis]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          path: test-results/
+
+      - name: Generate comprehensive test report
+        run: |
+          tsx scripts/test/test-orchestrator.ts --mode aggregate --input test-results/ --output reports/final/
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create test summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## 🧪 Comprehensive Test Results
+          
+          ### Test Execution Summary
+          - **Unit Tests**: ${{ needs.unit-tests.result }}
+          - **Integration Tests**: ${{ needs.integration-tests.result }}
+          - **Security Tests**: ${{ needs.security-tests.result }}
+          - **Performance Tests**: ${{ needs.performance-tests.result }}
+          - **Edge Case Tests**: ${{ needs.edge-case-tests.result }}
+          - **Coverage Analysis**: ${{ needs.coverage-analysis.result }}
+          
+          ### Coverage Information
+          See detailed coverage report in artifacts.
+          
+          ### Performance Metrics
+          See performance benchmarks in artifacts.
+          
+          ### Security Analysis
+          Security scan results uploaded to GitHub Security tab.
+          
+          EOF
+
+      - name: Upload final test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-test-report
+          path: reports/final/
+          retention-days: 90
+
+      - name: Check overall test status
+        run: |
+          tsx scripts/test/test-orchestrator.ts --mode status-check --input test-results/
+          echo "TEST_STATUS=$?" >> $GITHUB_ENV
+
+      - name: Post test results comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'reports/final/summary.json';
+            
+            if (fs.existsSync(path)) {
+              const summary = JSON.parse(fs.readFileSync(path, 'utf8'));
+              const comment = `
+              ## 🧪 Test Results Summary
+              
+              **Overall Status**: ${summary.overall_status}
+              
+              **Test Results**:
+              - ✅ Unit Tests: ${summary.unit_tests}
+              - ✅ Integration Tests: ${summary.integration_tests}
+              - 🔒 Security Tests: ${summary.security_tests}
+              - ⚡ Performance Tests: ${summary.performance_tests}
+              - 🔬 Edge Case Tests: ${summary.edge_case_tests}
+              
+              **Coverage**: ${summary.coverage}%
+              **Performance**: ${summary.performance_status}
+              **Security**: ${summary.security_status}
+              
+              For detailed results, check the workflow artifacts.
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+
+  deployment-validation:
+    needs: [test-orchestration]
+    if: github.ref == 'refs/heads/master' && success()
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate deployment readiness
+        run: |
+          tsx scripts/test/test-orchestrator.ts --mode deployment-validation
+
+      - name: Generate deployment report
+        run: |
+          mkdir -p reports/deployment
+          tsx scripts/test/test-orchestrator.ts --mode deployment-report --output reports/deployment/
+
+      - name: Upload deployment validation
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-validation-report
+          path: reports/deployment/
+          retention-days: 180
+
+  cleanup:
+    needs: [test-orchestration]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup artifacts
+        run: |
+          echo "Cleaning up temporary test artifacts..."
+          # This step can be used for cleanup operations if needed

@@ -29,9 +29,12 @@ async function main() {
 
   // Load existing deployment
   const deployment = await loadDeployment(networkName);
+  if (!deployment) {
+    throw new Error(`No deployment found for network ${networkName}. Please run deploy script first.`);
+  }
   
   // Add timelock to deployment
-  deployment.minimalTimelock = {
+  (deployment as any).minimalTimelock = {
     address: timelockAddress,
     implementationAddress: await upgrades.erc1967.getImplementationAddress(timelockAddress),
     blockNumber: (await ethers.provider.getBlockNumber()).toString(),
