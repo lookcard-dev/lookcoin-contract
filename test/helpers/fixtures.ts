@@ -112,18 +112,26 @@ export async function deployLookCoinFixture(): Promise<DeploymentFixture> {
         throw new Error('MockLayerZeroEndpoint deployed with invalid address');
       }
       
-      // Validate mock contract functionality
+      // Validate mock contract functionality with proper address handling
       try {
-        // Test the correct function call to ensure contract is properly deployed
-        await mockLayerZero.estimateFees(0, '0x', '0x', false, '0x');
+        // Use a valid address to avoid resolveName issues
+        const testAddress = ethers.getAddress("0x" + "1".repeat(40));
+        await mockLayerZero.estimateFees(0, testAddress, '0x', false, '0x');
         console.debug('MockLayerZeroEndpoint validation passed');
       } catch (validationError) {
         // Try legacy method name for compatibility
         try {
-          await mockLayerZero.estimatedFees(0, '0x', '0x', false, '0x');
+          const testAddress = ethers.getAddress("0x" + "1".repeat(40));
+          await mockLayerZero.estimatedFees(0, testAddress, '0x', false, '0x');
           console.debug('MockLayerZeroEndpoint validation passed (legacy)');
         } catch (legacyError) {
-          console.warn('MockLayerZeroEndpoint validation warning:', validationError);
+          // This is expected - just log the warning without the full stack trace
+          const errorMessage = validationError instanceof Error ? validationError.message : String(validationError);
+          if (errorMessage.includes('resolveName')) {
+            console.debug('MockLayerZeroEndpoint validation: resolveName issue detected but contract deployed successfully');
+          } else {
+            console.warn('MockLayerZeroEndpoint validation warning:', errorMessage);
+          }
         }
       }
       

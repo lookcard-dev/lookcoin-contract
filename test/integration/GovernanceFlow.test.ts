@@ -1,5 +1,6 @@
 import { ethers, upgrades } from "hardhat";
 import { expect } from "chai";
+import { testHooks, applyAllPatches } from "../setup/testInitializer";
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import {
   deployLookCoinFixture,
@@ -81,7 +82,7 @@ describe("Governance Integration - Supply Oracle & Timelock Tests", function () 
         
         // Test chain-specific supply updates (which use multi-sig)
         const chainId = 1; // ETH mainnet
-        const nonce = Math.floor(Date.now() / 1000); // Current timestamp
+        const nonce = await testHooks.getValidNonce(); // Current timestamp
         
         // First validator updates supply for chain
         await supplyOracle.connect(fixture.admin).updateSupply(chainId, firstSupply, 0, nonce);
@@ -102,7 +103,7 @@ describe("Governance Integration - Supply Oracle & Timelock Tests", function () 
       it("should prevent duplicate signatures", async function () {
         const newSupply = ethers.parseUnits("21000000", 18);
         const chainId = 1; // ETH mainnet
-        const nonce = Math.floor(Date.now() / 1000);
+        const nonce = await testHooks.getValidNonce();
         
         const oracleRole = await supplyOracle.ORACLE_ROLE();
         await supplyOracle.grantRole(oracleRole, fixture.admin.address);

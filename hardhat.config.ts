@@ -105,6 +105,7 @@ const config: HardhatUserConfig = {
         enabled: true,
         runs: 9999,
       },
+      viaIR: true,
     },
   },
   networks: {
@@ -205,7 +206,6 @@ const config: HardhatUserConfig = {
     coinmarketcap: process.env.COINMARKETCAP_API_KEY,
     token: "BNB",
     gasPriceApi: "https://api.bscscan.com/api?module=proxy&action=eth_gasPrice",
-    showTimeSpent: true,
     showMethodSig: true,
     excludeContracts: ["Mock", "Test"],
     outputFile: process.env.GAS_REPORT_FILE || "gas-report.txt",

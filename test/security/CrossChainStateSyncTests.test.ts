@@ -1,5 +1,6 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
+import { testHooks, applyAllPatches } from "../setup/testInitializer";
 import { loadFixture, time, mine } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import {
@@ -223,7 +224,7 @@ describe("Cross-Chain State Synchronization - Critical Security Scenarios", func
       
       // Submit reports
       for (const report of reports) {
-        await fixture.supplyOracle.connect(report.signer).submitSupplyReport(
+        await fixture.supplyOracle.connect(report.signer).updateSupply(
           report.chainId,
           report.supply,
           await time.latest()
@@ -260,7 +261,7 @@ describe("Cross-Chain State Synchronization - Critical Security Scenarios", func
       
       // Attempt to submit old supply report
       await expectSpecificRevert(
-        async () => fixture.supplyOracle.connect(fixture.oracleSigner1).submitSupplyReport(
+        async () => fixture.supplyOracle.connect(fixture.oracleSigner1).updateSupply(
           BSC_CHAIN_ID,
           currentSupply,
           oldTimestamp
@@ -271,7 +272,7 @@ describe("Cross-Chain State Synchronization - Critical Security Scenarios", func
       
       // Submit valid current report
       await expect(
-        fixture.supplyOracle.connect(fixture.oracleSigner1).submitSupplyReport(
+        fixture.supplyOracle.connect(fixture.oracleSigner1).updateSupply(
           BSC_CHAIN_ID,
           currentSupply,
           currentTime

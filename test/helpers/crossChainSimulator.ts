@@ -9,7 +9,39 @@ import {
   MockLayerZeroEndpoint,
   MockMessageBus,
   MockHyperlaneMailbox,
+  MockDVN,
 } from "../../typechain-types";
+
+/**
+ * Enhanced Address Resolution Helper
+ * Fixes Hardhat Ethers provider resolveName issues
+ */
+class AddressResolver {
+  private static addressCache = new Map<string, string>();
+  
+  static async resolveAddress(nameOrAddress: string): Promise<string> {
+    // If it's already a valid address, return it
+    if (ethers.isAddress(nameOrAddress)) {
+      return nameOrAddress;
+    }
+    
+    // Check cache first
+    if (this.addressCache.has(nameOrAddress)) {
+      return this.addressCache.get(nameOrAddress)!;
+    }
+    
+    // For testing, generate consistent addresses from names
+    const hash = ethers.keccak256(ethers.toUtf8Bytes(nameOrAddress));
+    const address = ethers.getAddress("0x" + hash.slice(26)); // Take last 20 bytes
+    
+    this.addressCache.set(nameOrAddress, address);
+    return address;
+  }
+  
+  static clearCache(): void {
+    this.addressCache.clear();
+  }
+}
 
 /**
  * Cross-chain simulation utilities for comprehensive Web3 integration testing
@@ -30,6 +62,10 @@ export interface CrossChainMessage {
   recipient: string;
   payload: string;
   amount?: bigint;
+  messageHash?: string;
+  nonce?: number;
+  dvnConfirmations?: Map<string, boolean>;
+  verified?: boolean;
 }
 
 export interface BridgeState {
@@ -37,15 +73,28 @@ export interface BridgeState {
   totalMinted: bigint;
   totalBurned: bigint;
   crossChainTransfers: Map<string, bigint>;
+  pendingVerifications: Map<string, CrossChainMessage>;
+  dvnStatus: Map<string, DVNStatus>;
+}
+
+export interface DVNStatus {
+  address: string;
+  identifier: string;
+  isActive: boolean;
+  verificationCount: number;
+  lastVerificationTime: number;
 }
 
 /**
  * Comprehensive cross-chain simulator for testing bridge operations
+ * Enhanced with DVN simulation and address resolution fixes
  */
 export class CrossChainSimulator {
   private chainStates: Map<number, BridgeState> = new Map();
   private messageQueue: CrossChainMessage[] = [];
   private networkCongestion: Map<number, number> = new Map();
+  private dvnInstances: Map<string, MockDVN> = new Map();
+  private verificationRequirements: Map<number, number> = new Map(); // chainId -> required confirmations
 
   constructor(
     private chains: ChainConfig[],
@@ -57,45 +106,55 @@ export class CrossChainSimulator {
     private mockCeler: MockMessageBus,
     private mockHyperlane: MockHyperlaneMailbox
   ) {
-    // Initialize chain states
+    // Initialize chain states with enhanced DVN tracking
     chains.forEach(chain => {
       this.chainStates.set(chain.chainId, {
         totalSupply: 0n,
         totalMinted: 0n,
         totalBurned: 0n,
         crossChainTransfers: new Map(),
+        pendingVerifications: new Map(),
+        dvnStatus: new Map(),
       });
       this.networkCongestion.set(chain.chainId, 0);
+      this.verificationRequirements.set(chain.chainId, 2); // Default 2 confirmations
     });
   }
 
   /**
-   * Initialize trusted remotes and cross-chain configurations
+   * Initialize trusted remotes and cross-chain configurations with DVN setup
    */
   async initializeCrossChainConnections(admin: SignerWithAddress): Promise<void> {
+    // Initialize DVN instances for LayerZero
+    await this.initializeDVNs(admin);
+    
     for (const sourceChain of this.chains) {
       for (const destChain of this.chains) {
         if (sourceChain.chainId === destChain.chainId) continue;
 
         try {
-          // Configure LayerZero trusted remotes
-          const trustedRemote = ethers.zeroPadValue(
-            ethers.getAddress("0x" + "1".repeat(40)),
-            32
-          );
+          // Configure LayerZero trusted remotes with proper address resolution
+          const trustedRemoteAddr = await AddressResolver.resolveAddress("0x" + "1".repeat(40));
+          const trustedRemote = ethers.zeroPadValue(trustedRemoteAddr, 32);
           await this.mockLayerZero.setTrustedRemote(destChain.eid, trustedRemote);
 
+          // Setup DVN configuration for LayerZero
+          const dvnAddresses = Array.from(this.dvnInstances.keys());
+          if (dvnAddresses.length > 0) {
+            await this.mockLayerZero.setMultipleDVNs(dvnAddresses);
+            await this.mockLayerZero.setRequiredConfirmations(this.verificationRequirements.get(destChain.chainId) || 2);
+          }
+
           // Configure Celer chain support
-          await this.mockCeler.authorizeSender(await this.celerIMModule.getAddress(), true);
+          const celerModuleAddr = await AddressResolver.resolveAddress(await this.celerIMModule.getAddress());
+          await this.mockCeler.authorizeSender(celerModuleAddr, true);
 
           // Configure Hyperlane authorized callers
-          await this.mockHyperlane.setAuthorizedCaller(
-            await this.hyperlaneModule.getAddress(),
-            true
-          );
+          const hyperlaneModuleAddr = await AddressResolver.resolveAddress(await this.hyperlaneModule.getAddress());
+          await this.mockHyperlane.setAuthorizedCaller(hyperlaneModuleAddr, true);
 
           console.debug(
-            `Configured cross-chain connection: ${sourceChain.name} -> ${destChain.name}`
+            `Configured cross-chain connection: ${sourceChain.name} -> ${destChain.name} with ${dvnAddresses.length} DVNs`
           );
         } catch (error) {
           console.warn(
@@ -106,9 +165,33 @@ export class CrossChainSimulator {
       }
     }
   }
+  
+  /**
+   * Initialize DVN instances for realistic verification simulation
+   */
+  private async initializeDVNs(admin: SignerWithAddress): Promise<void> {
+    const dvnIdentifiers = ["DVN-Primary", "DVN-Secondary", "DVN-Backup"];
+    
+    for (const identifier of dvnIdentifiers) {
+      try {
+        const MockDVNFactory = await ethers.getContractFactory("MockDVN");
+        const dvn = await MockDVNFactory.connect(admin).deploy(identifier) as unknown as MockDVN;
+        await dvn.waitForDeployment();
+        
+        const dvnAddress = await dvn.getAddress();
+        await dvn.setEndpoint(await this.mockLayerZero.getAddress());
+        
+        this.dvnInstances.set(dvnAddress, dvn);
+        
+        console.debug(`Initialized DVN ${identifier} at ${dvnAddress}`);
+      } catch (error) {
+        console.warn(`Failed to initialize DVN ${identifier}:`, error);
+      }
+    }
+  }
 
   /**
-   * Simulate LayerZero cross-chain transfer
+   * Simulate LayerZero cross-chain transfer with DVN verification
    */
   async simulateLayerZeroTransfer(
     sourceChainId: number,
@@ -125,64 +208,142 @@ export class CrossChainSimulator {
       throw new Error("Invalid chain configuration");
     }
 
-    // Step 1: Burn tokens on source chain
+    // Step 1: Create message with proper addressing
+    const resolvedSender = await AddressResolver.resolveAddress(sender);
+    const resolvedRecipient = await AddressResolver.resolveAddress(recipient);
+    
     const burnPayload = ethers.AbiCoder.defaultAbiCoder().encode(
       ["address", "uint256"],
-      [recipient, amount]
+      [resolvedRecipient, amount]
     );
 
-    // Step 2: Simulate LayerZero message transmission
+    // Step 2: Generate message hash for DVN verification
+    const messageHash = ethers.keccak256(ethers.solidityPacked(
+      ["uint16", "address", "address", "uint256", "bytes"],
+      [destChain.eid, resolvedSender, resolvedRecipient, amount, burnPayload]
+    ));
+
+    // Step 3: Create enhanced message with DVN tracking
     const message: CrossChainMessage = {
       protocol: "layerzero",
       sourceChain,
       destinationChain: destChain,
-      sender,
-      recipient,
+      sender: resolvedSender,
+      recipient: resolvedRecipient,
       payload: burnPayload,
       amount,
+      messageHash,
+      nonce: this.messageQueue.length + 1,
+      dvnConfirmations: new Map(),
+      verified: false,
     };
 
     this.messageQueue.push(message);
 
-    // Step 3: Process message on destination chain
-    await this.processLayerZeroMessage(message, signer);
+    // Step 4: Initiate DVN verification process
+    await this.processDVNVerification(message);
 
-    // Update chain states
-    this.updateChainState(sourceChainId, -amount, 0n, amount);
-    this.updateChainState(destinationChainId, amount, amount, 0n);
+    // Step 5: Process message on destination chain if verified
+    if (message.verified) {
+      await this.processLayerZeroMessage(message, signer);
+      
+      // Update chain states
+      this.updateChainState(sourceChainId, -amount, 0n, amount);
+      this.updateChainState(destinationChainId, amount, amount, 0n);
+    } else {
+      // Add to pending verifications
+      const destState = this.chainStates.get(destinationChainId);
+      if (destState) {
+        destState.pendingVerifications.set(message.messageHash!, message);
+      }
+    }
+  }
+  
+  /**
+   * Process DVN verification for a cross-chain message
+   */
+  private async processDVNVerification(message: CrossChainMessage): Promise<void> {
+    if (!message.messageHash) return;
+    
+    const requiredConfirmations = this.verificationRequirements.get(message.destinationChain.chainId) || 2;
+    let confirmationCount = 0;
+    
+    // Simulate DVN verification process
+    for (const [dvnAddress, dvn] of this.dvnInstances) {
+      try {
+        // Simulate verification with random delay
+        const verificationDelay = Math.random() * 100; // 0-100ms delay
+        await new Promise(resolve => setTimeout(resolve, verificationDelay));
+        
+        await dvn.verify(message.messageHash);
+        message.dvnConfirmations!.set(dvnAddress, true);
+        confirmationCount++;
+        
+        console.debug(`DVN ${dvnAddress} confirmed message ${message.messageHash}`);
+        
+        // Break if we have enough confirmations
+        if (confirmationCount >= requiredConfirmations) {
+          break;
+        }
+      } catch (error) {
+        console.warn(`DVN ${dvnAddress} failed to verify message:`, error);
+        message.dvnConfirmations!.set(dvnAddress, false);
+      }
+    }
+    
+    // Mark message as verified if enough confirmations
+    message.verified = confirmationCount >= requiredConfirmations;
+    
+    if (message.verified) {
+      console.debug(`Message ${message.messageHash} verified with ${confirmationCount} confirmations`);
+    } else {
+      console.warn(`Message ${message.messageHash} verification failed: ${confirmationCount}/${requiredConfirmations} confirmations`);
+    }
   }
 
   /**
-   * Process LayerZero message on destination chain
+   * Process LayerZero message on destination chain with enhanced validation
    */
   private async processLayerZeroMessage(
     message: CrossChainMessage,
     signer: SignerWithAddress
   ): Promise<void> {
     try {
+      // Validate message verification status
+      if (!message.verified) {
+        throw new Error("Message not verified by DVNs");
+      }
+      
       // Simulate network delay based on congestion
       const congestion = this.networkCongestion.get(message.destinationChain.chainId) || 0;
       if (congestion > 50) {
         await new Promise(resolve => setTimeout(resolve, congestion * 10));
       }
 
-      // Create proper trusted remote path
+      // Create proper trusted remote path with resolved addresses
+      const lookCoinAddr = await AddressResolver.resolveAddress(await this.lookCoin.getAddress());
       const trustedRemotePath = ethers.solidityPacked(
         ["address", "address"],
-        [message.sender, await this.lookCoin.getAddress()]
+        [message.sender, lookCoinAddr]
       );
 
-      // Simulate LayerZero message reception
+      // Simulate LayerZero message reception with proper nonce
       await this.mockLayerZero.simulateReceive(
-        await this.lookCoin.getAddress(),
+        lookCoinAddr,
         message.sourceChain.eid,
         message.sender,
-        1, // nonce
+        message.nonce || 1,
         message.payload
       );
+      
+      // Remove from pending verifications if successful
+      const destState = this.chainStates.get(message.destinationChain.chainId);
+      if (destState && message.messageHash) {
+        destState.pendingVerifications.delete(message.messageHash);
+      }
 
       console.debug(
-        `LayerZero message processed: ${message.sourceChain.name} -> ${message.destinationChain.name}`
+        `LayerZero message processed: ${message.sourceChain.name} -> ${message.destinationChain.name} (Hash: ${message.messageHash})`
       );
     } catch (error) {
       console.error("Failed to process LayerZero message:", error);
@@ -391,15 +552,117 @@ export class CrossChainSimulator {
   }
 
   /**
-   * Simulate network congestion
+   * Simulate network congestion with enhanced effects
    */
   setNetworkCongestion(chainId: number, level: number): void {
     this.networkCongestion.set(chainId, level);
     
     // Update mock contract states
     if (level > 30) {
-      this.mockLayerZero.setNetworkCongestion(level);
+      this.mockLayerZero.setNetworkCongestionMode(true);
+      this.mockLayerZero.setNetworkLatency(Math.min(level, 100));
       this.mockCeler.setCongestionLevel(level);
+      
+      // Set higher gas prices for congested networks
+      this.mockLayerZero.setChainGasPrice(chainId, 1e9 * (1 + level / 100));
+    } else {
+      this.mockLayerZero.setNetworkCongestionMode(false);
+      this.mockLayerZero.setNetworkLatency(0);
+    }
+  }
+  
+  /**
+   * Configure DVN requirements for a chain
+   */
+  setDVNRequirements(chainId: number, requiredConfirmations: number): void {
+    this.verificationRequirements.set(chainId, requiredConfirmations);
+    this.mockLayerZero.setRequiredConfirmations(requiredConfirmations);
+  }
+  
+  /**
+   * Simulate DVN failure scenarios
+   */
+  async simulateDVNFailure(dvnAddress: string, failureType: "signature" | "coordination" | "delay"): Promise<void> {
+    const dvn = this.dvnInstances.get(dvnAddress);
+    if (!dvn) {
+      throw new Error(`DVN ${dvnAddress} not found`);
+    }
+    
+    switch (failureType) {
+      case "signature":
+        await dvn.setInvalidSignatureMode(true);
+        break;
+      case "coordination":
+        await dvn.setConflictingBehavior(true);
+        break;
+      case "delay":
+        await dvn.setDelayedVerification(true, 1000); // 1 second delay
+        break;
+    }
+  }
+  
+  /**
+   * Reset DVN failure modes
+   */
+  async resetDVNFailures(): Promise<void> {
+    for (const [_, dvn] of this.dvnInstances) {
+      await dvn.setInvalidSignatureMode(false);
+      await dvn.setConflictingBehavior(false);
+      await dvn.setDelayedVerification(false, 0);
+    }
+  }
+  
+  /**
+   * Get DVN statistics
+   */
+  async getDVNStatistics(): Promise<Map<string, DVNStatus>> {
+    const stats = new Map<string, DVNStatus>();
+    
+    for (const [address, dvn] of this.dvnInstances) {
+      const verificationCount = await dvn.verificationCount();
+      const identifier = await dvn.dvnIdentifier();
+      
+      stats.set(address, {
+        address,
+        identifier,
+        isActive: true,
+        verificationCount: Number(verificationCount),
+        lastVerificationTime: Date.now(),
+      });
+    }
+    
+    return stats;
+  }
+  
+  /**
+   * Get pending verification status
+   */
+  getPendingVerifications(chainId: number): Map<string, CrossChainMessage> {
+    const chainState = this.chainStates.get(chainId);
+    return chainState?.pendingVerifications || new Map();
+  }
+  
+  /**
+   * Force complete pending verification (for testing)
+   */
+  async forceCompleteVerification(messageHash: string): Promise<void> {
+    for (const [_, chainState] of this.chainStates) {
+      const message = chainState.pendingVerifications.get(messageHash);
+      if (message) {
+        message.verified = true;
+        
+        // Process the message
+        const [signer] = await ethers.getSigners();
+        await this.processLayerZeroMessage(message, signer);
+        
+        // Update chain states
+        if (message.amount) {
+          this.updateChainState(message.sourceChain.chainId, -message.amount, 0n, message.amount);
+          this.updateChainState(message.destinationChain.chainId, message.amount, message.amount, 0n);
+        }
+        
+        break;
+      }
     }
   }
 
@@ -418,10 +681,29 @@ export class CrossChainSimulator {
   }
 
   /**
-   * Clear message queue
+   * Clear message queue and reset state
    */
   clearMessageQueue(): void {
     this.messageQueue.length = 0;
+    AddressResolver.clearCache();
+    
+    // Clear pending verifications
+    for (const [_, chainState] of this.chainStates) {
+      chainState.pendingVerifications.clear();
+    }
+  }
+  
+  /**
+   * Export detailed simulation state for debugging
+   */
+  exportSimulationState(): any {
+    return {
+      chainStates: Object.fromEntries(this.chainStates),
+      messageQueue: this.messageQueue,
+      networkCongestion: Object.fromEntries(this.networkCongestion),
+      verificationRequirements: Object.fromEntries(this.verificationRequirements),
+      dvnInstances: Array.from(this.dvnInstances.keys()),
+    };
   }
 }
 

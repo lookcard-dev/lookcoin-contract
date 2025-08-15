@@ -1,5 +1,6 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
+import { testHooks, applyAllPatches } from "../setup/testInitializer";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import {
   deployLookCoinFixture,

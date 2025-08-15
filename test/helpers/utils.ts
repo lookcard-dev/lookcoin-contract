@@ -908,16 +908,18 @@ export async function resetSupplyOracleState(fixture: DeploymentFixture): Promis
         }
         
         // Reset supply to 0 with proper nonce management
-        // Use incremented nonce to ensure fresh state
-        const resetNonce = Math.max(0, currentNonce);
+        // Generate a valid nonce within the time window
+        const block = await ethers.provider.getBlock('latest');
+        const currentTimestamp = block?.timestamp || Math.floor(Date.now() / 1000);
+        const resetNonce = currentTimestamp - 1800; // 30 minutes ago, well within validity window
         
         console.debug(`Resetting supply oracle for chain ${chainId} with nonce ${resetNonce}`);
         
         const tx = await fixture.supplyOracle.connect(fixture.oracleSigner1).updateSupply(
           chainId,
           0, // Reset supply to 0
-          resetNonce,
-          1 // Single signature for reset
+          0, // Reset locked supply to 0
+          resetNonce
         );
         
         // Wait for transaction to be mined

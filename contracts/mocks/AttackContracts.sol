@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/ILookCoin.sol";
 import "../interfaces/ICrossChainRouter.sol";
+import "./MockFlashLoanProvider.sol";
 
 /**
  * @title AttackContracts
@@ -534,19 +535,26 @@ contract FeeManipulator {
 
 /**
  * @title LiquidityDrainer
- * @dev Contract for simulating liquidity drainage attacks
+ * @dev Contract for simulating liquidity drainage attacks with flash loan support
  * @notice Tests the protocol's resistance to large-scale fund extraction
  */
-contract LiquidityDrainer {
+contract LiquidityDrainer is IFlashLoanReceiver {
     using SafeERC20 for IERC20;
 
     ILookCoin public immutable lookCoin;
     ICrossChainRouter public immutable router;
+    MockFlashLoanProvider public flashLoanProvider;
     
     // Drainage tracking
     uint256 public totalDrained;
     uint256 public drainageAttempts;
     mapping(uint16 => uint256) public chainDrainage;
+    
+    // Flash loan state
+    bool private inFlashLoan;
+    uint256 private flashLoanAmount;
+    uint256 private flashLoanFee;
+    uint16 private targetChainForFlashLoan;
     
     // Attack parameters
     uint256 public constant MAX_SINGLE_DRAIN = 1000000 * 10**18; // 1M LOOK
@@ -560,6 +568,41 @@ contract LiquidityDrainer {
     constructor(address _lookCoin, address _router) {
         lookCoin = ILookCoin(_lookCoin);
         router = ICrossChainRouter(_router);
+    }
+    
+    /**
+     * @dev Set flash loan provider for enhanced attacks
+     */
+    function setFlashLoanProvider(address _provider) external {
+        require(_provider != address(0), "Invalid provider");
+        flashLoanProvider = MockFlashLoanProvider(_provider);
+    }
+
+    /**
+     * @dev Flash loan callback from Aave-style provider
+     */
+    function executeOperation(
+        address asset,
+        uint256 amount,
+        uint256 premium,
+        address initiator,
+        bytes calldata params
+    ) external override returns (bool) {
+        require(msg.sender == address(flashLoanProvider), "Invalid caller");
+        require(initiator == address(this), "Invalid initiator");
+        require(inFlashLoan, "Not in flash loan");
+        
+        // Decode target chain from params
+        uint16 targetChain = abi.decode(params, (uint16));
+        
+        // Execute drainage with borrowed funds
+        _executeFlashLoanDrainageCallback(targetChain, amount);
+        
+        // Approve repayment
+        uint256 repaymentAmount = amount + premium;
+        IERC20(asset).approve(address(flashLoanProvider), repaymentAmount);
+        
+        return true;
     }
 
     /**
@@ -622,26 +665,67 @@ contract LiquidityDrainer {
      * @dev Execute drainage using flash loan
      */
     function _executeFlashLoanDrainage(uint16 targetChain, uint256 amount) internal {
-        // Simulate flash loan operation:
-        // 1. Borrow large amount of tokens
-        // 2. Execute multiple bridge operations to drain target chain
-        // 3. Collect arbitrage profits
-        // 4. Repay flash loan with interest
-        // 5. Keep remaining profit
+        require(address(flashLoanProvider) != address(0), "Flash loan provider not set");
         
-        uint256 flashLoanAmount = amount * 10; // Leverage 10x
+        // Calculate flash loan amount (leverage for larger attack)
+        uint256 flashLoanAmount = amount * 10; // 10x leverage
         
-        // Simulate borrowing tokens (in real scenario, from flash loan provider)
-        // For testing, we assume sufficient balance is available
+        // Ensure we have enough balance to pay flash loan fee
+        uint256 expectedFee = flashLoanProvider.calculateFee(
+            address(lookCoin),
+            flashLoanAmount
+        );
+        require(
+            lookCoin.balanceOf(address(this)) >= expectedFee,
+            "Insufficient balance for flash loan fee"
+        );
         
-        // Execute multiple small transactions to avoid rate limits
+        // Set flash loan state
+        inFlashLoan = true;
+        flashLoanAmount = amount;
+        targetChainForFlashLoan = targetChain;
+        
+        // Prepare flash loan parameters
+        address[] memory assets = new address[](1);
+        uint256[] memory amounts = new uint256[](1);
+        assets[0] = address(lookCoin);
+        amounts[0] = flashLoanAmount;
+        
+        // Encode target chain in params
+        bytes memory params = abi.encode(targetChain);
+        
+        // Execute flash loan
+        flashLoanProvider.flashLoan(
+            address(this),
+            assets,
+            amounts,
+            params
+        );
+        
+        // Reset state
+        inFlashLoan = false;
+    }
+    
+    /**
+     * @dev Execute drainage during flash loan callback
+     */
+    function _executeFlashLoanDrainageCallback(uint16 targetChain, uint256 amount) internal {
+        // Execute multiple bridge operations to drain liquidity
         uint256 batchSize = amount / 10;
         for (uint256 i = 0; i < 10; i++) {
-            _bridgeTokensToChain(targetChain, batchSize);
+            // Simulate different attack patterns
+            if (i % 2 == 0) {
+                // Direct bridge
+                _bridgeTokensToChain(targetChain, batchSize);
+            } else {
+                // Attempt to exploit fee calculations
+                _bridgeTokensToChain(targetChain, batchSize + (i * 1000));
+            }
         }
         
-        // Simulate flash loan repayment
-        // In real scenario, this would involve complex arbitrage calculations
+        // Track drainage
+        totalDrained += amount;
+        chainDrainage[targetChain] += amount;
     }
 
     /**

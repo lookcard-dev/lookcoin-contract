@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { testHooks, applyAllPatches } from "../setup/testInitializer";
 import "@nomicfoundation/hardhat-chai-matchers";
 import { ethers, upgrades } from "hardhat";
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
@@ -253,7 +254,7 @@ describe("SupplyOracle - Comprehensive Cross-Chain Supply Monitoring and Reconci
         const chainId = supportedChains[0];
         const totalSupply = ethers.parseEther("500000000");
         const lockedSupply = ethers.parseEther("100000000");
-        const nonce = Date.now(); // Use timestamp as nonce
+        const nonce = await testHooks.getValidNonce(); // Use timestamp as nonce
         
         // Set required signatures to 2 for testing
         await supplyOracle.connect(admin).updateRequiredSignatures(2);
@@ -287,7 +288,7 @@ describe("SupplyOracle - Comprehensive Cross-Chain Supply Monitoring and Reconci
         const chainId = supportedChains[0];
         const totalSupply = ethers.parseEther("500000000");
         const lockedSupply = ethers.parseEther("100000000");
-        const nonce = Date.now() + 1; // Different nonce
+        const nonce = await testHooks.getValidNonce() + 1; // Different nonce
         
         // First signature
         await supplyOracle.connect(oracleOperator1).updateSupply(
@@ -311,7 +312,7 @@ describe("SupplyOracle - Comprehensive Cross-Chain Supply Monitoring and Reconci
       it("should enforce oracle role for supply updates", async function () {
         const supportedChains = await supplyOracle.getSupportedChains();
         const chainId = supportedChains[0];
-        const nonce = Date.now() + 2;
+        const nonce = await testHooks.getValidNonce() + 2;
         
         await expect(
           supplyOracle.connect(user1).updateSupply(chainId, ethers.parseEther("100000000"), 0, nonce)
@@ -321,7 +322,7 @@ describe("SupplyOracle - Comprehensive Cross-Chain Supply Monitoring and Reconci
       it("should validate nonce usage", async function () {
         const supportedChains = await supplyOracle.getSupportedChains();
         const chainId = supportedChains[0];
-        const nonce = Date.now() + 3;
+        const nonce = await testHooks.getValidNonce() + 3;
         
         // Use nonce once
         await supplyOracle.connect(oracleOperator1).updateSupply(
@@ -368,7 +369,7 @@ describe("SupplyOracle - Comprehensive Cross-Chain Supply Monitoring and Reconci
           });
         }
         
-        const nonce = Date.now() + 10;
+        const nonce = await testHooks.getValidNonce() + 10;
         
         // Set required signatures to 2
         await supplyOracle.connect(admin).updateRequiredSignatures(2);
@@ -429,7 +430,7 @@ describe("SupplyOracle - Comprehensive Cross-Chain Supply Monitoring and Reconci
           lockedSupply: 0
         }];
         
-        const nonce = Date.now() + 20;
+        const nonce = await testHooks.getValidNonce() + 20;
         
         // Set required signatures to 1 for simpler testing
         await supplyOracle.connect(admin).updateRequiredSignatures(1);
@@ -450,7 +451,7 @@ describe("SupplyOracle - Comprehensive Cross-Chain Supply Monitoring and Reconci
           lockedSupply: 0
         }];
         
-        const nonce = Date.now() + 21;
+        const nonce = await testHooks.getValidNonce() + 21;
         
         // Should not trigger mismatch
         await expect(
@@ -579,7 +580,7 @@ describe("SupplyOracle - Comprehensive Cross-Chain Supply Monitoring and Reconci
         await supplyOracle.connect(admin).pause();
         
         const supportedChains = await supplyOracle.getSupportedChains();
-        const nonce = Date.now() + 30;
+        const nonce = await testHooks.getValidNonce() + 30;
         
         await expect(
           supplyOracle.connect(oracleOperator1).updateSupply(supportedChains[0], ethers.parseEther("1000000"), 0, nonce)
@@ -595,7 +596,7 @@ describe("SupplyOracle - Comprehensive Cross-Chain Supply Monitoring and Reconci
           totalSupply: ethers.parseEther("1000000"),
           lockedSupply: 0
         }];
-        const nonce = Date.now() + 31;
+        const nonce = await testHooks.getValidNonce() + 31;
         
         await expect(
           supplyOracle.connect(oracleOperator1).batchUpdateSupply(updates, nonce)
@@ -684,7 +685,7 @@ describe("SupplyOracle - Comprehensive Cross-Chain Supply Monitoring and Reconci
 
       it("should enforce ORACLE_ROLE for supply updates", async function () {
         const supportedChains = await supplyOracle.getSupportedChains();
-        const nonce = Date.now() + 40;
+        const nonce = await testHooks.getValidNonce() + 40;
         
         await expect(
           supplyOracle.connect(unauthorizedUser).updateSupply(supportedChains[0], ethers.parseEther("100000000"), 0, nonce)

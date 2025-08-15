@@ -5,30 +5,31 @@ import "../LookCoin.sol";
 
 /**
  * @title SimpleUpgradeTarget
- * @dev Minimal upgrade target for testing basic upgrade functionality
+ * @dev Minimal upgrade target for testing UUPS upgrade functionality
  * 
- * This contract provides the absolute minimum required for upgrade testing
- * while staying well under the 24KB contract size limit.
+ * This contract provides the minimum required upgrade testing features
+ * while staying under the 24KB contract size limit.
  */
 contract SimpleUpgradeTarget is LookCoin {
     // Version information
     string public constant VERSION = "2.0.0";
     
-    // Simple upgrade flag
+    // Minimal upgrade state
     bool public isUpgraded;
+    bool public newFeatureEnabled;
     
-    // Storage gap (slightly reduced)
-    uint256[47] private __gapV2;
+    // Storage gap to accommodate new variables
+    uint256[46] private __gapV2;
     
-    event UpgradeCompleted(string version, address indexed upgrader);
+    event UpgradeCompleted(string version);
     
     /**
      * @dev Initialize V2 features
      */
     function initializeV2() external onlyRole(UPGRADER_ROLE) {
-        require(!isUpgraded, "SimpleUpgradeTarget: already initialized");
+        require(!isUpgraded, "Already initialized");
         isUpgraded = true;
-        emit UpgradeCompleted(VERSION, msg.sender);
+        emit UpgradeCompleted(VERSION);
     }
     
     /**
@@ -39,11 +40,9 @@ contract SimpleUpgradeTarget is LookCoin {
     }
     
     /**
-     * @dev Test function for upgrade scenarios
+     * @dev Enable or disable new V2 features
      */
-    function testUpgradeFailure(bool shouldFail) external pure {
-        if (shouldFail) {
-            revert("SimpleUpgradeTarget: intentional failure");
-        }
+    function setNewFeatureEnabled(bool enabled) external onlyRole(PROTOCOL_ADMIN_ROLE) {
+        newFeatureEnabled = enabled;
     }
 }
